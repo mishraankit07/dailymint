@@ -5,11 +5,36 @@ import kotlin.test.*
 class MemoryStore : LedgerStore {
     var value: String? = null
     var fail = false
-    override fun load() = value
+    override fun load() = LedgerRead(value)
     override fun save(snapshot: String) { if (fail) error("disk full"); value = snapshot }
 }
 
 class LedgerEngineTest {
+    @Test fun missingStorageAllowsFirstSave() {
+        val store = MemoryStore()
+        val engine = LedgerEngine(store)
+        assertNull(engine.loadError)
+        assertTrue(engine.addCategory("Travel").success)
+        assertNotNull(store.value)
+    }
+    @Test fun readFailureBlocksWritesRatherThanReplacingLedger() {
+        var writes = 0
+        val store = object : LedgerStore {
+            override fun load(): LedgerRead = error("read denied")
+            override fun save(snapshot: String) { writes++ }
+        }
+        val engine = LedgerEngine(store)
+        assertNotNull(engine.loadError)
+        assertFalse(engine.addCategory("Travel").success)
+        assertEquals(0, writes)
+    }
+    @Test fun emptyExistingFileIsCorruptNotMissing() {
+        val store = MemoryStore().apply { value = "" }
+        val engine = LedgerEngine(store)
+        assertNotNull(engine.loadError)
+        assertFalse(engine.addCategory("Travel").success)
+        assertEquals("", store.value)
+    }
     @Test fun exactAmounts() {
         assertEquals(6288L, Money.parse("62.88"))
         assertEquals(123400L, Money.parse("1,234.00"))

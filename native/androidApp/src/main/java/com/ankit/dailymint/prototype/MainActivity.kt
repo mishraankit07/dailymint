@@ -29,7 +29,7 @@ import java.util.UUID
 
 class PreferenceStore(context: Context) : LedgerStore {
     private val preferences = context.getSharedPreferences("native-ledger-v1", Context.MODE_PRIVATE)
-    override fun load(): String? = preferences.getString("snapshot", null)
+    override fun load() = com.ankit.dailymint.core.LedgerRead(preferences.getString("snapshot", null))
     override fun save(snapshot: String) {
         check(preferences.edit().putString("snapshot", snapshot).commit()) { "Save failed" }
     }

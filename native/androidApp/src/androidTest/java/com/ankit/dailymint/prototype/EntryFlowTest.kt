@@ -16,7 +16,7 @@ class EntryFlowTest {
     @get:Rule val compose = createComposeRule()
     private class Store : LedgerStore {
         var json: String? = null
-        override fun load() = json
+        override fun load() = LedgerRead(json)
         override fun save(snapshot: String) { json = snapshot }
     }
     private val store = Store()

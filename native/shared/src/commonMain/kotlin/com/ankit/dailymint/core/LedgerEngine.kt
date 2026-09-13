@@ -5,8 +5,12 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.datetime.Clock
 
+// A non-null result lets Swift implement the throwing Objective-C protocol method.
+// A null snapshot means no saved file; read failures must still throw.
+data class LedgerRead(val snapshot: String?)
+
 interface LedgerStore {
-    @Throws(Exception::class) fun load(): String?
+    @Throws(Exception::class) fun load(): LedgerRead
     @Throws(Exception::class) fun save(snapshot: String)
 }
 
@@ -68,7 +72,7 @@ class LedgerEngine(private val store: LedgerStore) {
         private set
     init {
         try {
-            store.load()?.let {
+            store.load().snapshot?.let {
                 val loaded = Json.decodeFromString<Snapshot>(it)
                 require(loaded.schemaVersion == 1)
                 require(loaded.categories.contains("Miscellaneous"))

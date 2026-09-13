@@ -8,9 +8,9 @@ final class FileStore: NSObject, LedgerStore {
         url = directory.appendingPathComponent(testing ? "ui-test-ledger.json" : "ledger-v1.json")
         super.init()
     }
-    func load() throws -> String? {
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return try String(contentsOf: url, encoding: .utf8)
+    func load() throws -> LedgerRead {
+        guard FileManager.default.fileExists(atPath: url.path) else { return LedgerRead(snapshot: nil) }
+        return LedgerRead(snapshot: try String(contentsOf: url, encoding: .utf8))
     }
     func save(snapshot: String) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
