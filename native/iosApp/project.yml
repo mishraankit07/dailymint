@@ -1,0 +1,43 @@
+name: DailyMintNative
+options:
+  bundleIdPrefix: com.ankit.dailymint
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    GENERATE_INFOPLIST_FILE: YES
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+targets:
+  DailyMintNative:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ankit.dailymint.prototype
+        INFOPLIST_KEY_CFBundleDisplayName: DailyMint Prototype
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        FRAMEWORK_SEARCH_PATHS: "$(inherited) $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LDFLAGS: "$(inherited) -framework DailyMintCore"
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    preBuildScripts:
+      - name: Build shared Kotlin framework
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+        basedOnDependencyAnalysis: false
+  DailyMintNativeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: DailyMintNative
+schemes:
+  DailyMintNative:
+    build:
+      targets:
+        DailyMintNative: all
+    test:
+      targets: [DailyMintNativeUITests]
