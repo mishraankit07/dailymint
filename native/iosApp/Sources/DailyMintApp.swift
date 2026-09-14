@@ -56,14 +56,16 @@ final class LedgerModel: ObservableObject {
 @main
 struct DailyMintApp: App {
     @StateObject private var model = LedgerModel()
+    @State private var selectedTab = AppTab.month
+    private enum AppTab: Hashable { case month, growth, imports, manual, plan }
     var body: some Scene {
         WindowGroup {
-            TabView {
-                MonthView(model: model).tabItem { Label("Month", systemImage: "calendar") }
-                GrowthView(model: model).tabItem { Label("Growth", systemImage: "chart.xyaxis.line") }
-                ImportView(model: model).tabItem { Label("Import", systemImage: "tray.and.arrow.down") }
-                ManualView(model: model).tabItem { Label("Manual", systemImage: "plus.circle") }
-                NavigationStack { Text("Coming soon").navigationTitle("Plan").withSettings(model: model) }.tabItem { Label("Plan", systemImage: "target") }
+            TabView(selection: $selectedTab) {
+                MonthView(model: model).tabItem { Label("Month", systemImage: "calendar") }.tag(AppTab.month)
+                GrowthView(model: model).tabItem { Label("Growth", systemImage: "chart.xyaxis.line") }.tag(AppTab.growth)
+                ImportView(model: model).tabItem { Label("Import", systemImage: "tray.and.arrow.down") }.tag(AppTab.imports)
+                ManualView(model: model).tabItem { Label("Manual", systemImage: "plus.circle") }.tag(AppTab.manual)
+                NavigationStack { Text("Coming soon").navigationTitle("Plan").withSettings(model: model) }.tabItem { Label("Plan", systemImage: "target") }.tag(AppTab.plan)
             }.tint(.green)
         }
     }
@@ -78,6 +80,8 @@ struct ManualView: View {
     @State private var date = Date()
     @State private var error: String?
     @State private var saved = false
+    @FocusState private var focusedField: Field?
+    private enum Field: Hashable { case name, amount }
     var body: some View {
         NavigationStack {
             Form {
@@ -88,18 +92,22 @@ struct ManualView: View {
                 }.pickerStyle(.segmented)
                     .onChange(of: income) { value in category = value ? "Received" : "Miscellaneous" }
                 TextField("Name", text: $name).accessibilityIdentifier("entryName")
+                    .focused($focusedField, equals: .name)
                     .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
                 TextField("Amount", text: $amount).keyboardType(.decimalPad).accessibilityIdentifier("entryAmount")
+                    .focused($focusedField, equals: .amount)
                 Picker("Category", selection: $category) {
                     ForEach(income ? ["Salary", "Received"] : model.engine.categories(), id: \.self) { Text($0).tag($0) }
                 }.accessibilityIdentifier("entryCategory")
                 DatePicker("Date", selection: $date, displayedComponents: .date)
                 if let error { Text(error).foregroundStyle(.red).accessibilityIdentifier("entryError") }
                 Button("Save") {
+                    focusedField = nil
                     error = model.addEntry(name: name, amount: amount, category: category, date: date, income: income)
                     if error == nil { name = ""; amount = ""; category = income ? "Received" : "Miscellaneous"; saved = true }
                 }.accessibilityIdentifier("saveEntry").disabled(model.engine.loadError != nil)
             }.navigationTitle("DailyMint").withSettings(model: model)
+                .onDisappear { focusedField = nil }
                 .alert("Transaction saved", isPresented: $saved) { Button("OK", role: .cancel) {} }
         }
     }

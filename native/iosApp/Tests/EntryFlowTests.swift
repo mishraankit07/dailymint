@@ -51,7 +51,19 @@ final class EntryFlowTests: XCTestCase {
         save.tap()
         XCTAssertTrue(app.alerts["Transaction saved"].waitForExistence(timeout: 5))
         app.alerts.buttons["OK"].tap()
-        app.tabBars.buttons["Month"].tap()
-        XCTAssertEqual(app.staticTexts["spent"].label, "Spent: Rs 62.88")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        let month = app.tabBars.buttons["Month"]
+        month.tap()
+        let selected = NSPredicate(format: "selected == true")
+        expectation(for: selected, evaluatedWith: month)
+        waitForExpectations(timeout: 5)
+        let spent = app.staticTexts["spent"]
+        XCTAssertTrue(spent.waitForExistence(timeout: 5))
+        XCTAssertEqual(spent.label, "Spent: Rs 62.88")
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        XCTAssertTrue(spent.waitForExistence(timeout: 5))
+        XCTAssertEqual(spent.label, "Spent: Rs 62.88")
     }
 }
