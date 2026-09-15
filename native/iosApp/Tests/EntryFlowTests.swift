@@ -54,7 +54,7 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["settings"].tap()
         let toggle = app.switches["reminderToggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        toggle.tap()
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         let status = app.staticTexts["reminderStatus"]
         expectation(for: NSPredicate(format: "label == 'Reminder on'"), evaluatedWith: status)
         waitForExpectations(timeout: 5)
