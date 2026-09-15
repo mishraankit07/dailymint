@@ -59,4 +59,15 @@ class ImportPersistenceTest {
         assertEquals(0, engine.reviewRows().size)
         assertEquals(0, engine.unrecognizedMessages().size)
     }
+    @Test fun automaticImportKeepsUnrecognizedTransactionMessagesForDiagnostics() {
+        val engine = LedgerEngine(MemoryStore())
+        val unknown = "Rs.10.00 debited."
+        val promo = "Get 25 Reward points on every Rs.100 spent with SBI Credit Card."
+        assertTrue(engine.importSingleMessage("unknown-1", unknown, "BANK", 1789299000000).success)
+        assertTrue(engine.importSingleMessage("promo-1", promo, "SBI", 1789299001000).success)
+        assertTrue(engine.entries().isEmpty())
+        assertEquals(1, engine.unrecognizedMessages().size)
+        assertEquals("unknown-1", engine.unrecognizedMessages().first().id)
+        assertEquals(unknown, engine.unrecognizedMessages().first().rawText)
+    }
 }

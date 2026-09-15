@@ -28,6 +28,7 @@ Goal: migrate the current Expo app functionality into a Kotlin Multiplatform cor
 - [x] Edit/delete recent eligible ledger entries
 - [x] Raw SMS debug details
 - [x] Daily reminder scheduling from shared settings
+- [x] Unrecognized SMS diagnostics history
 - [ ] Polished DailyMint UI
 
 ## Native iOS
@@ -45,5 +46,4 @@ Goal: migrate the current Expo app functionality into a Kotlin Multiplatform cor
 
 - [ ] Verify iOS App Intent automated import on device/TestFlight Shortcut automation
 - [ ] Developer feedback flow for unrecognized SMS samples
-- [ ] Android SMS diagnostics history parity
 - [ ] Visual redesign across Android and iOS after functionality parity is stable

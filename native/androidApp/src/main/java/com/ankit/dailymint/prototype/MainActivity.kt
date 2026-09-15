@@ -105,6 +105,7 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
     var saved by remember { mutableStateOf(false) }
     var edited by remember { mutableStateOf<Entry?>(null) }
     var debug by remember { mutableStateOf<Entry?>(null) }
+    var unrecognizedDebug by remember { mutableStateOf<ReviewRow?>(null) }
     var deletingCategory by remember { mutableStateOf<String?>(null) }
     var monthMenu by remember { mutableStateOf(false) }
     var settingsError by remember { mutableStateOf("") }
@@ -214,6 +215,17 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                             Text(categoryName)
                             if (categoryName != "Miscellaneous") IconButton(onClick = { deletingCategory = categoryName }) { Icon(Icons.Default.Close, contentDescription = "Delete " + categoryName) }
                         } }
+                        val unrecognized = engine.unrecognizedMessages()
+                        if (unrecognized.isNotEmpty()) {
+                            HorizontalDivider()
+                            Text("Unrecognized messages", style = MaterialTheme.typography.titleLarge)
+                            Text(unrecognized.size.toString() + " recent messages need parser support.")
+                            unrecognized.takeLast(10).forEachIndexed { index, row ->
+                                OutlinedButton(onClick = { unrecognizedDebug = row }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("View message " + (index + 1) + if (row.reason.isNotEmpty()) " · " + row.reason else "")
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -223,6 +235,9 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
     debug?.let { entry -> AlertDialog(onDismissRequest = { debug = null }, title = { Text("Message details") },
         text = { Text("From: " + entry.sender + "\nDate: " + entry.date + "\n\n" + entry.rawSms) },
         confirmButton = { TextButton(onClick = { debug = null }) { Text("Close") } }) }
+    unrecognizedDebug?.let { row -> AlertDialog(onDismissRequest = { unrecognizedDebug = null }, title = { Text("Unrecognized message") },
+        text = { Text((if (row.reason.isNotEmpty()) "Reason: " + row.reason + "\n\n" else "") + row.rawText) },
+        confirmButton = { TextButton(onClick = { unrecognizedDebug = null }) { Text("Close") } }) }
     deletingCategory?.let { categoryName -> AlertDialog(onDismissRequest = { deletingCategory = null },
         title = { Text("Delete " + categoryName + "?") }, text = { Text("Transactions in this category will move to Miscellaneous.") },
         confirmButton = { TextButton(onClick = {

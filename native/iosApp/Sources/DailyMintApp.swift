@@ -156,6 +156,7 @@ struct SettingsView: View {
     @State private var error: String?
     @State private var reminderEnabled = false
     @State private var reminderTime = "21:30"
+    @State private var unrecognizedText: String?
     private let reminderTimes = ["20:00", "20:30", "21:00", "21:30", "22:00"]
     var body: some View {
         NavigationStack {
@@ -197,6 +198,17 @@ struct SettingsView: View {
                         HStack { Text(category); Spacer(); if category != "Miscellaneous" { Button { deletion = category } label: { Image(systemName: "xmark").foregroundStyle(.red) }.accessibilityLabel("Delete " + category) } }
                     }
                 }
+                let unrecognized = model.engine.unrecognizedMessages()
+                if !unrecognized.isEmpty {
+                    Section("Unrecognized messages") {
+                        Text(String(unrecognized.count) + " recent messages need parser support.")
+                        ForEach(Array(unrecognized.suffix(10).enumerated()), id: \.element.id) { index, row in
+                            Button("View message " + String(index + 1) + (row.reason.isEmpty ? "" : " · " + row.reason)) {
+                                unrecognizedText = row.rawText
+                            }
+                        }
+                    }
+                }
             }.navigationTitle("Settings")
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -211,6 +223,11 @@ struct SettingsView: View {
                 .onAppear {
                     reminderEnabled = model.engine.reminderEnabled()
                     reminderTime = model.engine.reminderTime()
+                }
+                .alert("Unrecognized message", isPresented: Binding(get: { unrecognizedText != nil }, set: { if !$0 { unrecognizedText = nil } })) {
+                    Button("Close") { unrecognizedText = nil }
+                } message: {
+                    Text(unrecognizedText ?? "")
                 }
         }
     }
