@@ -167,6 +167,10 @@ struct SettingsView: View {
                         error = model.apply(result)
                         if error == nil { ReminderScheduler.apply(engine: model.engine) }
                     })).accessibilityIdentifier("reminderToggle")
+                    Text(reminderEnabled ? "Reminder on" : "Reminder off")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("reminderStatus")
                     Picker("Reminder time", selection: Binding(get: { reminderTime }, set: { value in
                         reminderTime = value
                         let result = model.engine.setReminder(enabled: reminderEnabled, time: value)

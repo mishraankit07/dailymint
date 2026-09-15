@@ -55,13 +55,14 @@ final class EntryFlowTests: XCTestCase {
         let toggle = app.switches["reminderToggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         toggle.tap()
-        expectation(for: NSPredicate(format: "value == '1'"), evaluatedWith: toggle)
+        let status = app.staticTexts["reminderStatus"]
+        expectation(for: NSPredicate(format: "label == 'Reminder on'"), evaluatedWith: status)
         waitForExpectations(timeout: 5)
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
         app.buttons["settings"].tap()
-        XCTAssertEqual(app.switches["reminderToggle"].value as? String, "1")
+        XCTAssertEqual(app.staticTexts["reminderStatus"].label, "Reminder on")
     }
     func testDecimalExpenseUpdatesLedger() {
         app.tabBars.buttons["Manual"].tap()
