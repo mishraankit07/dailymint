@@ -161,54 +161,11 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Daily check-in") {
-                    Button {
-                        reminderEnabled.toggle()
-                        let result = model.engine.setReminder(enabled: reminderEnabled, time: reminderTime)
-                        error = model.apply(result)
-                        if error == nil { ReminderScheduler.apply(engine: model.engine) }
-                    } label: {
-                        HStack {
-                            Text("Expense reminder")
-                            Spacer()
-                            Image(systemName: reminderEnabled ? "checkmark.circle.fill" : "circle")
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("reminderToggle")
-                    Text(reminderEnabled ? "Reminder on" : "Reminder off")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("reminderStatus")
-                    Picker("Reminder time", selection: Binding(get: { reminderTime }, set: { value in
-                        reminderTime = value
-                        let result = model.engine.setReminder(enabled: reminderEnabled, time: value)
-                        error = model.apply(result)
-                        if error == nil { ReminderScheduler.apply(engine: model.engine) }
-                    })) {
-                        ForEach(reminderTimes, id: \.self) { Text($0).tag($0) }
-                    }.accessibilityIdentifier("reminderTime")
-                }
-                Picker("Tracking cycle starts", selection: Binding(get: { model.engine.monthStartDay() }, set: { value in error = model.apply(model.engine.setMonthStartDay(day: value)) })) {
-                    ForEach(1...31, id: \.self) { Text(String($0)).tag(Int32($0)) }
-                }
+                dailyCheckInSection
+                trackingCyclePicker
                 if let error { Text(error).foregroundStyle(.red) }
-                Section("Categories") {
-                    ForEach(model.engine.categories(), id: \.self) { category in
-                        HStack { Text(category); Spacer(); if category != "Miscellaneous" { Button { deletion = category } label: { Image(systemName: "xmark").foregroundStyle(.red) }.accessibilityLabel("Delete " + category) } }
-                    }
-                }
-                let unrecognized = model.engine.unrecognizedMessages()
-                if !unrecognized.isEmpty {
-                    Section("Unrecognized messages") {
-                        Text(String(unrecognized.count) + " recent messages need parser support.")
-                        ForEach(Array(unrecognized.suffix(10).enumerated()), id: \.element.id) { index, row in
-                            Button("View message " + String(index + 1) + (row.reason.isEmpty ? "" : " · " + row.reason)) {
-                                unrecognizedText = row.rawText
-                            }
-                        }
-                    }
-                }
+                categoriesSection
+                unrecognizedSection
             }.navigationTitle("Settings")
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -230,6 +187,110 @@ struct SettingsView: View {
                     Text(unrecognizedText ?? "")
                 }
         }
+    }
+
+    private var dailyCheckInSection: some View {
+        Section("Daily check-in") {
+            Button(action: toggleReminder) {
+                HStack {
+                    Text("Expense reminder")
+                    Spacer()
+                    Image(systemName: reminderEnabled ? "checkmark.circle.fill" : "circle")
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("reminderToggle")
+
+            Text(reminderEnabled ? "Reminder on" : "Reminder off")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("reminderStatus")
+
+            Picker("Reminder time", selection: reminderTimeBinding) {
+                ForEach(reminderTimes, id: \.self) { time in
+                    Text(time).tag(time)
+                }
+            }
+            .accessibilityIdentifier("reminderTime")
+        }
+    }
+
+    private var trackingCyclePicker: some View {
+        Picker("Tracking cycle starts", selection: monthStartBinding) {
+            ForEach(1...31, id: \.self) { day in
+                Text(String(day)).tag(Int32(day))
+            }
+        }
+    }
+
+    private var categoriesSection: some View {
+        Section("Categories") {
+            ForEach(model.engine.categories(), id: \.self) { category in
+                HStack {
+                    Text(category)
+                    Spacer()
+                    if category != "Miscellaneous" {
+                        Button {
+                            deletion = category
+                        } label: {
+                            Image(systemName: "xmark").foregroundStyle(.red)
+                        }
+                        .accessibilityLabel("Delete " + category)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var unrecognizedSection: some View {
+        let messages = model.engine.unrecognizedMessages()
+        if !messages.isEmpty {
+            Section("Unrecognized messages") {
+                Text(String(messages.count) + " recent messages need parser support.")
+                ForEach(Array(messages.suffix(10).enumerated()), id: \.element.id) { index, row in
+                    Button(unrecognizedTitle(index: index, reason: row.reason)) {
+                        unrecognizedText = row.rawText
+                    }
+                }
+            }
+        }
+    }
+
+    private var reminderTimeBinding: Binding<String> {
+        Binding(
+            get: { reminderTime },
+            set: { value in
+                reminderTime = value
+                updateReminder(time: value)
+            }
+        )
+    }
+
+    private var monthStartBinding: Binding<Int32> {
+        Binding(
+            get: { model.engine.monthStartDay() },
+            set: { value in
+                error = model.apply(model.engine.setMonthStartDay(day: value))
+            }
+        )
+    }
+
+    private func toggleReminder() {
+        reminderEnabled.toggle()
+        updateReminder(time: reminderTime)
+    }
+
+    private func updateReminder(time: String) {
+        let result = model.engine.setReminder(enabled: reminderEnabled, time: time)
+        error = model.apply(result)
+        if error == nil {
+            ReminderScheduler.apply(engine: model.engine)
+        }
+    }
+
+    private func unrecognizedTitle(index: Int, reason: String) -> String {
+        "View message " + String(index + 1) + (reason.isEmpty ? "" : " · " + reason)
     }
 }
 
