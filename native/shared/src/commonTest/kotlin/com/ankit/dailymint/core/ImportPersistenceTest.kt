@@ -50,4 +50,13 @@ class ImportPersistenceTest {
         assertEquals(0, engine.smsWatermark())
         assertTrue(engine.entries().isEmpty())
     }
+    @Test fun singleMessageImportUsesSamePipelineAsBatchImport() {
+        val engine = LedgerEngine(MemoryStore())
+        assertTrue(engine.importSingleMessage("shortcut-1", raw, "HDFC", 1789299000000).success)
+        assertTrue(engine.importSingleMessage("shortcut-2", raw, "HDFC", 1789299005000).success)
+        assertEquals(1, engine.entries().size)
+        assertEquals(1789299005000, engine.smsWatermark())
+        assertEquals(0, engine.reviewRows().size)
+        assertEquals(0, engine.unrecognizedMessages().size)
+    }
 }

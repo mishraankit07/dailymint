@@ -38,12 +38,12 @@ Goal: migrate the current Expo app functionality into a Kotlin Multiplatform cor
 - [x] Month/Growth/Plan/Settings surfaces
 - [x] Edit/delete recent eligible ledger entries
 - [x] Daily reminder scheduling from shared settings
-- [ ] App Intent / Shortcut action for automated transaction ingest
+- [x] App Intent / Shortcut action for automated transaction ingest
 - [ ] Polished DailyMint UI
 
 ## Remaining Expo-only or weaker native areas
 
-- [ ] iOS automated import through an app intent rather than manual file picker
+- [ ] Verify iOS App Intent automated import on device/TestFlight Shortcut automation
 - [ ] Developer feedback flow for unrecognized SMS samples
 - [ ] Android SMS diagnostics history parity
 - [ ] Visual redesign across Android and iOS after functionality parity is stable

@@ -132,6 +132,11 @@ class LedgerEngine(private val store: LedgerStore) {
     }
     fun importMessages(json: String): SaveResult {
         val messages = try { Json.decodeFromString<List<IncomingSms>>(json) } catch (_: Exception) { return SaveResult(false, "Could not read incoming messages.") }
+        return importMessages(messages)
+    }
+    fun importSingleMessage(id: String, body: String, sender: String, timestamp: Long): SaveResult =
+        importMessages(listOf(IncomingSms(id, body, sender, timestamp)))
+    private fun importMessages(messages: List<IncomingSms>): SaveResult {
         val ids = snapshot.entries.map { it.id }.toMutableSet()
         val entries = snapshot.entries.toMutableList()
         val unknown = snapshot.unrecognized.toMutableList()
