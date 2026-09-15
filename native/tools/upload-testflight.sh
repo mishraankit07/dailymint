@@ -35,9 +35,12 @@ options = dict(method='app-store-connect', signingStyle='manual', teamID=team,
                manageAppVersionAndBuildNumber=False, uploadSymbols=True)
 with (directory / 'ExportOptions.plist').open('wb') as stream:
     plistlib.dump(options, stream)
+with (directory / 'bundle-id').open('w', encoding='utf-8') as stream:
+    stream.write(bundle)
 PY
 TEAM_ID=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$SIGNING_DIR/profile.plist")
 PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$SIGNING_DIR/profile.plist")
+BUNDLE_ID=$(cat "$SIGNING_DIR/bundle-id")
 PROFILE_DEST="$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
 mkdir -p "$(dirname "$PROFILE_DEST")"
 cp "$SIGNING_DIR/profile.mobileprovision" "$PROFILE_DEST"
@@ -55,7 +58,7 @@ xcodebuild archive -project iosApp/DailyMintNative.xcodeproj -scheme DailyMintNa
   -archivePath iosApp/build/DailyMintNative.xcarchive \
   DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Manual \
   CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
-  CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+  PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
 xcodebuild -exportArchive -archivePath iosApp/build/DailyMintNative.xcarchive \
   -exportOptionsPlist "$SIGNING_DIR/ExportOptions.plist" -exportPath iosApp/build/export
 
