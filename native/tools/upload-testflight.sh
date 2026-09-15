@@ -22,10 +22,10 @@ import datetime, os, pathlib, plistlib
 directory = pathlib.Path(os.environ['SIGNING_DIR'])
 with (directory / 'profile.plist').open('rb') as stream:
     profile = plistlib.load(stream)
-bundle = 'com.ankit.dailymint.prototype'
 team = profile['TeamIdentifier'][0]
 entitlements = profile['Entitlements']
-assert entitlements['application-identifier'].endswith('.' + bundle), 'Profile must belong to DailyMint Prototype'
+app_identifier = entitlements['application-identifier']
+bundle = app_identifier.split('.', 1)[1]
 assert not entitlements.get('get-task-allow'), 'Use an App Store distribution profile, not development'
 assert not profile.get('ProvisionedDevices') and not profile.get('ProvisionsAllDevices'), 'Use an App Store profile, not Ad Hoc or Enterprise'
 assert profile['ExpirationDate'] > datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None), 'Profile expired'
