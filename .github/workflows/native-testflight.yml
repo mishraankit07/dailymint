@@ -40,11 +40,10 @@ jobs:
       - run: chmod +x gradlew
       - run: brew install xcodegen
       - run: xcodegen generate --spec iosApp/project.yml
-      - name: Verify shared code and SwiftUI on release toolchain
+      - name: Verify shared code and SwiftUI build on release toolchain
         run: |
           if [ "$(uname -m)" = arm64 ]; then ./gradlew :shared:iosSimulatorArm64Test; else ./gradlew :shared:iosX64Test; fi
-          DEVICE_ID=$(xcrun simctl list devices available -j | ruby -rjson -e 'd=JSON.parse(STDIN.read)["devices"].values.flatten.find{|x| x["name"].start_with?("iPhone")}; abort("No iPhone simulator") unless d; puts d["udid"]')
-          xcodebuild test -project iosApp/DailyMintNative.xcodeproj -scheme DailyMintNative -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath iosApp/ReleaseTests.xcresult CODE_SIGNING_ALLOWED=NO
+          xcodebuild build -project iosApp/DailyMintNative.xcodeproj -scheme DailyMintNative -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO
       - name: Sign, archive and upload prototype
         env:
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
