@@ -40,6 +40,16 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["categoryError"].exists)
         XCTAssertTrue(app.textFields["categoryName"].exists)
     }
+    func testEveryTabOpens() {
+        for tab in ["Month", "Growth", "Import", "Manual", "Plan"] {
+            let button = app.tabBars.buttons[tab]
+            XCTAssertTrue(button.waitForExistence(timeout: 5), "Missing tab \(tab)")
+            button.tap()
+            let selected = NSPredicate(format: "selected == true")
+            expectation(for: selected, evaluatedWith: button)
+            waitForExpectations(timeout: 5)
+        }
+    }
     func testDecimalExpenseUpdatesLedger() {
         app.tabBars.buttons["Manual"].tap()
         app.textFields["entryName"].tap()

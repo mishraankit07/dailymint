@@ -65,9 +65,20 @@ struct DailyMintApp: App {
                 GrowthView(model: model).tabItem { Label("Growth", systemImage: "chart.xyaxis.line") }.tag(AppTab.growth)
                 ImportView(model: model).tabItem { Label("Import", systemImage: "tray.and.arrow.down") }.tag(AppTab.imports)
                 ManualView(model: model).tabItem { Label("Manual", systemImage: "plus.circle") }.tag(AppTab.manual)
-                NavigationStack { Text("Coming soon").navigationTitle("Plan").withSettings(model: model) }.tabItem { Label("Plan", systemImage: "target") }.tag(AppTab.plan)
+                PlanView().tabItem { Label("Plan", systemImage: "target") }.tag(AppTab.plan)
             }.tint(.green)
         }
+    }
+}
+
+struct PlanView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Plan").font(.largeTitle).bold()
+            Text("Coming soon").foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding()
     }
 }
 
