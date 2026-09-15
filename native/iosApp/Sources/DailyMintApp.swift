@@ -154,18 +154,22 @@ struct SettingsView: View {
     @State private var showCategory = false
     @State private var deletion: String?
     @State private var error: String?
+    @State private var reminderEnabled = false
+    @State private var reminderTime = "21:30"
     private let reminderTimes = ["20:00", "20:30", "21:00", "21:30", "22:00"]
     var body: some View {
         NavigationStack {
             List {
                 Section("Daily check-in") {
-                    Toggle("Expense reminder", isOn: Binding(get: { model.engine.reminderEnabled() }, set: { value in
-                        let result = model.engine.setReminder(enabled: value, time: model.engine.reminderTime())
+                    Toggle("Expense reminder", isOn: Binding(get: { reminderEnabled }, set: { value in
+                        reminderEnabled = value
+                        let result = model.engine.setReminder(enabled: value, time: reminderTime)
                         error = model.apply(result)
                         if error == nil { ReminderScheduler.apply(engine: model.engine) }
                     })).accessibilityIdentifier("reminderToggle")
-                    Picker("Reminder time", selection: Binding(get: { model.engine.reminderTime() }, set: { value in
-                        let result = model.engine.setReminder(enabled: model.engine.reminderEnabled(), time: value)
+                    Picker("Reminder time", selection: Binding(get: { reminderTime }, set: { value in
+                        reminderTime = value
+                        let result = model.engine.setReminder(enabled: reminderEnabled, time: value)
                         error = model.apply(result)
                         if error == nil { ReminderScheduler.apply(engine: model.engine) }
                     })) {
@@ -191,6 +195,10 @@ struct SettingsView: View {
                 .sheet(isPresented: $showCategory) { CategorySheet(model: model) }
                 .confirmationDialog("Delete category? Transactions will move to Miscellaneous.", isPresented: Binding(get: { deletion != nil }, set: { if !$0 { deletion = nil } })) {
                     Button("Delete", role: .destructive) { if let deletion { error = model.apply(model.engine.deleteCategory(name: deletion)) }; deletion = nil }
+                }
+                .onAppear {
+                    reminderEnabled = model.engine.reminderEnabled()
+                    reminderTime = model.engine.reminderTime()
                 }
         }
     }

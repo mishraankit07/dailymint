@@ -55,7 +55,8 @@ final class EntryFlowTests: XCTestCase {
         let toggle = app.switches["reminderToggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         toggle.tap()
-        XCTAssertEqual(toggle.value as? String, "1")
+        expectation(for: NSPredicate(format: "value == '1'"), evaluatedWith: toggle)
+        waitForExpectations(timeout: 5)
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
