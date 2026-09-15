@@ -52,9 +52,9 @@ final class EntryFlowTests: XCTestCase {
     }
     func testReminderTogglePersists() {
         app.buttons["settings"].tap()
-        let toggle = app.switches["reminderToggle"]
+        let toggle = app.buttons["reminderToggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        toggle.tap()
         let status = app.staticTexts["reminderStatus"]
         expectation(for: NSPredicate(format: "label == 'Reminder on'"), evaluatedWith: status)
         waitForExpectations(timeout: 5)
@@ -89,5 +89,22 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
         XCTAssertEqual(spent.label, "Spent: Rs 62.88")
+    }
+    func testIncomeEntryUpdatesMoneyInOnly() {
+        app.tabBars.buttons["Manual"].tap()
+        app.buttons["Income"].tap()
+        app.textFields["entryName"].tap()
+        app.textFields["entryName"].typeText("Salary")
+        app.textFields["entryAmount"].tap()
+        app.textFields["entryAmount"].typeText("1234.00")
+        let save = app.buttons["saveEntry"]
+        if !save.isHittable { app.swipeUp() }
+        save.tap()
+        XCTAssertTrue(app.alerts["Transaction saved"].waitForExistence(timeout: 5))
+        app.alerts.buttons["OK"].tap()
+        app.tabBars.buttons["Month"].tap()
+        XCTAssertTrue(app.staticTexts["moneyIn"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["moneyIn"].label, "Money in: Rs 1234")
+        XCTAssertEqual(app.staticTexts["spent"].label, "Spent: Rs 0")
     }
 }

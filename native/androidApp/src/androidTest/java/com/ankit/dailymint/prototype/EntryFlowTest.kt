@@ -71,4 +71,20 @@ class EntryFlowTest {
         compose.onNodeWithTag("spent").assertTextEquals("Spent: Rs 62.88")
         assertEquals(6288L, LedgerEngine(store).totals().spent)
     }
+    @Test fun incomeEntryUpdatesMoneyInOnly() {
+        launch()
+        compose.onNodeWithText("Manual").performClick()
+        compose.onNodeWithText("Income").performClick()
+        compose.onNodeWithTag("entryName").performTextInput("Salary")
+        compose.onNodeWithTag("entryAmount").performTextInput("1234.00")
+        compose.onNodeWithTag("saveEntry").performScrollTo().performClick()
+        compose.onNodeWithText("Transaction saved").assertExists()
+        compose.onNodeWithText("OK").performClick()
+        compose.onNodeWithText("Month").performClick()
+        compose.onNodeWithTag("moneyIn").assertTextEquals("Money in: Rs 1234")
+        compose.onNodeWithTag("spent").assertTextEquals("Spent: Rs 0")
+        val totals = LedgerEngine(store).totals()
+        assertEquals(123400L, totals.moneyIn)
+        assertEquals(0L, totals.spent)
+    }
 }

@@ -161,12 +161,20 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section("Daily check-in") {
-                    Toggle("Expense reminder", isOn: Binding(get: { reminderEnabled }, set: { value in
-                        reminderEnabled = value
-                        let result = model.engine.setReminder(enabled: value, time: reminderTime)
+                    Button {
+                        reminderEnabled.toggle()
+                        let result = model.engine.setReminder(enabled: reminderEnabled, time: reminderTime)
                         error = model.apply(result)
                         if error == nil { ReminderScheduler.apply(engine: model.engine) }
-                    })).accessibilityIdentifier("reminderToggle")
+                    } label: {
+                        HStack {
+                            Text("Expense reminder")
+                            Spacer()
+                            Image(systemName: reminderEnabled ? "checkmark.circle.fill" : "circle")
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("reminderToggle")
                     Text(reminderEnabled ? "Reminder on" : "Reminder off")
                         .font(.caption)
                         .foregroundStyle(.secondary)

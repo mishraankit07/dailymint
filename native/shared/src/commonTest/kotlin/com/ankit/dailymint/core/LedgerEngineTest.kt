@@ -90,6 +90,55 @@ class LedgerEngineTest {
         assertFalse(engine.addEntry("1", "Lunch", "10", "Food", "2026-09-13", false).success)
         assertEquals(1000L, engine.totals().spent)
     }
+    @Test fun deletingCategoryMovesEntriesToMiscellaneousWithoutChangingTotals() {
+        val engine = LedgerEngine(MemoryStore())
+        assertTrue(engine.addCategory("Travel").success)
+        assertTrue(engine.addEntry("1", "Metro", "125.50", "Travel", "2026-09-13", false).success)
+        assertTrue(engine.addEntry("2", "Lunch", "62.88", "Food", "2026-09-13", false).success)
+        val before = engine.totals()
+        assertTrue(engine.deleteCategory("Travel").success)
+        val after = engine.totals()
+        assertEquals(before.moneyIn, after.moneyIn)
+        assertEquals(before.spent, after.spent)
+        assertEquals(before.invested, after.invested)
+        assertEquals("Miscellaneous", engine.entries().first { it.id == "1" }.category)
+        assertTrue(engine.monthSummary("2026-09-13").categories.any { it.name == "Miscellaneous" && it.paise == 12550L })
+    }
+    @Test fun recentManualEditAndDeleteRecalculateTotals() {
+        val engine = LedgerEngine(MemoryStore())
+        val now = 1_000_000_000L
+        assertTrue(engine.addEntry("1", "Lunch", "100", "Food", "2026-09-13", false).success)
+        val saved = engine.entries().first()
+        engine.commit(engine.snapshot.copy(entries = listOf(saved.copy(capturedAtMillis = now))))
+        assertTrue(engine.editEntry("1", "Fund", "250.25", "Investments", "2026-09-13", "ios", now + 1_000).success)
+        assertEquals(0L, engine.totals().spent)
+        assertEquals(25025L, engine.totals().invested)
+        assertTrue(engine.deleteEntry("1", "ios", now + 2_000).success)
+        assertEquals(0L, engine.totals().spent)
+        assertEquals(0L, engine.totals().invested)
+    }
+    @Test fun oldEntriesCannotBeEditedOrDeleted() {
+        val engine = LedgerEngine(MemoryStore())
+        val now = 2_000_000_000L
+        assertTrue(engine.addEntry("1", "Lunch", "100", "Food", "2026-09-13", false).success)
+        val saved = engine.entries().first()
+        engine.commit(engine.snapshot.copy(entries = listOf(saved.copy(capturedAtMillis = now - 86_400_001L))))
+        assertFalse(engine.editEntry("1", "Lunch", "99", "Food", "2026-09-13", "android", now).success)
+        assertFalse(engine.deleteEntry("1", "android", now).success)
+        assertEquals(10000L, engine.totals().spent)
+    }
+    @Test fun customTrackingCycleChangesMonthSummaryWindow() {
+        val engine = LedgerEngine(MemoryStore())
+        assertTrue(engine.addEntry("1", "Old cycle", "10", "Food", "2026-08-24", false).success)
+        assertTrue(engine.addEntry("2", "Current cycle", "20", "Food", "2026-08-25", false).success)
+        assertTrue(engine.addEntry("3", "Salary", "100", "Salary", "2026-09-01", true).success)
+        assertTrue(engine.setMonthStartDay(25).success)
+        val summary = engine.monthSummary("2026-09-15")
+        assertEquals("2026-08-25", summary.start)
+        assertEquals("2026-09-25", summary.endExclusive)
+        assertEquals(2000L, summary.spent)
+        assertEquals(10000L, summary.moneyIn)
+    }
     @Test fun reminderSettingsValidateAndPersist() {
         val store = MemoryStore()
         val engine = LedgerEngine(store)
