@@ -49,6 +49,15 @@ class EntryFlowTest {
         compose.onNodeWithTag("categoryError").assertExists()
         compose.onNodeWithTag("categoryName").assertExists()
     }
+    @Test fun reminderSettingsPersist() {
+        launch()
+        compose.onNodeWithContentDescription("Settings").performClick()
+        compose.onNodeWithTag("reminderToggle").performClick()
+        assertTrue(engine.reminderEnabled())
+        compose.onNodeWithTag("reminderTime").performClick()
+        compose.onNodeWithText("20:30").performClick()
+        assertEquals("20:30", LedgerEngine(store).reminderTime())
+    }
     @Test fun decimalExpenseUpdatesLedgerAndResetsForm() {
         launch()
         compose.onNodeWithText("Manual").performClick()

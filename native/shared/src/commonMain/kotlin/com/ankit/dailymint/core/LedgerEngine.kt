@@ -65,6 +65,17 @@ object Money {
     }
 }
 
+object ReminderCopy {
+    private val quotes = listOf(
+        "Tiny records become real clarity.",
+        "A two-minute check-in keeps the month honest.",
+        "What gets noticed gets easier to improve.",
+        "Keep the habit small enough to keep.",
+        "Small habits make money clearer."
+    )
+    fun quoteForDay(daySeed: Int): String = quotes[((daySeed % quotes.size) + quotes.size) % quotes.size]
+}
+
 class LedgerEngine(private val store: LedgerStore) {
     internal var snapshot = Snapshot()
         private set
@@ -96,6 +107,7 @@ class LedgerEngine(private val store: LedgerStore) {
     fun monthStartDay(): Int = snapshot.monthStartDay
     fun reminderEnabled(): Boolean = snapshot.reminderEnabled
     fun reminderTime(): String = snapshot.reminderTime
+    fun reminderQuote(daySeed: Int): String = ReminderCopy.quoteForDay(daySeed)
     fun smsWatermark(): Long = snapshot.smsWatermark
     fun unrecognizedMessages(): List<ReviewRow> = snapshot.unrecognized
     fun stageWal(text: String, fileName: String): SaveResult {

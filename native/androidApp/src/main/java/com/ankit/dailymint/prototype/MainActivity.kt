@@ -2,9 +2,12 @@ package com.ankit.dailymint.prototype
 
 import android.os.Bundle
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -20,6 +23,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -46,11 +50,16 @@ class MainActivity : ComponentActivity() {
         if (granted) { smsError = ""; smsReader.start(); scanMessages() }
         else smsError = "Allow SMS access to capture bank transactions automatically."
     }
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) ReminderScheduler.apply(this, engine)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         engine = LedgerEngine(PreferenceStore(this))
         smsReader = SmsReader(this) { scanMessages() }
-        setContent { MaterialTheme { DailyMint(engine, externalRevision, smsError) { permission.launch(android.Manifest.permission.READ_SMS) } } }
+        setContent { MaterialTheme { DailyMint(engine, externalRevision, smsError,
+            requestSms = { permission.launch(android.Manifest.permission.READ_SMS) },
+            requestNotifications = { requestNotificationPermission() }) } }
         if (!smsReader.allowed()) permission.launch(android.Manifest.permission.READ_SMS)
     }
     override fun onResume() { super.onResume(); if (::smsReader.isInitialized) { smsReader.start(); scanMessages() } }
@@ -70,11 +79,17 @@ class MainActivity : ComponentActivity() {
             finally { scanning = false; if (rescanRequested) { rescanRequested = false; scanMessages() } }
         }
     }
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String = "", requestSms: () -> Unit = {}) {
+fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String = "", requestSms: () -> Unit = {}, requestNotifications: () -> Unit = {}) {
+    val context = LocalContext.current
     var revision by remember { mutableIntStateOf(0) }
     var tab by remember { mutableIntStateOf(0) }
     var showCategory by remember { mutableStateOf(false) }
@@ -147,6 +162,38 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                         }, enabled = engine.loadError == null, modifier = Modifier.fillMaxWidth().testTag("saveEntry")) { Text("Save") }
                     }
                     4 -> {
+                        Text("Daily check-in", style = MaterialTheme.typography.titleLarge)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Expense reminder")
+                            Switch(checked = engine.reminderEnabled(), onCheckedChange = { enabled ->
+                                val result = engine.setReminder(enabled, engine.reminderTime())
+                                settingsError = result.message
+                                if (result.success) {
+                                    revision++
+                                    if (enabled) requestNotifications()
+                                    ReminderScheduler.apply(context, engine)
+                                }
+                            }, modifier = Modifier.testTag("reminderToggle"))
+                        }
+                        var reminderMenu by remember { mutableStateOf(false) }
+                        Box {
+                            OutlinedButton(onClick = { reminderMenu = true }, modifier = Modifier.testTag("reminderTime")) {
+                                Text("Reminder time: " + engine.reminderTime())
+                            }
+                            DropdownMenu(reminderMenu, onDismissRequest = { reminderMenu = false }) {
+                                listOf("20:00", "20:30", "21:00", "21:30", "22:00").forEach { time ->
+                                    DropdownMenuItem(text = { Text(time) }, onClick = {
+                                        val result = engine.setReminder(engine.reminderEnabled(), time)
+                                        settingsError = result.message
+                                        if (result.success) {
+                                            revision++
+                                            reminderMenu = false
+                                            ReminderScheduler.apply(context, engine)
+                                        }
+                                    })
+                                }
+                            }
+                        }
                         Box {
                             OutlinedButton(onClick = { monthMenu = true }) { Text("Tracking cycle starts: " + engine.monthStartDay()) }
                             DropdownMenu(monthMenu, onDismissRequest = { monthMenu = false }) {

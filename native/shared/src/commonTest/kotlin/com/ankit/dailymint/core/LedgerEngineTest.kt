@@ -90,6 +90,17 @@ class LedgerEngineTest {
         assertFalse(engine.addEntry("1", "Lunch", "10", "Food", "2026-09-13", false).success)
         assertEquals(1000L, engine.totals().spent)
     }
+    @Test fun reminderSettingsValidateAndPersist() {
+        val store = MemoryStore()
+        val engine = LedgerEngine(store)
+        assertFalse(engine.setReminder(true, "9:30").success)
+        assertTrue(engine.setReminder(true, "09:30").success)
+        val reloaded = LedgerEngine(store)
+        assertTrue(reloaded.reminderEnabled())
+        assertEquals("09:30", reloaded.reminderTime())
+        assertEquals("Tiny records become real clarity.", reloaded.reminderQuote(0))
+        assertEquals("Small habits make money clearer.", reloaded.reminderQuote(-1))
+    }
     @Test fun corruptStorageIsNotOverwritten() {
         val store = MemoryStore().apply { value = "bad json" }
         val engine = LedgerEngine(store)

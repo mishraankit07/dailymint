@@ -1,5 +1,6 @@
 import SwiftUI
 import DailyMintCore
+import UserNotifications
 
 final class FileStore: NSObject, LedgerStore {
     let url: URL
@@ -50,6 +51,30 @@ final class LedgerModel: ObservableObject {
                                      category: category, date: formatter.string(from: date), income: income)
         if result.success { revision += 1; return nil }
         return result.message
+    }
+}
+
+enum ReminderScheduler {
+    static func apply(engine: LedgerEngine) {
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing") { return }
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["daily-check-in"])
+        guard engine.reminderEnabled() else { return }
+        let parts = engine.reminderTime().split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2 else { return }
+        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            guard granted else { return }
+            var date = DateComponents()
+            date.hour = parts[0]
+            date.minute = parts[1]
+            let daySeed = Calendar(identifier: .gregorian).ordinality(of: .day, in: .era, for: Date()) ?? 0
+            let content = UNMutableNotificationContent()
+            content.title = "DailyMint check-in"
+            content.body = engine.reminderQuote(daySeed: Int32(daySeed)) + " Add today's expenses?"
+            content.sound = .default
+            let trigger = UNCalendarNotificationTrigger(dateMatching: date, repeats: true)
+            center.add(UNNotificationRequest(identifier: "daily-check-in", content: content, trigger: trigger))
+        }
     }
 }
 
@@ -129,9 +154,24 @@ struct SettingsView: View {
     @State private var showCategory = false
     @State private var deletion: String?
     @State private var error: String?
+    private let reminderTimes = ["20:00", "20:30", "21:00", "21:30", "22:00"]
     var body: some View {
         NavigationStack {
             List {
+                Section("Daily check-in") {
+                    Toggle("Expense reminder", isOn: Binding(get: { model.engine.reminderEnabled() }, set: { value in
+                        let result = model.engine.setReminder(enabled: value, time: model.engine.reminderTime())
+                        error = model.apply(result)
+                        if error == nil { ReminderScheduler.apply(engine: model.engine) }
+                    })).accessibilityIdentifier("reminderToggle")
+                    Picker("Reminder time", selection: Binding(get: { model.engine.reminderTime() }, set: { value in
+                        let result = model.engine.setReminder(enabled: model.engine.reminderEnabled(), time: value)
+                        error = model.apply(result)
+                        if error == nil { ReminderScheduler.apply(engine: model.engine) }
+                    })) {
+                        ForEach(reminderTimes, id: \.self) { Text($0).tag($0) }
+                    }.accessibilityIdentifier("reminderTime")
+                }
                 Picker("Tracking cycle starts", selection: Binding(get: { model.engine.monthStartDay() }, set: { value in error = model.apply(model.engine.setMonthStartDay(day: value)) })) {
                     ForEach(1...31, id: \.self) { Text(String($0)).tag(Int32($0)) }
                 }

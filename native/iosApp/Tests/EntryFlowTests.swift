@@ -50,6 +50,18 @@ final class EntryFlowTests: XCTestCase {
             waitForExpectations(timeout: 5)
         }
     }
+    func testReminderTogglePersists() {
+        app.buttons["settings"].tap()
+        let toggle = app.switches["reminderToggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.tap()
+        XCTAssertEqual(toggle.value as? String, "1")
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        app.buttons["settings"].tap()
+        XCTAssertEqual(app.switches["reminderToggle"].value as? String, "1")
+    }
     func testDecimalExpenseUpdatesLedger() {
         app.tabBars.buttons["Manual"].tap()
         app.textFields["entryName"].tap()
