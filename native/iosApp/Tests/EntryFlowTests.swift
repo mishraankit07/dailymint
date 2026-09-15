@@ -7,6 +7,24 @@ final class EntryFlowTests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "--reset-test-data"]
         app.launch()
+        logCheckpoint("setUp launched app")
+    }
+    private func logCheckpoint(_ message: String, file: StaticString = #filePath, line: UInt = #line) {
+        let state: String
+        switch app.state {
+        case .notRunning: state = "notRunning"
+        case .runningBackgroundSuspended: state = "runningBackgroundSuspended"
+        case .runningBackground: state = "runningBackground"
+        case .runningForeground: state = "runningForeground"
+        @unknown default: state = "unknown"
+        }
+        print("DailyMintUITest checkpoint: \(message); appState=\(state)")
+        XCTContext.runActivity(named: message) { activity in
+            let attachment = XCTAttachment(string: "appState=\(state)\n\(app.debugDescription)")
+            attachment.lifetime = .keepAlways
+            activity.add(attachment)
+        }
+        XCTAssertEqual(app.state, .runningForeground, "App was not foreground at checkpoint: \(message)", file: file, line: line)
     }
     private func openCategory() {
         app.buttons["settings"].tap()
@@ -51,17 +69,27 @@ final class EntryFlowTests: XCTestCase {
         }
     }
     func testReminderTogglePersists() {
+        logCheckpoint("before opening settings for reminder")
         app.buttons["settings"].tap()
+        logCheckpoint("after opening settings for reminder")
         let toggle = app.buttons["reminderToggle"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Reminder toggle did not appear after opening Settings")
+        print("DailyMintUITest checkpoint: tapping reminder toggle")
         toggle.tap()
         let status = app.staticTexts["reminderStatus"]
+        XCTAssertTrue(status.waitForExistence(timeout: 5), "Reminder status text did not appear")
         expectation(for: NSPredicate(format: "label == 'Reminder on'"), evaluatedWith: status)
         waitForExpectations(timeout: 5)
+        logCheckpoint("after enabling reminder")
+        print("DailyMintUITest checkpoint: terminating app for reminder persistence check")
         app.terminate()
+        XCTAssertEqual(app.state, .notRunning, "App did not terminate before relaunch")
         app.launchArguments = ["--ui-testing"]
         app.launch()
+        logCheckpoint("after relaunch for reminder persistence check")
         app.buttons["settings"].tap()
+        logCheckpoint("after reopening settings post relaunch")
+        XCTAssertTrue(app.staticTexts["reminderStatus"].waitForExistence(timeout: 5), "Reminder status did not appear after relaunch")
         XCTAssertEqual(app.staticTexts["reminderStatus"].label, "Reminder on")
     }
     func testDecimalExpenseUpdatesLedger() {
