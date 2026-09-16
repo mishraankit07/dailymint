@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.ankit.dailymint.core.*
 import java.time.LocalDate
@@ -57,9 +59,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         engine = LedgerEngine(PreferenceStore(this))
         smsReader = SmsReader(this) { scanMessages() }
-        setContent { MaterialTheme { DailyMint(engine, externalRevision, smsError,
-            requestSms = { permission.launch(android.Manifest.permission.READ_SMS) },
-            requestNotifications = { requestNotificationPermission() }) } }
+        setContent {
+            DailyMintTheme {
+                DailyMint(engine, externalRevision, smsError,
+                    requestSms = { permission.launch(android.Manifest.permission.READ_SMS) },
+                    requestNotifications = { requestNotificationPermission() })
+            }
+        }
         if (!smsReader.allowed()) permission.launch(android.Manifest.permission.READ_SMS)
     }
     override fun onResume() { super.onResume(); if (::smsReader.isInitialized) { smsReader.start(); scanMessages() } }
@@ -84,6 +90,27 @@ class MainActivity : ComponentActivity() {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
         notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
     }
+}
+
+@Composable
+fun DailyMintTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = Ink,
+            secondary = Flow,
+            tertiary = InvestGold,
+            background = Paper,
+            surface = Paper,
+            surfaceVariant = PaperRaised,
+            onPrimary = Paper,
+            onSecondary = Paper,
+            onBackground = Ink,
+            onSurface = Ink,
+            outline = Hairline,
+            error = SpendRed
+        ),
+        content = content
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -111,56 +138,94 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
     var settingsError by remember { mutableStateOf("") }
     val categories = remember(revision, externalRevision) { engine.categories() }
 
-    Scaffold(topBar = { TopAppBar(title = { Column { Text("DailyMint"); Text("Know Your Flow", style = MaterialTheme.typography.labelMedium) } }, actions = {
-        IconButton(onClick = { tab = if (tab == 4) 0 else 4 }) {
-            Icon(if (tab == 4) Icons.Default.Close else Icons.Default.Settings, contentDescription = if (tab == 4) "Close settings" else "Settings")
-        }
-    }) }) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            TabRow(selectedTabIndex = if (tab == 4) 0 else tab) {
+    Scaffold(
+        containerColor = Paper,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text("DailyMint", color = Ink, fontWeight = FontWeight.Bold)
+                        Text("Know your flow", color = InkFaint, style = MaterialTheme.typography.labelMedium)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Paper),
+                actions = {
+                    IconButton(onClick = { tab = if (tab == 4) 0 else 4 }) {
+                        Icon(if (tab == 4) Icons.Default.Close else Icons.Default.Settings, contentDescription = if (tab == 4) "Close settings" else "Settings", tint = Ink)
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            NavigationBar(containerColor = PaperRaised, tonalElevation = 0.dp) {
                 listOf("Month", "Growth", "Manual", "Plan").forEachIndexed { index, title ->
-                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(title) })
+                    NavigationBarItem(
+                        selected = tab == index,
+                        onClick = { tab = index },
+                        icon = { Text(title.take(1), fontWeight = FontWeight.Bold) },
+                        label = { Text(title) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Paper,
+                            selectedTextColor = Ink,
+                            indicatorColor = Ink,
+                            unselectedIconColor = InkFaint,
+                            unselectedTextColor = InkFaint
+                        )
+                    )
                 }
             }
-            Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
+        }
+    ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 engine.loadError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 if (smsError.isNotEmpty()) { Text(smsError); TextButton(onClick = requestSms) { Text("Allow SMS access") } }
                 when (tab) {
                     0 -> MonthContent(engine, revision + externalRevision, onEdit = { edited = it }, onDebug = { debug = it })
                     1 -> GrowthContent(engine, revision + externalRevision)
-                    3 -> { Text("Plan", style = MaterialTheme.typography.headlineMedium); Text("Coming soon") }
-                    2 -> {
-                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                            listOf("Expense", "Income").forEachIndexed { index, label ->
-                                SegmentedButton(selected = income == (index == 1),
-                                    onClick = { income = index == 1; category = if (income) "Received" else "Miscellaneous" },
-                                    shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(label) }
-                            }
+                    3 -> {
+                        BrandHeader("Plan")
+                        RaisedCard {
+                            Text("Coming soon", color = InkSoft)
+                            Text("Goal planning will live here once the core tracking flow is stable.", color = InkFaint, style = MaterialTheme.typography.bodySmall)
                         }
-                        OutlinedTextField(name, { name = it; category = engine.suggestCategory(it, income) }, label = { Text("Name") }, singleLine = true,
-                            modifier = Modifier.fillMaxWidth().testTag("entryName"))
-                        OutlinedTextField(amount, { amount = it }, label = { Text("Amount") }, singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.fillMaxWidth().testTag("entryAmount"))
-                        Box {
-                            OutlinedButton(onClick = { categoryMenu = true }, modifier = Modifier.testTag("entryCategory")) { Text(category) }
-                            DropdownMenu(expanded = categoryMenu, onDismissRequest = { categoryMenu = false }) {
-                                (if (income) listOf("Salary", "Received") else categories).forEach { option ->
-                                    DropdownMenuItem(text = { Text(option) }, onClick = { category = option; categoryMenu = false })
+                    }
+                    2 -> {
+                        BrandHeader("Add transaction")
+                        RaisedCard {
+                            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                                listOf("Expense", "Income").forEachIndexed { index, label ->
+                                    SegmentedButton(selected = income == (index == 1),
+                                        onClick = { income = index == 1; category = if (income) "Received" else "Miscellaneous" },
+                                        shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(label) }
                                 }
                             }
-                        }
-                        OutlinedTextField(date, { date = it }, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true,
-                            modifier = Modifier.fillMaxWidth().testTag("entryDate"))
-                        if (entryError.isNotEmpty()) Text(entryError, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("entryError"))
-                        Button(onClick = {
-                            val result = engine.addEntry(UUID.randomUUID().toString(), name, amount, category, date, income)
-                            entryError = result.message
-                            if (result.success) {
-                                revision++; name = ""; amount = ""; category = if (income) "Received" else "Miscellaneous"; saved = true
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedTextField(name, { name = it; category = engine.suggestCategory(it, income) }, label = { Text("Name") }, singleLine = true,
+                                modifier = Modifier.fillMaxWidth().testTag("entryName"))
+                            OutlinedTextField(amount, { amount = it }, label = { Text("Amount") }, singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                modifier = Modifier.fillMaxWidth().testTag("entryAmount"))
+                            Box {
+                                OutlinedButton(onClick = { categoryMenu = true }, modifier = Modifier.testTag("entryCategory")) { Text(category) }
+                                DropdownMenu(expanded = categoryMenu, onDismissRequest = { categoryMenu = false }) {
+                                    (if (income) listOf("Salary", "Received") else categories).forEach { option ->
+                                        DropdownMenuItem(text = { Text(option) }, onClick = { category = option; categoryMenu = false })
+                                    }
+                                }
                             }
-                        }, enabled = engine.loadError == null, modifier = Modifier.fillMaxWidth().testTag("saveEntry")) { Text("Save") }
+                            OutlinedTextField(date, { date = it }, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true,
+                                modifier = Modifier.fillMaxWidth().testTag("entryDate"))
+                            if (entryError.isNotEmpty()) Text(entryError, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("entryError"))
+                            Button(onClick = {
+                                val result = engine.addEntry(UUID.randomUUID().toString(), name, amount, category, date, income)
+                                entryError = result.message
+                                if (result.success) {
+                                    revision++; name = ""; amount = ""; category = if (income) "Received" else "Miscellaneous"; saved = true
+                                }
+                            }, enabled = engine.loadError == null, modifier = Modifier.fillMaxWidth().testTag("saveEntry")) { Text("Save") }
+                        }
                     }
                     4 -> {
                         Text("Daily check-in", style = MaterialTheme.typography.titleLarge)

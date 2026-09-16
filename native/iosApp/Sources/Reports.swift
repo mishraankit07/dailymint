@@ -10,32 +10,44 @@ struct MonthView: View {
     var body: some View {
         NavigationStack {
             let summary = model.engine.monthSummary(today: model.engine.today())
-            List {
-                Section(summary.label) {
-                    Text("Money in: Rs " + model.engine.formatAmount(paise: summary.moneyIn)).accessibilityIdentifier("moneyIn")
-                    Text("Spent: Rs " + model.engine.formatAmount(paise: summary.spent)).accessibilityIdentifier("spent")
-                    Text("Invested: Rs " + model.engine.formatAmount(paise: summary.invested))
-                    Text("Remaining: Rs " + model.engine.formatAmount(paise: summary.remaining))
-                }
-                Section("Money split") {
-                    split("Spent", summary.spentPercent?.doubleValue, saved: false)
-                    split("Saved/Invested", summary.savedInvestedPercent?.doubleValue, saved: true)
-                    Text("Target 20%").font(.caption)
-                }
-                Section("Outflow breakdown") {
-                    ForEach(summary.categories, id: \.name) { item in
-                        HStack { Text(item.name); Spacer(); Text(String(Int(item.percent.rounded())) + "%"); Text("Rs " + model.engine.formatAmount(paise: item.paise)) }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    BrandHeader(title: "Good evening")
+                    MonthHero(summary: summary, model: model)
+                    SectionHeading(title: "Where it went", trailing: summary.label)
+                    RaisedPanel {
+                        split("Spent", summary.spentPercent?.doubleValue, color: .dmSpend)
+                        split("Saved/Invested", summary.savedInvestedPercent?.doubleValue, color: .dmIncome)
+                        Text("Target 20%").font(.caption).foregroundStyle(Color.dmInkFaint)
                     }
-                }
-                Section("Top 5 transactions") {
-                    ForEach(summary.topFive, id: \.id) { entry in TransactionLine(entry: entry, model: model) }
-                }
-                Button(detailed ? "Collapse" : "Detailed report") { detailed.toggle() }.accessibilityIdentifier("detailedReport")
-                if detailed {
-                    ForEach(summary.days, id: \.date) { day in
-                        Section(day.date + " · In Rs " + model.engine.formatAmount(paise: day.moneyIn) + " · Out Rs " + model.engine.formatAmount(paise: day.moneyOut)) {
-                            ForEach(day.entries, id: \.id) { entry in
-                                VStack(alignment: .leading) {
+                    SectionHeading(title: "Outflow breakdown")
+                    RaisedPanel {
+                        if summary.categories.isEmpty { Text("No outflow yet.").foregroundStyle(Color.dmInkFaint) }
+                        ForEach(summary.categories, id: \.name) { item in
+                            CategoryLine(name: item.name, percent: item.percent, amount: "Rs " + model.engine.formatAmount(paise: item.paise))
+                        }
+                    }
+                    SectionHeading(title: "Top 5 transactions")
+                    RaisedPanel {
+                        if summary.topFive.isEmpty { Text("No transactions yet.").foregroundStyle(Color.dmInkFaint) }
+                        ForEach(summary.topFive, id: \.id) { entry in TransactionLine(entry: entry, model: model) }
+                    }
+                    Button(detailed ? "Collapse" : "Detailed report") { detailed.toggle() }
+                        .buttonStyle(.bordered)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("detailedReport")
+                    if detailed {
+                        SectionHeading(title: "Detailed report")
+                        ForEach(summary.days, id: \.date) { day in
+                            RaisedPanel {
+                                HStack {
+                                    Text(day.date).font(.headline).foregroundStyle(Color.dmInk)
+                                    Spacer()
+                                    Text("In Rs " + model.engine.formatAmount(paise: day.moneyIn) + " · Out Rs " + model.engine.formatAmount(paise: day.moneyOut))
+                                        .font(.caption)
+                                        .foregroundStyle(Color.dmInkFaint)
+                                }
+                                ForEach(day.entries, id: \.id) { entry in
                                     TransactionLine(entry: entry, model: model)
                                     if model.engine.canEdit(id: entry.id, platform: "ios", nowMillis: Int64(Date().timeIntervalSince1970 * 1000)) {
                                         Button("Edit") { edit = entry }
@@ -45,14 +57,77 @@ struct MonthView: View {
                         }
                     }
                 }
-            }.navigationTitle("DailyMint").withSettings(model: model)
-                .sheet(item: $edit) { EntryEditSheet(model: model, entry: $0, reviewId: nil) }
+                .padding(20)
+            }
+            .background(Color.dmPaper)
+            .navigationTitle("DailyMint")
+            .withSettings(model: model)
+            .sheet(item: $edit) { EntryEditSheet(model: model, entry: $0, reviewId: nil) }
         }
     }
-    @ViewBuilder private func split(_ name: String, _ percent: Double?, saved: Bool) -> some View {
-        Text(name + ": " + (percent.map { String(Int($0.rounded())) + "%" } ?? "--"))
+    @ViewBuilder private func split(_ name: String, _ percent: Double?, color: Color) -> some View {
+        HStack {
+            Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.dmInk)
+            Spacer()
+            Text(percent.map { String(Int($0.rounded())) + "%" } ?? "--").foregroundStyle(Color.dmInkSoft)
+        }
         ProgressView(value: min(1, max(0, (percent ?? 0) / 100)))
-            .tint((saved ? (percent ?? 0) >= 20 : (percent ?? 0) <= 80) ? .green : .red)
+            .tint(color)
+    }
+}
+
+struct MonthHero: View {
+    let summary: MonthSummary
+    @ObservedObject var model: LedgerModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Remaining this month").font(.caption.weight(.semibold)).foregroundStyle(Color(red: 0.725, green: 0.776, blue: 0.737))
+            Text("Rs " + model.engine.formatAmount(paise: summary.remaining))
+                .font(.system(size: 38, weight: .semibold, design: .serif))
+                .foregroundStyle(Color.dmPaper)
+                .minimumScaleFactor(0.65)
+            HStack(alignment: .top) {
+                HeroStat(label: "Money in", value: "Rs " + model.engine.formatAmount(paise: summary.moneyIn), color: .dmIncome)
+                    .accessibilityIdentifier("moneyIn")
+                Spacer()
+                HeroStat(label: "Spent", value: "Rs " + model.engine.formatAmount(paise: summary.spent), color: .dmSpend)
+                    .accessibilityIdentifier("spent")
+                Spacer()
+                HeroStat(label: "Invested", value: "Rs " + model.engine.formatAmount(paise: summary.invested), color: .dmInvest)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.dmInk)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+}
+
+struct HeroStat: View {
+    let label: String
+    let value: String
+    let color: Color
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Circle().fill(color).frame(width: 8, height: 8)
+                Text(label).font(.caption2).foregroundStyle(Color(red: 0.725, green: 0.776, blue: 0.737))
+            }
+            Text(value).font(.caption.weight(.bold)).foregroundStyle(Color.dmPaper)
+        }
+    }
+}
+
+struct CategoryLine: View {
+    let name: String
+    let percent: Double
+    let amount: String
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(name).font(.caption.weight(.semibold)).foregroundStyle(Color.dmInk).frame(width: 86, alignment: .leading)
+            ProgressView(value: min(1, max(0, percent / 100))).tint(categoryColor(name))
+            Text(amount).font(.caption).foregroundStyle(Color.dmInkSoft).frame(width: 82, alignment: .trailing)
+        }
     }
 }
 
@@ -64,13 +139,15 @@ struct TransactionLine: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
-                Text(entry.name)
-                Text(entry.category + " · " + String(entry.date.prefix(10))).font(.caption).foregroundStyle(.secondary)
+                Text(entry.name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.dmInk).lineLimit(1)
+                Text(entry.category + " · " + String(entry.date.prefix(10))).font(.caption).foregroundStyle(Color.dmInkFaint)
             }
             Spacer()
             Text((entry.type == "income" ? "+" : "-") + "Rs " + model.engine.formatAmount(paise: entry.paise))
-                .foregroundStyle(entry.type == "income" ? .green : .primary)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(entry.type == "income" ? Color.dmIncome : Color.dmSpend)
         }
+        Divider().background(Color.dmHairline)
     }
 }
 
@@ -81,7 +158,9 @@ struct GrowthView: View {
     var body: some View {
         NavigationStack {
             let buckets = model.engine.trendBuckets(today: model.engine.today(), years: years, count: count)
-            List {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                BrandHeader(title: "Growth")
                 Picker("Period", selection: $years) {
                     Text("Months").tag(false); Text("Years").tag(true)
                 }.pickerStyle(.segmented).onChange(of: years) { value in count = value ? 1 : 3 }
@@ -90,7 +169,8 @@ struct GrowthView: View {
                         Text(String(value) + (years ? " years" : " months")).tag(Int32(value))
                     }
                 }
-                Section("Money movement") {
+                SectionHeading(title: "Money movement")
+                RaisedPanel {
                     Chart {
                         ForEach(buckets, id: \.label) { bucket in
                             BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.moneyIn) / 100))
@@ -100,17 +180,24 @@ struct GrowthView: View {
                             BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.invested) / 100))
                                 .foregroundStyle(by: .value("Type", "Invested")).position(by: .value("Type", "Invested"))
                         }
-                    }.chartForegroundStyleScale(["Money in": Color.green, "Spent": Color.red, "Invested": Color.blue]).frame(height: 220)
-                    Text("Money in, spending and investments across calendar periods.").font(.caption)
+                    }
+                    .chartForegroundStyleScale(["Money in": Color.dmIncome, "Spent": Color.dmSpend, "Invested": Color.dmInvest])
+                    .frame(height: 220)
+                    Text("Money in, spending and investments across calendar periods.").font(.caption).foregroundStyle(Color.dmInkSoft)
                 }
-                Section("Wealth Progress") {
+                SectionHeading(title: "Wealth Progress")
+                RaisedPanel {
                     Chart(buckets, id: \.label) { bucket in
-                        LineMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(.green)
-                        PointMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(.green)
+                        LineMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(Color.dmIncome)
+                        PointMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(Color.dmIncome)
                     }.frame(height: 200)
-                    Text("Remaining money in bank plus investment.").font(.caption)
+                    Text("Remaining money in bank plus investment.").font(.caption).foregroundStyle(Color.dmInkSoft)
                 }
-            }.navigationTitle("Growth").withSettings(model: model)
+                }
+                .padding(20)
+            }
+            .background(Color.dmPaper)
+            .navigationTitle("Growth").withSettings(model: model)
         }
     }
 }
@@ -237,4 +324,3 @@ struct EntryEditSheet: View {
         }.presentationDetents([.medium, .large])
     }
 }
-

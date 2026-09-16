@@ -98,12 +98,19 @@ struct DailyMintApp: App {
 
 struct PlanView: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Plan").font(.largeTitle).bold()
-            Text("Coming soon").foregroundStyle(.secondary)
-            Spacer()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                BrandHeader(title: "Plan")
+                RaisedPanel {
+                    Text("Coming soon").font(.headline).foregroundStyle(Color.dmInk)
+                    Text("Goal planning will live here once the core tracking flow is stable.")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.dmInkFaint)
+                }
+            }
+            .padding(20)
         }
-        .padding()
+        .background(Color.dmPaper)
     }
 }
 
@@ -120,31 +127,53 @@ struct ManualView: View {
     private enum Field: Hashable { case name, amount }
     var body: some View {
         NavigationStack {
-            Form {
-                if let loadError = model.engine.loadError { Text(loadError).foregroundStyle(.red) }
-                Picker("Type", selection: $income) {
-                    Text("Expense").tag(false)
-                    Text("Income").tag(true)
-                }.pickerStyle(.segmented)
-                    .onChange(of: income) { value in category = value ? "Received" : "Miscellaneous" }
-                TextField("Name", text: $name).accessibilityIdentifier("entryName")
-                    .focused($focusedField, equals: .name)
-                    .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
-                TextField("Amount", text: $amount).keyboardType(.decimalPad).accessibilityIdentifier("entryAmount")
-                    .focused($focusedField, equals: .amount)
-                Picker("Category", selection: $category) {
-                    ForEach(income ? ["Salary", "Received"] : model.engine.categories(), id: \.self) { Text($0).tag($0) }
-                }.accessibilityIdentifier("entryCategory")
-                DatePicker("Date", selection: $date, displayedComponents: .date)
-                if let error { Text(error).foregroundStyle(.red).accessibilityIdentifier("entryError") }
-                Button("Save") {
-                    focusedField = nil
-                    error = model.addEntry(name: name, amount: amount, category: category, date: date, income: income)
-                    if error == nil { name = ""; amount = ""; category = income ? "Received" : "Miscellaneous"; saved = true }
-                }.accessibilityIdentifier("saveEntry").disabled(model.engine.loadError != nil)
-            }.navigationTitle("DailyMint").withSettings(model: model)
-                .onDisappear { focusedField = nil }
-                .alert("Transaction saved", isPresented: $saved) { Button("OK", role: .cancel) {} }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    BrandHeader(title: "Add transaction")
+                    RaisedPanel {
+                        if let loadError = model.engine.loadError { Text(loadError).foregroundStyle(.red) }
+                        Picker("Type", selection: $income) {
+                            Text("Expense").tag(false)
+                            Text("Income").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .onChange(of: income) { value in category = value ? "Received" : "Miscellaneous" }
+
+                        TextField("Name", text: $name)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("entryName")
+                            .focused($focusedField, equals: .name)
+                            .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
+                        TextField("Amount", text: $amount)
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.decimalPad)
+                            .accessibilityIdentifier("entryAmount")
+                            .focused($focusedField, equals: .amount)
+                        Picker("Category", selection: $category) {
+                            ForEach(income ? ["Salary", "Received"] : model.engine.categories(), id: \.self) { Text($0).tag($0) }
+                        }
+                        .accessibilityIdentifier("entryCategory")
+                        DatePicker("Date", selection: $date, displayedComponents: .date)
+                        if let error { Text(error).foregroundStyle(.red).accessibilityIdentifier("entryError") }
+                        Button("Save") {
+                            focusedField = nil
+                            error = model.addEntry(name: name, amount: amount, category: category, date: date, income: income)
+                            if error == nil { name = ""; amount = ""; category = income ? "Received" : "Miscellaneous"; saved = true }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color.dmInk)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("saveEntry")
+                        .disabled(model.engine.loadError != nil)
+                    }
+                }
+                .padding(20)
+            }
+            .background(Color.dmPaper)
+            .navigationTitle("DailyMint")
+            .withSettings(model: model)
+            .onDisappear { focusedField = nil }
+            .alert("Transaction saved", isPresented: $saved) { Button("OK", role: .cancel) {} }
         }
     }
 }

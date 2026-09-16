@@ -21,7 +21,7 @@ class EntryFlowTest {
     }
     private val store = Store()
     private val engine = LedgerEngine(store)
-    private fun launch() { compose.setContent { MaterialTheme { DailyMint(engine) } } }
+    private fun launch() { compose.setContent { DailyMintTheme { DailyMint(engine) } } }
     @Test fun addCategoryWithKeyboardAndReload() {
         launch()
         compose.onNodeWithContentDescription("Settings").performClick()
@@ -68,7 +68,7 @@ class EntryFlowTest {
         compose.onNodeWithText("OK").performClick()
         assertEquals("", compose.onNodeWithTag("entryAmount").fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
         compose.onNodeWithText("Month").performClick()
-        compose.onNodeWithTag("spent").assertTextEquals("Spent: Rs 62.88")
+        compose.onNodeWithTag("spent").assertTextContains("Rs 62.88", substring = true)
         assertEquals(6288L, LedgerEngine(store).totals().spent)
     }
     @Test fun incomeEntryUpdatesMoneyInOnly() {
@@ -81,8 +81,8 @@ class EntryFlowTest {
         compose.onNodeWithText("Transaction saved").assertExists()
         compose.onNodeWithText("OK").performClick()
         compose.onNodeWithText("Month").performClick()
-        compose.onNodeWithTag("moneyIn").assertTextEquals("Money in: Rs 1234")
-        compose.onNodeWithTag("spent").assertTextEquals("Spent: Rs 0")
+        compose.onNodeWithTag("moneyIn").assertTextContains("Rs 1234", substring = true)
+        compose.onNodeWithTag("spent").assertTextContains("Rs 0", substring = true)
         val totals = LedgerEngine(store).totals()
         assertEquals(123400L, totals.moneyIn)
         assertEquals(0L, totals.spent)
