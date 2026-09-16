@@ -234,6 +234,20 @@ struct GrowthView: View {
                             }
                         }
                         .chartForegroundStyleScale(["Money in": Color.dmIncome, "Spent": Color.dmSpend, "Invested": Color.dmInvest])
+                        .chartXAxis {
+                            AxisMarks { _ in
+                                AxisGridLine().foregroundStyle(Color.dmHairline)
+                                AxisTick().foregroundStyle(Color.dmInkFaint)
+                                AxisValueLabel().foregroundStyle(Color.dmInkSoft)
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .trailing) { _ in
+                                AxisGridLine().foregroundStyle(Color.dmHairline.opacity(0.65))
+                                AxisTick().foregroundStyle(Color.dmInkFaint)
+                                AxisValueLabel().foregroundStyle(Color.dmInkSoft)
+                            }
+                        }
                         .frame(height: 220)
                         Text("Money in, spending and investments across calendar periods.").font(.caption).foregroundStyle(Color.dmInkSoft)
                     }

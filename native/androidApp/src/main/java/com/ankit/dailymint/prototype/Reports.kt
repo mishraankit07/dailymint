@@ -193,7 +193,16 @@ fun GrowthContent(engine: LedgerEngine, revision: Int) {
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { buckets.forEach { Text(it.label.takeLast(if (years) 4 else 2), color = InkFaint, fontSize = 11.sp) } }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            buckets.forEach {
+                Text(
+                    it.label.takeLast(if (years) 4 else 2),
+                    color = InkSoft,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
         Text("Money in, spending and investments across calendar periods.", color = InkSoft, style = MaterialTheme.typography.bodySmall)
     }
     RaisedCard {
