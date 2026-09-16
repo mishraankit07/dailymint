@@ -18,12 +18,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
@@ -159,12 +165,17 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
         },
         bottomBar = {
             NavigationBar(containerColor = PaperRaised, tonalElevation = 0.dp) {
-                listOf("Month", "Growth", "Manual", "Plan").forEachIndexed { index, title ->
+                listOf(
+                    NavItem("Month", Icons.Default.CalendarMonth),
+                    NavItem("Growth", Icons.AutoMirrored.Filled.ShowChart),
+                    NavItem("Manual", Icons.Default.AddCircle),
+                    NavItem("Plan", Icons.Default.Flag)
+                ).forEachIndexed { index, item ->
                     NavigationBarItem(
                         selected = tab == index,
                         onClick = { tab = index },
-                        icon = { Text(title.take(1), fontWeight = FontWeight.Bold) },
-                        label = { Text(title) },
+                        icon = { Icon(item.icon, contentDescription = item.title) },
+                        label = { Text(item.title) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Paper,
                             selectedTextColor = Ink,
@@ -188,8 +199,19 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                     3 -> {
                         BrandHeader("Plan")
                         RaisedCard {
-                            Text("Coming soon", color = InkSoft)
-                            Text("Goal planning will live here once the core tracking flow is stable.", color = InkFaint, style = MaterialTheme.typography.bodySmall)
+                            Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Flag, contentDescription = null, tint = Flow, modifier = Modifier.size(74.dp))
+                            }
+                            Text("Coming soon", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineSmall)
+                            Text("Plan a goal, set aside money, and watch the gap close over time.", color = InkSoft, style = MaterialTheme.typography.bodyMedium)
+                            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CategoryDot("Investment")
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Goal planning", color = InkFaint, fontWeight = FontWeight.SemiBold)
+                                }
+                                Text("Soon", color = Flow, fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                     2 -> {
@@ -352,3 +374,5 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
     if (saved) AlertDialog(onDismissRequest = { saved = false }, title = { Text("Transaction saved") },
         confirmButton = { TextButton(onClick = { saved = false }) { Text("OK") } })
 }
+
+private data class NavItem(val title: String, val icon: ImageVector)

@@ -102,10 +102,28 @@ struct PlanView: View {
             VStack(alignment: .leading, spacing: 14) {
                 BrandHeader(title: "Plan")
                 RaisedPanel {
-                    Text("Coming soon").font(.headline).foregroundStyle(Color.dmInk)
-                    Text("Goal planning will live here once the core tracking flow is stable.")
+                    ZStack {
+                        Circle().stroke(Color.dmFlow.opacity(0.24), lineWidth: 18).frame(width: 126, height: 126)
+                        Circle().stroke(Color.dmIncome, lineWidth: 10).frame(width: 86, height: 86)
+                        Circle().fill(Color.dmInvest).frame(width: 18, height: 18)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    Text("Coming soon")
+                        .font(.system(size: 28, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.dmInk)
+                    Text("Plan a goal, set aside money, and watch the gap close over time.")
                         .font(.subheadline)
-                        .foregroundStyle(Color.dmInkFaint)
+                        .foregroundStyle(Color.dmInkSoft)
+                    HStack {
+                        CategoryDot(name: "Investment")
+                        Text("Goal planning")
+                        Spacer()
+                        Text("Soon").foregroundStyle(Color.dmFlow)
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.dmInkFaint)
+                    .padding(.top, 8)
                 }
             }
             .padding(20)

@@ -15,20 +15,16 @@ struct MonthView: View {
                     BrandHeader(title: "Good evening")
                     MonthHero(summary: summary, model: model)
                     SectionHeading(title: "Where it went", trailing: summary.label)
-                    RaisedPanel {
-                        split("Spent", summary.spentPercent?.doubleValue, color: .dmSpend)
-                        split("Saved/Invested", summary.savedInvestedPercent?.doubleValue, color: .dmIncome)
-                        Text("Target 20%").font(.caption).foregroundStyle(Color.dmInkFaint)
-                    }
+                    MoneySplitPanel(summary: summary)
                     SectionHeading(title: "Outflow breakdown")
-                    RaisedPanel {
+                    HairlineBlock {
                         if summary.categories.isEmpty { Text("No outflow yet.").foregroundStyle(Color.dmInkFaint) }
                         ForEach(summary.categories, id: \.name) { item in
                             CategoryLine(name: item.name, percent: item.percent, amount: "Rs " + model.engine.formatAmount(paise: item.paise))
                         }
                     }
                     SectionHeading(title: "Top 5 transactions")
-                    RaisedPanel {
+                    HairlineBlock {
                         if summary.topFive.isEmpty { Text("No transactions yet.").foregroundStyle(Color.dmInkFaint) }
                         ForEach(summary.topFive, id: \.id) { entry in TransactionLine(entry: entry, model: model) }
                     }
@@ -65,14 +61,46 @@ struct MonthView: View {
             .sheet(item: $edit) { EntryEditSheet(model: model, entry: $0, reviewId: nil) }
         }
     }
-    @ViewBuilder private func split(_ name: String, _ percent: Double?, color: Color) -> some View {
-        HStack {
-            Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.dmInk)
-            Spacer()
-            Text(percent.map { String(Int($0.rounded())) + "%" } ?? "--").foregroundStyle(Color.dmInkSoft)
+}
+
+struct MoneySplitPanel: View {
+    let summary: MonthSummary
+    private var moneyIn: Double { max(1, Double(summary.moneyIn)) }
+    private var investedPercent: Double { summary.moneyIn > 0 ? Double(summary.invested) / moneyIn * 100 : 0 }
+    private var spentPercent: Double { summary.spentPercent?.doubleValue ?? 0 }
+    private var remainingPercent: Double { max(0, 100 - spentPercent - investedPercent) }
+    private var visualTotal: Double { max(100, spentPercent + investedPercent) }
+    var body: some View {
+        RaisedPanel {
+            GeometryReader { proxy in
+                HStack(spacing: 0) {
+                    Color.dmInvest.frame(width: proxy.size.width * investedPercent / visualTotal)
+                    Color.dmSpend.frame(width: proxy.size.width * spentPercent / visualTotal)
+                    Color.dmHairline.frame(maxWidth: .infinity)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            .frame(height: 14)
+            HStack(spacing: 14) {
+                SplitLegend(name: "Invested", percent: investedPercent, color: .dmInvest)
+                SplitLegend(name: "Spent", percent: spentPercent, color: .dmSpend)
+                SplitLegend(name: "Remaining", percent: remainingPercent, color: .dmHairline)
+            }
         }
-        ProgressView(value: min(1, max(0, (percent ?? 0) / 100)))
-            .tint(color)
+    }
+}
+
+struct SplitLegend: View {
+    let name: String
+    let percent: Double
+    let color: Color
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(name + " · " + String(Int(percent.rounded())) + "%")
+                .font(.caption)
+                .foregroundStyle(Color.dmInkSoft)
+        }
     }
 }
 
@@ -126,10 +154,11 @@ struct CategoryLine: View {
     let amount: String
     var body: some View {
         HStack(spacing: 10) {
-            Text(name).font(.caption.weight(.semibold)).foregroundStyle(Color.dmInk).frame(width: 86, alignment: .leading)
+            Text(name).font(.caption.weight(.semibold)).foregroundStyle(Color.dmInk).frame(width: 92, alignment: .leading)
             ProgressView(value: min(1, max(0, percent / 100))).tint(categoryColor(name))
             Text(amount).font(.caption).foregroundStyle(Color.dmInkSoft).frame(width: 82, alignment: .trailing)
         }
+        .padding(.vertical, 7)
     }
 }
 
@@ -139,7 +168,8 @@ struct TransactionLine: View {
     let entry: Entry
     @ObservedObject var model: LedgerModel
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
+            IconBubble(category: entry.category)
             VStack(alignment: .leading) {
                 Text(entry.name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.dmInk).lineLimit(1)
                 Text(entry.category + " · " + String(entry.date.prefix(10))).font(.caption).foregroundStyle(Color.dmInkFaint)
@@ -171,8 +201,15 @@ struct GrowthView: View {
                         Text(String(value) + (years ? " years" : " months")).tag(Int32(value))
                     }
                 }
-                SectionHeading(title: "Money movement")
                 RaisedPanel {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(years ? "Yearly flow" : "Monthly flow")
+                            .font(.headline)
+                            .foregroundStyle(Color.dmInk)
+                        Text("Money in vs. spent vs. invested")
+                            .font(.caption)
+                            .foregroundStyle(Color.dmInkFaint)
+                    }
                     Chart {
                         ForEach(buckets, id: \.label) { bucket in
                             BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.moneyIn) / 100))
@@ -187,13 +224,19 @@ struct GrowthView: View {
                     .frame(height: 220)
                     Text("Money in, spending and investments across calendar periods.").font(.caption).foregroundStyle(Color.dmInkSoft)
                 }
-                SectionHeading(title: "Wealth Progress")
                 RaisedPanel {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Wealth Progress")
+                            .font(.headline)
+                            .foregroundStyle(Color.dmInk)
+                        Text("Remaining money in bank plus investment")
+                            .font(.caption)
+                            .foregroundStyle(Color.dmInkFaint)
+                    }
                     Chart(buckets, id: \.label) { bucket in
                         LineMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(Color.dmIncome)
                         PointMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(Color.dmIncome)
                     }.frame(height: 200)
-                    Text("Remaining money in bank plus investment.").font(.caption).foregroundStyle(Color.dmInkSoft)
                 }
                 }
                 .padding(20)

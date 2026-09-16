@@ -4,12 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -82,6 +85,23 @@ fun StatPill(label: String, value: String, color: Color) {
             Text(label, color = InkFaint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
         Text(value, color = Ink, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 2.dp))
+    }
+}
+
+@Composable
+fun CategoryDot(name: String, size: Int = 10) {
+    Spacer(Modifier.size(size.dp).background(categoryColor(name), CircleShape))
+}
+
+@Composable
+fun IconBubble(category: String) {
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .background(categoryColor(category).copy(alpha = 0.14f), RoundedCornerShape(10.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        CategoryDot(category, 11)
     }
 }
 

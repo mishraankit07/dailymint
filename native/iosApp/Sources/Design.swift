@@ -27,6 +27,16 @@ struct RaisedPanel<Content: View>: View {
     }
 }
 
+struct HairlineBlock<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct BrandHeader: View {
     let title: String
     var subtitle = "Know your flow"
@@ -39,6 +49,28 @@ struct BrandHeader: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, 4)
+    }
+}
+
+struct CategoryDot: View {
+    let name: String
+    var size: CGFloat = 10
+    var body: some View {
+        Circle()
+            .fill(categoryColor(name))
+            .frame(width: size, height: size)
+    }
+}
+
+struct IconBubble: View {
+    let category: String
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(categoryColor(category).opacity(0.14))
+            CategoryDot(name: category, size: 11)
+        }
+        .frame(width: 34, height: 34)
     }
 }
 

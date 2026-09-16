@@ -41,12 +41,7 @@ fun MonthContent(engine: LedgerEngine, revision: Int, onEdit: (Entry) -> Unit, o
         }
     }
     SectionTitle("Where it went", trailing = summary.label)
-    RaisedCard {
-        SplitLine("Spent", summary.spentPercent, SpendRed)
-        Spacer(Modifier.height(8.dp))
-        SplitLine("Saved/Invested", summary.savedInvestedPercent, IncomeGreen)
-        Text("Target 20%", color = InkFaint, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
-    }
+    MoneySplitCard(summary)
     SectionTitle("Outflow breakdown")
     RaisedCard {
         if (summary.categories.isEmpty()) Text("No outflow yet.", color = InkFaint)
@@ -93,17 +88,38 @@ private fun HeroStat(label: String, value: String, color: Color, modifier: Modif
 }
 
 @Composable
-private fun SplitLine(name: String, percent: Double?, color: Color) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(name, color = Ink, fontWeight = FontWeight.SemiBold)
-        Text(percent?.let { kotlin.math.round(it).toInt().toString() + "%" } ?: "--", color = InkSoft)
+private fun MoneySplitCard(summary: MonthSummary) {
+    val moneyIn = summary.moneyIn.coerceAtLeast(1).toDouble()
+    val investedPercent = if (summary.moneyIn > 0) summary.invested.toDouble() / moneyIn * 100 else 0.0
+    val spentPercent = summary.spentPercent ?: 0.0
+    val remainingPercent = (100.0 - spentPercent - investedPercent).coerceAtLeast(0.0)
+    RaisedCard {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(14.dp)
+                .background(Hairline, RoundedCornerShape(8.dp))
+        ) {
+            if (investedPercent > 0) Spacer(Modifier.fillMaxHeight().weight(investedPercent.toFloat()).background(InvestGold))
+            if (spentPercent > 0) Spacer(Modifier.fillMaxHeight().weight(spentPercent.toFloat()).background(SpendRed))
+            if (remainingPercent > 0) Spacer(Modifier.fillMaxHeight().weight(remainingPercent.toFloat()))
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            SplitLegend("Invested", investedPercent, InvestGold)
+            SplitLegend("Spent", spentPercent, SpendRed)
+            SplitLegend("Remaining", remainingPercent, Hairline)
+        }
     }
-    LinearProgressIndicator(
-        progress = { ((percent ?: 0.0) / 100).toFloat().coerceIn(0f, 1f) },
-        modifier = Modifier.fillMaxWidth().height(8.dp),
-        color = color,
-        trackColor = Hairline
-    )
+}
+
+@Composable
+private fun SplitLegend(name: String, percent: Double, color: Color) {
+    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Spacer(Modifier.size(8.dp).background(color, RoundedCornerShape(99.dp)))
+        Spacer(Modifier.width(5.dp))
+        Text("$name · ${kotlin.math.round(percent).toInt()}%", color = InkSoft, fontSize = 12.sp)
+    }
 }
 
 @Composable
@@ -122,7 +138,9 @@ private fun CategoryBreakdownRow(name: String, percent: Double, amount: String) 
 
 @Composable
 fun TransactionRow(entry: Entry, engine: LedgerEngine) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        IconBubble(entry.category)
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(entry.name, color = Ink, fontWeight = FontWeight.SemiBold)
             Text(entry.category + " · " + entry.date.take(10), color = InkFaint, fontSize = 12.sp)
@@ -155,10 +173,16 @@ fun GrowthContent(engine: LedgerEngine, revision: Int) {
         }
     }
     val buckets = remember(revision, count, years) { engine.trendBuckets(engine.today(), years, count) }
-    SectionTitle("Money movement")
     RaisedCard {
         val colors = listOf(IncomeGreen, SpendRed, InvestGold)
-        Text("Money in · Spent · Invested", color = InkSoft, fontSize = 13.sp)
+        Text(if (years) "Yearly flow" else "Monthly flow", color = Ink, fontWeight = FontWeight.Bold)
+        Text("Money in vs. spent vs. invested", color = InkFaint, fontSize = 12.sp)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            FlowLegend("In", IncomeGreen)
+            FlowLegend("Spent", SpendRed)
+            FlowLegend("Invested", InvestGold)
+        }
         Canvas(Modifier.fillMaxWidth().height(190.dp).padding(top = 10.dp)) {
             val maximum = buckets.flatMap { listOf(it.moneyIn, it.spent, it.invested) }.maxOrNull()?.coerceAtLeast(1) ?: 1
             val group = size.width / buckets.size.coerceAtLeast(1)
@@ -172,8 +196,10 @@ fun GrowthContent(engine: LedgerEngine, revision: Int) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { buckets.forEach { Text(it.label.takeLast(if (years) 4 else 2), color = InkFaint, fontSize = 11.sp) } }
         Text("Money in, spending and investments across calendar periods.", color = InkSoft, style = MaterialTheme.typography.bodySmall)
     }
-    SectionTitle("Wealth Progress")
     RaisedCard {
+        Text("Wealth Progress", color = Ink, fontWeight = FontWeight.Bold)
+        Text("Remaining money in bank plus investment", color = InkFaint, fontSize = 12.sp)
+        Spacer(Modifier.height(8.dp))
         Canvas(Modifier.fillMaxWidth().height(190.dp)) {
             val min = minOf(0L, buckets.minOf { it.wealth })
             val max = maxOf(1L, buckets.maxOf { it.wealth })
@@ -184,6 +210,15 @@ fun GrowthContent(engine: LedgerEngine, revision: Int) {
         }
         Text("Remaining money in bank plus investment.", color = InkSoft, style = MaterialTheme.typography.bodySmall)
         buckets.forEach { Text(it.label + " · Rs " + engine.formatAmount(it.wealth), color = InkSoft) }
+    }
+}
+
+@Composable
+private fun FlowLegend(name: String, color: Color) {
+    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Spacer(Modifier.size(8.dp).background(color, RoundedCornerShape(99.dp)))
+        Spacer(Modifier.width(5.dp))
+        Text(name, color = InkSoft, fontSize = 12.sp)
     }
 }
 
