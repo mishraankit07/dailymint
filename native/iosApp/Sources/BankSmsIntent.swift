@@ -13,25 +13,19 @@ struct ImportBankSmsIntent: AppIntent {
     @Parameter(title: "Message")
     var message: String
 
-    @Parameter(title: "Sender")
-    var sender: String?
-
-    @Parameter(title: "Received At")
-    var receivedAt: Date?
-
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
             return .result(dialog: "DailyMint did not receive a message.")
         }
 
-        let timestamp = Int64((receivedAt ?? Date()).timeIntervalSince1970 * 1000)
+        let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
         let sourceId = "shortcut-\(timestamp)-\(stableHash(text))"
         let engine = LedgerEngine(store: FileStore())
         let result = engine.importSingleMessage(
             id: sourceId,
             body: text,
-            sender: sender?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Shortcut",
+            sender: "Shortcut",
             timestamp: timestamp
         )
 
