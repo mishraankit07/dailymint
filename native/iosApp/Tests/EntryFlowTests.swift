@@ -9,8 +9,14 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
     }
     private func openCategory() {
-        app.buttons["settings"].tap()
-        app.buttons["addCategory"].tap()
+        let settings = app.buttons["settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 5))
+        settings.tap()
+
+        let addCategory = app.buttons["addCategory"]
+        XCTAssertTrue(addCategory.waitForExistence(timeout: 5))
+        if !addCategory.isHittable { app.swipeUp() }
+        addCategory.tap()
         XCTAssertTrue(app.textFields["categoryName"].waitForExistence(timeout: 5))
     }
     func testSaveCategoryWithKeyboardAndRelaunch() {
