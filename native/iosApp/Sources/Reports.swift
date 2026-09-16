@@ -115,6 +115,8 @@ struct HeroStat: View {
             }
             Text(value).font(.caption.weight(.bold)).foregroundStyle(Color.dmPaper)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label + ": " + value)
     }
 }
 
