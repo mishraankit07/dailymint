@@ -25,7 +25,7 @@ class EntryFlowTest {
     @Test fun addCategoryWithKeyboardAndReload() {
         launch()
         compose.onNodeWithContentDescription("Settings").performClick()
-        compose.onNodeWithTag("addCategory").performClick()
+        compose.onNodeWithTag("addCategory").performScrollTo().performClick()
         compose.onNodeWithTag("categoryName").performTextInput("Travel")
         compose.onNodeWithTag("saveCategory").performClick()
         compose.onNodeWithTag("categoryName").assertDoesNotExist()
@@ -35,7 +35,7 @@ class EntryFlowTest {
     @Test fun cancelDoesNotSave() {
         launch()
         compose.onNodeWithContentDescription("Settings").performClick()
-        compose.onNodeWithTag("addCategory").performClick()
+        compose.onNodeWithTag("addCategory").performScrollTo().performClick()
         compose.onNodeWithTag("categoryName").performTextInput("Travel")
         compose.onNodeWithTag("cancelCategory").performClick()
         compose.onNodeWithTag("categoryName").assertDoesNotExist()
@@ -44,7 +44,7 @@ class EntryFlowTest {
     @Test fun invalidCategoryStaysOpen() {
         launch()
         compose.onNodeWithContentDescription("Settings").performClick()
-        compose.onNodeWithTag("addCategory").performClick()
+        compose.onNodeWithTag("addCategory").performScrollTo().performClick()
         compose.onNodeWithTag("saveCategory").performClick()
         compose.onNodeWithTag("categoryError").assertExists()
         compose.onNodeWithTag("categoryName").assertExists()

@@ -228,27 +228,87 @@ struct ImportView: View {
     @State private var discard = false
     var body: some View {
         NavigationStack {
-            List {
+            ScrollView {
                 let stats = model.engine.monthSummary(today: model.engine.today())
-                Text("Today's spend: Rs " + model.engine.formatAmount(paise: stats.todaySpend))
-                Text("Week's spend: Rs " + model.engine.formatAmount(paise: stats.weekSpend))
-                Button("Import transaction file") { picker = true }.accessibilityIdentifier("importFile")
-                if !model.engine.reviewFile().isEmpty { Text(model.engine.reviewFile()).font(.caption).foregroundStyle(.secondary) }
-                if let error { Text(error).foregroundStyle(.red) }
-                ForEach(model.engine.reviewRows().filter { $0.entry != nil }, id: \.id) { row in
-                    if let entry = row.entry {
-                        VStack(alignment: .leading) {
-                            TransactionLine(entry: entry, model: model)
-                            if row.status == "new" { Button("Edit") { editing = row } }
-                            else { Text("Already recorded").font(.caption).foregroundStyle(.green) }
+                let rows = model.engine.reviewRows().filter { $0.entry != nil }
+                VStack(alignment: .leading, spacing: 14) {
+                    BrandHeader(title: "Import")
+                    RaisedPanel {
+                        HStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Today's spend").font(.caption.weight(.semibold)).foregroundStyle(Color.dmInkFaint)
+                                Text("Rs " + model.engine.formatAmount(paise: stats.todaySpend))
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(Color.dmSpend)
+                            }
+                            Spacer()
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Week's spend").font(.caption.weight(.semibold)).foregroundStyle(Color.dmInkFaint)
+                                Text("Rs " + model.engine.formatAmount(paise: stats.weekSpend))
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(Color.dmInk)
+                            }
                         }
                     }
+
+                    RaisedPanel {
+                        Button {
+                            picker = true
+                        } label: {
+                            Label("Import transaction file", systemImage: "tray.and.arrow.down")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color.dmInk)
+                        .accessibilityIdentifier("importFile")
+
+                        if !model.engine.reviewFile().isEmpty {
+                            Text(model.engine.reviewFile()).font(.caption).foregroundStyle(Color.dmInkFaint)
+                        }
+                        if let error {
+                            Text(error).font(.caption).foregroundStyle(Color.dmSpend)
+                        }
+                    }
+
+                    if !rows.isEmpty {
+                        SectionHeading(title: "Imported transactions", trailing: String(rows.count) + " rows")
+                        ForEach(rows, id: \.id) { row in
+                            if let entry = row.entry {
+                                RaisedPanel {
+                                    TransactionLine(entry: entry, model: model)
+                                    if row.status == "new" {
+                                        Button("Edit") { editing = row }
+                                            .buttonStyle(.bordered)
+                                            .tint(Color.dmFlow)
+                                    } else {
+                                        Text("Already recorded").font(.caption.weight(.semibold)).foregroundStyle(Color.dmIncome)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if !model.engine.reviewRows().isEmpty {
+                        Button("Reviewed, save to ledger") {
+                            error = model.apply(model.engine.saveReview())
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color.dmInk)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("saveReview")
+
+                        Button("Discard import", role: .destructive) { discard = true }
+                            .buttonStyle(.bordered)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
-                if !model.engine.reviewRows().isEmpty {
-                    Button("Reviewed, save to ledger") { error = model.apply(model.engine.saveReview()) }.accessibilityIdentifier("saveReview")
-                    Button("Discard import", role: .destructive) { discard = true }
-                }
-            }.navigationTitle("Import").withSettings(model: model)
+                .padding(20)
+            }
+            .background(Color.dmPaper)
+            .navigationTitle("Import")
+            .withSettings(model: model)
                 .fileImporter(isPresented: $picker, allowedContentTypes: [.plainText, .text]) { result in
                     do {
                         let url = try result.get()

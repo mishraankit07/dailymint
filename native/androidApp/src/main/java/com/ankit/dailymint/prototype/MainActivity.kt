@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -228,66 +229,87 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                         }
                     }
                     4 -> {
-                        Text("Daily check-in", style = MaterialTheme.typography.titleLarge)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Expense reminder")
-                            Switch(checked = engine.reminderEnabled(), onCheckedChange = { enabled ->
-                                val result = engine.setReminder(enabled, engine.reminderTime())
-                                settingsError = result.message
-                                if (result.success) {
-                                    revision++
-                                    if (enabled) requestNotifications()
-                                    ReminderScheduler.apply(context, engine)
-                                }
-                            }, modifier = Modifier.testTag("reminderToggle"))
-                        }
+                        BrandHeader("Settings")
                         var reminderMenu by remember { mutableStateOf(false) }
-                        Box {
-                            OutlinedButton(onClick = { reminderMenu = true }, modifier = Modifier.testTag("reminderTime")) {
-                                Text("Reminder time: " + engine.reminderTime())
+                        RaisedCard {
+                            SectionTitle("Daily check-in")
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column {
+                                    Text("Expense reminder", color = Ink, fontWeight = FontWeight.SemiBold)
+                                    Text(if (engine.reminderEnabled()) "Reminder on" else "Reminder off",
+                                        color = InkFaint, style = MaterialTheme.typography.bodySmall)
+                                }
+                                Switch(checked = engine.reminderEnabled(), onCheckedChange = { enabled ->
+                                    val result = engine.setReminder(enabled, engine.reminderTime())
+                                    settingsError = result.message
+                                    if (result.success) {
+                                        revision++
+                                        if (enabled) requestNotifications()
+                                        ReminderScheduler.apply(context, engine)
+                                    }
+                                }, modifier = Modifier.testTag("reminderToggle"))
                             }
-                            DropdownMenu(reminderMenu, onDismissRequest = { reminderMenu = false }) {
-                                listOf("20:00", "20:30", "21:00", "21:30", "22:00").forEach { time ->
-                                    DropdownMenuItem(text = { Text(time) }, onClick = {
-                                        val result = engine.setReminder(engine.reminderEnabled(), time)
-                                        settingsError = result.message
-                                        if (result.success) {
-                                            revision++
-                                            reminderMenu = false
-                                            ReminderScheduler.apply(context, engine)
-                                        }
-                                    })
+                            Spacer(Modifier.height(10.dp))
+                            Box {
+                                OutlinedButton(onClick = { reminderMenu = true }, modifier = Modifier.testTag("reminderTime")) {
+                                    Text("Reminder time: " + engine.reminderTime())
+                                }
+                                DropdownMenu(reminderMenu, onDismissRequest = { reminderMenu = false }) {
+                                    listOf("20:00", "20:30", "21:00", "21:30", "22:00").forEach { time ->
+                                        DropdownMenuItem(text = { Text(time) }, onClick = {
+                                            val result = engine.setReminder(engine.reminderEnabled(), time)
+                                            settingsError = result.message
+                                            if (result.success) {
+                                                revision++
+                                                reminderMenu = false
+                                                ReminderScheduler.apply(context, engine)
+                                            }
+                                        })
+                                    }
                                 }
                             }
                         }
-                        Box {
-                            OutlinedButton(onClick = { monthMenu = true }) { Text("Tracking cycle starts: " + engine.monthStartDay()) }
-                            DropdownMenu(monthMenu, onDismissRequest = { monthMenu = false }) {
-                                (1..31).forEach { day -> DropdownMenuItem(text = { Text(day.toString()) }, onClick = {
-                                    val result = engine.setMonthStartDay(day)
-                                    settingsError = result.message
-                                    if (result.success) { revision++; monthMenu = false }
-                                }) }
+                        RaisedCard {
+                            SectionTitle("Tracking cycle")
+                            Box {
+                                OutlinedButton(onClick = { monthMenu = true }) { Text("Starts on date: " + engine.monthStartDay()) }
+                                DropdownMenu(monthMenu, onDismissRequest = { monthMenu = false }) {
+                                    (1..31).forEach { day -> DropdownMenuItem(text = { Text(day.toString()) }, onClick = {
+                                        val result = engine.setMonthStartDay(day)
+                                        settingsError = result.message
+                                        if (result.success) { revision++; monthMenu = false }
+                                    }) }
+                                }
                             }
                         }
                         if (settingsError.isNotEmpty()) Text(settingsError, color = MaterialTheme.colorScheme.error)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Categories", style = MaterialTheme.typography.titleLarge)
-                            IconButton(onClick = { categoryName = ""; categoryError = ""; showCategory = true },
-                                modifier = Modifier.testTag("addCategory")) { Icon(Icons.Default.Add, contentDescription = "Add category") }
+                        RaisedCard {
+                            SectionTitle("Categories")
+                            OutlinedButton(
+                                onClick = { categoryName = ""; categoryError = ""; showCategory = true },
+                                modifier = Modifier.fillMaxWidth().testTag("addCategory")
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Add category", tint = Ink)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Add category")
+                            }
+                            categories.forEach { categoryName -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Row {
+                                    Spacer(Modifier.width(9.dp).height(9.dp).background(categoryColor(categoryName), androidx.compose.foundation.shape.RoundedCornerShape(99.dp)))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(categoryName, color = Ink)
+                                }
+                                if (categoryName != "Miscellaneous") IconButton(onClick = { deletingCategory = categoryName }) { Icon(Icons.Default.Close, contentDescription = "Delete " + categoryName, tint = SpendRed) }
+                            } }
                         }
-                        categories.forEach { categoryName -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(categoryName)
-                            if (categoryName != "Miscellaneous") IconButton(onClick = { deletingCategory = categoryName }) { Icon(Icons.Default.Close, contentDescription = "Delete " + categoryName) }
-                        } }
                         val unrecognized = engine.unrecognizedMessages()
                         if (unrecognized.isNotEmpty()) {
-                            HorizontalDivider()
-                            Text("Unrecognized messages", style = MaterialTheme.typography.titleLarge)
-                            Text(unrecognized.size.toString() + " recent messages need parser support.")
-                            unrecognized.takeLast(10).forEachIndexed { index, row ->
-                                OutlinedButton(onClick = { unrecognizedDebug = row }, modifier = Modifier.fillMaxWidth()) {
-                                    Text("View message " + (index + 1) + if (row.reason.isNotEmpty()) " · " + row.reason else "")
+                            RaisedCard {
+                                SectionTitle("Unrecognized messages", trailing = unrecognized.size.toString())
+                                unrecognized.takeLast(10).forEachIndexed { index, row ->
+                                    OutlinedButton(onClick = { unrecognizedDebug = row }, modifier = Modifier.fillMaxWidth()) {
+                                        Text("View message " + (index + 1) + if (row.reason.isNotEmpty()) " · " + row.reason else "")
+                                    }
                                 }
                             }
                         }

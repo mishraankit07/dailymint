@@ -91,7 +91,7 @@ struct DailyMintApp: App {
                 ImportView(model: model).tabItem { Label("Import", systemImage: "tray.and.arrow.down") }.tag(AppTab.imports)
                 ManualView(model: model).tabItem { Label("Manual", systemImage: "plus.circle") }.tag(AppTab.manual)
                 PlanView().tabItem { Label("Plan", systemImage: "target") }.tag(AppTab.plan)
-            }.tint(.green)
+            }.tint(Color.dmInk)
         }
     }
 }
@@ -189,19 +189,21 @@ struct SettingsView: View {
     private let reminderTimes = ["20:00", "20:30", "21:00", "21:30", "22:00"]
     var body: some View {
         NavigationStack {
-            List {
-                dailyCheckInSection
-                trackingCyclePicker
-                if let error { Text(error).foregroundStyle(.red) }
-                categoriesSection
-                unrecognizedSection
-            }.navigationTitle("Settings")
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button { showCategory = true } label: { Image(systemName: "plus") }
-                            .accessibilityLabel("Add category").accessibilityIdentifier("addCategory")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    BrandHeader(title: "Settings")
+                    dailyCheckInSection
+                    trackingCyclePicker
+                    if let error {
+                        Text(error).font(.caption).foregroundStyle(Color.dmSpend)
                     }
+                    categoriesSection
+                    unrecognizedSection
                 }
+                .padding(20)
+            }
+            .background(Color.dmPaper)
+            .navigationTitle("Settings")
                 .sheet(isPresented: $showCategory) { CategorySheet(model: model) }
                 .confirmationDialog("Delete category? Transactions will move to Miscellaneous.", isPresented: Binding(get: { deletion != nil }, set: { if !$0 { deletion = nil } })) {
                     Button("Delete", role: .destructive) { if let deletion { error = model.apply(model.engine.deleteCategory(name: deletion)) }; deletion = nil }
@@ -219,21 +221,24 @@ struct SettingsView: View {
     }
 
     private var dailyCheckInSection: some View {
-        Section("Daily check-in") {
+        RaisedPanel {
+            SectionHeading(title: "Daily check-in")
             Button(action: toggleReminder) {
-                HStack {
-                    Text("Expense reminder")
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Expense reminder").font(.headline).foregroundStyle(Color.dmInk)
+                        Text(reminderEnabled ? "Reminder on" : "Reminder off")
+                            .font(.caption)
+                            .foregroundStyle(Color.dmInkFaint)
+                            .accessibilityIdentifier("reminderStatus")
+                    }
                     Spacer()
                     Image(systemName: reminderEnabled ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(reminderEnabled ? Color.dmIncome : Color.dmInkFaint)
                 }
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("reminderToggle")
-
-            Text(reminderEnabled ? "Reminder on" : "Reminder off")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("reminderStatus")
 
             Picker("Reminder time", selection: reminderTimeBinding) {
                 ForEach(reminderTimes, id: \.self) { time in
@@ -245,28 +250,45 @@ struct SettingsView: View {
     }
 
     private var trackingCyclePicker: some View {
-        Picker("Tracking cycle starts", selection: monthStartBinding) {
-            ForEach(1...31, id: \.self) { day in
-                Text(String(day)).tag(Int32(day))
+        RaisedPanel {
+            SectionHeading(title: "Tracking cycle")
+            Picker("Starts on date", selection: monthStartBinding) {
+                ForEach(1...31, id: \.self) { day in
+                    Text(String(day)).tag(Int32(day))
+                }
             }
         }
     }
 
     private var categoriesSection: some View {
-        Section("Categories") {
+        RaisedPanel {
+            SectionHeading(title: "Categories")
+            Button {
+                showCategory = true
+            } label: {
+                Label("Add category", systemImage: "plus.circle.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(Color.dmInk)
+            .accessibilityLabel("Add category")
+            .accessibilityIdentifier("addCategory")
             ForEach(model.engine.categories(), id: \.self) { category in
                 HStack {
-                    Text(category)
+                    Circle().fill(categoryColor(category)).frame(width: 9, height: 9)
+                    Text(category).foregroundStyle(Color.dmInk)
                     Spacer()
                     if category != "Miscellaneous" {
                         Button {
                             deletion = category
                         } label: {
-                            Image(systemName: "xmark").foregroundStyle(.red)
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(Color.dmSpend)
                         }
+                        .buttonStyle(.plain)
                         .accessibilityLabel("Delete " + category)
                     }
                 }
+                .padding(.vertical, 3)
             }
         }
     }
@@ -275,12 +297,14 @@ struct SettingsView: View {
     private var unrecognizedSection: some View {
         let messages = model.engine.unrecognizedMessages()
         if !messages.isEmpty {
-            Section("Unrecognized messages") {
-                Text(String(messages.count) + " recent messages need parser support.")
+            RaisedPanel {
+                SectionHeading(title: "Unrecognized messages", trailing: String(messages.count))
                 ForEach(Array(messages.suffix(10).enumerated()), id: \.element.id) { index, row in
                     Button(unrecognizedTitle(index: index, reason: row.reason)) {
                         unrecognizedText = row.rawText
                     }
+                    .buttonStyle(.bordered)
+                    .tint(Color.dmFlow)
                 }
             }
         }
@@ -331,11 +355,25 @@ struct CategorySheet: View {
     @FocusState private var focused: Bool
     var body: some View {
         NavigationStack {
-            Form {
-                TextField("Category name", text: $name).focused($focused)
-                    .accessibilityIdentifier("categoryName").submitLabel(.done).onSubmit(save)
-                if let error { Text(error).foregroundStyle(.red).accessibilityIdentifier("categoryError") }
-            }.navigationTitle("Add category").navigationBarTitleDisplayMode(.inline)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    BrandHeader(title: "Add category")
+                    RaisedPanel {
+                        TextField("Category name", text: $name)
+                            .textFieldStyle(.roundedBorder)
+                            .focused($focused)
+                            .accessibilityIdentifier("categoryName")
+                            .submitLabel(.done)
+                            .onSubmit(save)
+                        if let error {
+                            Text(error).font(.caption).foregroundStyle(Color.dmSpend).accessibilityIdentifier("categoryError")
+                        }
+                    }
+                }
+                .padding(20)
+            }
+            .background(Color.dmPaper)
+            .navigationTitle("Add category").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { dismiss() }.accessibilityIdentifier("cancelCategory")
