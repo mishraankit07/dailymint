@@ -235,7 +235,7 @@ struct GrowthView: View {
                         }
                         .chartForegroundStyleScale(["Money in": Color.dmIncome, "Spent": Color.dmSpend, "Invested": Color.dmInvest])
                         .chartXAxis {
-                            AxisMarks { _ in
+                            AxisMarks(values: buckets.map { $0.label }) { _ in
                                 AxisGridLine().foregroundStyle(Color.dmHairline)
                                 AxisTick().foregroundStyle(Color.dmInkFaint)
                                 AxisValueLabel().foregroundStyle(Color.dmInkSoft)

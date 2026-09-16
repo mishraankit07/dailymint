@@ -185,11 +185,16 @@ fun GrowthContent(engine: LedgerEngine, revision: Int) {
         }
         Canvas(Modifier.fillMaxWidth().height(190.dp).padding(top = 10.dp)) {
             val maximum = buckets.flatMap { listOf(it.moneyIn, it.spent, it.invested) }.maxOrNull()?.coerceAtLeast(1) ?: 1
-            val group = size.width / buckets.size.coerceAtLeast(1)
+            val groupWidth = size.width / buckets.size.coerceAtLeast(1)
+            val clusterWidth = kotlin.math.min(groupWidth * 0.58f, 78f)
+            val barGap = clusterWidth * 0.12f
+            val barWidth = (clusterWidth - barGap * 2) / 3f
             buckets.forEachIndexed { index, bucket ->
+                val clusterStart = index * groupWidth + (groupWidth - clusterWidth) / 2f
                 listOf(bucket.moneyIn, bucket.spent, bucket.invested).forEachIndexed { series, amount ->
                     val height = (amount.toDouble() / maximum * size.height).toFloat()
-                    drawRect(colors[series], Offset(index * group + series * group / 4, size.height - height), Size(group / 5, height))
+                    val x = clusterStart + series * (barWidth + barGap)
+                    drawRect(colors[series], Offset(x, size.height - height), Size(barWidth, height))
                 }
             }
         }
