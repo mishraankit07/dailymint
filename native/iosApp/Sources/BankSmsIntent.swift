@@ -6,6 +6,9 @@ struct ImportBankSmsIntent: AppIntent {
     static var title: LocalizedStringResource = "Import Bank SMS"
     static var description = IntentDescription("Send a bank transaction message to DailyMint.")
     static var openAppWhenRun = false
+    static var parameterSummary: some ParameterSummary {
+        Summary("Import \(\.$message)")
+    }
 
     @Parameter(title: "Message")
     var message: String
