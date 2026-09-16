@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 extension Color {
     static let dmPaper = Color(red: 0.933, green: 0.941, blue: 0.902)
@@ -71,6 +72,62 @@ struct IconBubble: View {
             CategoryDot(name: category, size: 11)
         }
         .frame(width: 34, height: 34)
+    }
+}
+
+struct PaperField: View {
+    let placeholder: String
+    @Binding var text: String
+    var keyboard: UIKeyboardType = .default
+    var body: some View {
+        TextField(placeholder, text: $text)
+            .keyboardType(keyboard)
+            .textFieldStyle(.plain)
+            .foregroundStyle(Color.dmInk)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color.dmPaperRaised)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
+    }
+}
+
+struct PaperSegment<Selection: Hashable>: View {
+    let title: String
+    let value: Selection
+    @Binding var selection: Selection
+    var body: some View {
+        Button {
+            selection = value
+        } label: {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(selection == value ? Color.dmPaper : Color.dmInkSoft)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(selection == value ? Color.dmInk : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct PaperOption: View {
+    let title: String
+    let active: Bool
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(active ? Color.dmPaper : Color.dmInkSoft)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(active ? Color.dmInk : Color.dmPaperRaised)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.dmHairline, lineWidth: active ? 0 : 1))
+        }
+        .buttonStyle(.plain)
     }
 }
 

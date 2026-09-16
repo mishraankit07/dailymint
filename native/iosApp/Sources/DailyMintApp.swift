@@ -91,7 +91,9 @@ struct DailyMintApp: App {
                 ImportView(model: model).tabItem { Label("Import", systemImage: "tray.and.arrow.down") }.tag(AppTab.imports)
                 ManualView(model: model).tabItem { Label("Manual", systemImage: "plus.circle") }.tag(AppTab.manual)
                 PlanView().tabItem { Label("Plan", systemImage: "target") }.tag(AppTab.plan)
-            }.tint(Color.dmInk)
+            }
+            .tint(Color.dmInk)
+            .preferredColorScheme(.light)
         }
     }
 }
@@ -150,28 +152,41 @@ struct ManualView: View {
                     BrandHeader(title: "Add transaction")
                     RaisedPanel {
                         if let loadError = model.engine.loadError { Text(loadError).foregroundStyle(.red) }
-                        Picker("Type", selection: $income) {
-                            Text("Expense").tag(false)
-                            Text("Income").tag(true)
+                        HStack(spacing: 6) {
+                            PaperSegment(title: "Expense", value: false, selection: $income)
+                            PaperSegment(title: "Income", value: true, selection: $income)
                         }
-                        .pickerStyle(.segmented)
                         .onChange(of: income) { value in category = value ? "Received" : "Miscellaneous" }
+                        .padding(4)
+                        .background(Color.dmHairline.opacity(0.55))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                        TextField("Name", text: $name)
-                            .textFieldStyle(.roundedBorder)
+                        PaperField(placeholder: "Name", text: $name)
                             .accessibilityIdentifier("entryName")
                             .focused($focusedField, equals: .name)
                             .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
-                        TextField("Amount", text: $amount)
-                            .textFieldStyle(.roundedBorder)
-                            .keyboardType(.decimalPad)
+                        PaperField(placeholder: "Amount", text: $amount, keyboard: .decimalPad)
                             .accessibilityIdentifier("entryAmount")
                             .focused($focusedField, equals: .amount)
-                        Picker("Category", selection: $category) {
-                            ForEach(income ? ["Salary", "Received"] : model.engine.categories(), id: \.self) { Text($0).tag($0) }
+                        Menu {
+                            ForEach(income ? ["Salary", "Received"] : model.engine.categories(), id: \.self) { option in
+                                Button(option) { category = option }
+                            }
+                        } label: {
+                            HStack {
+                                Text(category).foregroundStyle(Color.dmFlow)
+                                Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Color.dmFlow)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .background(Color.dmPaperRaised)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
                         }
                         .accessibilityIdentifier("entryCategory")
                         DatePicker("Date", selection: $date, displayedComponents: .date)
+                            .foregroundStyle(Color.dmInk)
                         if let error { Text(error).foregroundStyle(.red).accessibilityIdentifier("entryError") }
                         Button("Save") {
                             focusedField = nil
@@ -188,7 +203,8 @@ struct ManualView: View {
                 .padding(20)
             }
             .background(Color.dmPaper)
-            .navigationTitle("DailyMint")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
             .onDisappear { focusedField = nil }
             .alert("Transaction saved", isPresented: $saved) { Button("OK", role: .cancel) {} }
@@ -221,7 +237,8 @@ struct SettingsView: View {
                 .padding(20)
             }
             .background(Color.dmPaper)
-            .navigationTitle("Settings")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
                 .sheet(isPresented: $showCategory) { CategorySheet(model: model) }
                 .confirmationDialog("Delete category? Transactions will move to Miscellaneous.", isPresented: Binding(get: { deletion != nil }, set: { if !$0 { deletion = nil } })) {
                     Button("Delete", role: .destructive) { if let deletion { error = model.apply(model.engine.deleteCategory(name: deletion)) }; deletion = nil }
@@ -258,10 +275,18 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("reminderToggle")
 
-            Picker("Reminder time", selection: reminderTimeBinding) {
+            Menu {
                 ForEach(reminderTimes, id: \.self) { time in
-                    Text(time).tag(time)
+                    Button(time) { reminderTimeBinding.wrappedValue = time }
                 }
+            } label: {
+                HStack {
+                    Text("Reminder time").foregroundStyle(Color.dmInk)
+                    Spacer()
+                    Text(reminderTime).foregroundStyle(Color.dmFlow)
+                    Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Color.dmFlow)
+                }
+                .padding(.vertical, 8)
             }
             .accessibilityIdentifier("reminderTime")
         }
@@ -270,10 +295,18 @@ struct SettingsView: View {
     private var trackingCyclePicker: some View {
         RaisedPanel {
             SectionHeading(title: "Tracking cycle")
-            Picker("Starts on date", selection: monthStartBinding) {
+            Menu {
                 ForEach(1...31, id: \.self) { day in
-                    Text(String(day)).tag(Int32(day))
+                    Button(String(day)) { monthStartBinding.wrappedValue = Int32(day) }
                 }
+            } label: {
+                HStack {
+                    Text("Tracking cycle starts").foregroundStyle(Color.dmInk)
+                    Spacer()
+                    Text(String(model.engine.monthStartDay())).foregroundStyle(Color.dmFlow)
+                    Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Color.dmFlow)
+                }
+                .padding(.vertical, 8)
             }
         }
     }
@@ -291,22 +324,23 @@ struct SettingsView: View {
             .tint(Color.dmInk)
             .accessibilityLabel("Add category")
             .accessibilityIdentifier("addCategory")
-            ForEach(model.engine.categories(), id: \.self) { category in
+            ForEach(model.engine.categories(), id: \.self) { item in
                 HStack {
-                    Circle().fill(categoryColor(category)).frame(width: 9, height: 9)
-                    Text(category).foregroundStyle(Color.dmInk)
+                    CategoryDot(name: item, size: 9)
+                    Text(item).foregroundStyle(Color.dmInk)
                     Spacer()
-                    if category != "Miscellaneous" {
+                    if item != "Miscellaneous" {
                         Button {
-                            deletion = category
+                            deletion = item
                         } label: {
                             Image(systemName: "xmark.circle.fill").foregroundStyle(Color.dmSpend)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Delete " + category)
+                        .accessibilityLabel("Delete " + item)
                     }
                 }
-                .padding(.vertical, 3)
+                .padding(.vertical, 9)
+                .overlay(alignment: .bottom) { Rectangle().fill(Color.dmHairline).frame(height: 1) }
             }
         }
     }
@@ -377,8 +411,7 @@ struct CategorySheet: View {
                 VStack(alignment: .leading, spacing: 14) {
                     BrandHeader(title: "Add category")
                     RaisedPanel {
-                        TextField("Category name", text: $name)
-                            .textFieldStyle(.roundedBorder)
+                        PaperField(placeholder: "Category name", text: $name)
                             .focused($focused)
                             .accessibilityIdentifier("categoryName")
                             .submitLabel(.done)

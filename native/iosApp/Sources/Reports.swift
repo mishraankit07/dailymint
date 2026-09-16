@@ -56,7 +56,8 @@ struct MonthView: View {
                 .padding(20)
             }
             .background(Color.dmPaper)
-            .navigationTitle("DailyMint")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
             .sheet(item: $edit) { EntryEditSheet(model: model, entry: $0, reviewId: nil) }
         }
@@ -187,62 +188,76 @@ struct GrowthView: View {
     @ObservedObject var model: LedgerModel
     @State private var years = false
     @State private var count: Int32 = 3
+    private var rangeOptions: [Int32] { years ? [1, 2, 3, 5] : [3, 6] }
     var body: some View {
         NavigationStack {
             let buckets = model.engine.trendBuckets(today: model.engine.today(), years: years, count: count)
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                BrandHeader(title: "Growth")
-                Picker("Period", selection: $years) {
-                    Text("Months").tag(false); Text("Years").tag(true)
-                }.pickerStyle(.segmented).onChange(of: years) { value in count = value ? 1 : 3 }
-                Picker("Range", selection: $count) {
-                    ForEach(years ? [1, 2, 3, 5] : [3, 6], id: \.self) { value in
-                        Text(String(value) + (years ? " years" : " months")).tag(Int32(value))
+                    BrandHeader(title: "Growth")
+                    HStack(spacing: 6) {
+                        PaperSegment(title: "Months", value: false, selection: $years)
+                        PaperSegment(title: "Years", value: true, selection: $years)
                     }
-                }
-                RaisedPanel {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(years ? "Yearly flow" : "Monthly flow")
-                            .font(.headline)
-                            .foregroundStyle(Color.dmInk)
-                        Text("Money in vs. spent vs. invested")
-                            .font(.caption)
-                            .foregroundStyle(Color.dmInkFaint)
-                    }
-                    Chart {
-                        ForEach(buckets, id: \.label) { bucket in
-                            BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.moneyIn) / 100))
-                                .foregroundStyle(by: .value("Type", "Money in")).position(by: .value("Type", "Money in"))
-                            BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.spent) / 100))
-                                .foregroundStyle(by: .value("Type", "Spent")).position(by: .value("Type", "Spent"))
-                            BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.invested) / 100))
-                                .foregroundStyle(by: .value("Type", "Invested")).position(by: .value("Type", "Invested"))
+                    .onChange(of: years) { value in count = value ? 1 : 3 }
+                    .padding(4)
+                    .background(Color.dmHairline.opacity(0.55))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    HStack(spacing: 8) {
+                        ForEach(rangeOptions, id: \.self) { value in
+                            PaperOption(
+                                title: String(value) + (years ? " years" : " months"),
+                                active: count == value,
+                                action: { count = value }
+                            )
                         }
                     }
-                    .chartForegroundStyleScale(["Money in": Color.dmIncome, "Spent": Color.dmSpend, "Invested": Color.dmInvest])
-                    .frame(height: 220)
-                    Text("Money in, spending and investments across calendar periods.").font(.caption).foregroundStyle(Color.dmInkSoft)
-                }
-                RaisedPanel {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Wealth Progress")
-                            .font(.headline)
-                            .foregroundStyle(Color.dmInk)
-                        Text("Remaining money in bank plus investment")
-                            .font(.caption)
-                            .foregroundStyle(Color.dmInkFaint)
+
+                    RaisedPanel {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(years ? "Yearly flow" : "Monthly flow")
+                                .font(.headline)
+                                .foregroundStyle(Color.dmInk)
+                            Text("Money in vs. spent vs. invested")
+                                .font(.caption)
+                                .foregroundStyle(Color.dmInkFaint)
+                        }
+                        Chart {
+                            ForEach(buckets, id: \.label) { bucket in
+                                BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.moneyIn) / 100))
+                                    .foregroundStyle(by: .value("Type", "Money in")).position(by: .value("Type", "Money in"))
+                                BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.spent) / 100))
+                                    .foregroundStyle(by: .value("Type", "Spent")).position(by: .value("Type", "Spent"))
+                                BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.invested) / 100))
+                                    .foregroundStyle(by: .value("Type", "Invested")).position(by: .value("Type", "Invested"))
+                            }
+                        }
+                        .chartForegroundStyleScale(["Money in": Color.dmIncome, "Spent": Color.dmSpend, "Invested": Color.dmInvest])
+                        .frame(height: 220)
+                        Text("Money in, spending and investments across calendar periods.").font(.caption).foregroundStyle(Color.dmInkSoft)
                     }
-                    Chart(buckets, id: \.label) { bucket in
-                        LineMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(Color.dmIncome)
-                        PointMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(Color.dmIncome)
-                    }.frame(height: 200)
-                }
+                    RaisedPanel {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Wealth Progress")
+                                .font(.headline)
+                                .foregroundStyle(Color.dmInk)
+                            Text("Remaining money in bank plus investment")
+                                .font(.caption)
+                                .foregroundStyle(Color.dmInkFaint)
+                        }
+                        Chart(buckets, id: \.label) { bucket in
+                            LineMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(Color.dmIncome)
+                            PointMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(Color.dmIncome)
+                        }.frame(height: 200)
+                    }
                 }
                 .padding(20)
             }
             .background(Color.dmPaper)
-            .navigationTitle("Growth").withSettings(model: model)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .withSettings(model: model)
         }
     }
 }
@@ -350,7 +365,8 @@ struct ImportView: View {
                 .padding(20)
             }
             .background(Color.dmPaper)
-            .navigationTitle("Import")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
                 .fileImporter(isPresented: $picker, allowedContentTypes: [.plainText, .text]) { result in
                     do {
