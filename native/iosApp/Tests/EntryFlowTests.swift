@@ -67,7 +67,7 @@ final class EntryFlowTests: XCTestCase {
         let selected = NSPredicate(format: "selected == true")
         expectation(for: selected, evaluatedWith: month)
         waitForExpectations(timeout: 5)
-        let spent = app.staticTexts["spent"]
+        let spent = app.descendants(matching: .any)["spent"]
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
         XCTAssertEqual(spent.label, "Spent: Rs 62.88")
         app.terminate()
@@ -89,8 +89,8 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.alerts["Transaction saved"].waitForExistence(timeout: 5))
         app.alerts.buttons["OK"].tap()
         app.tabBars.buttons["Month"].tap()
-        XCTAssertTrue(app.staticTexts["moneyIn"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.staticTexts["moneyIn"].label, "Money in: Rs 1234")
-        XCTAssertEqual(app.staticTexts["spent"].label, "Spent: Rs 0")
+        XCTAssertTrue(app.descendants(matching: .any)["moneyIn"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Money in: Rs 1234")
+        XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Spent: Rs 0")
     }
 }
