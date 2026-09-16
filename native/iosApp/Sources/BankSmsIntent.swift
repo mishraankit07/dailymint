@@ -7,11 +7,14 @@ struct ImportBankSmsIntent: AppIntent {
     static var description = IntentDescription("Send a bank transaction message to DailyMint.")
     static var openAppWhenRun = false
     static var parameterSummary: some ParameterSummary {
-        Summary("Import \(\.$message)")
+        Summary("Import \(\.$message) from \(\.$sender)")
     }
 
-    @Parameter(title: "Message")
+    @Parameter(title: "Message", inputConnectionBehavior: .connectToPreviousIntentResult)
     var message: String
+
+    @Parameter(title: "Sender")
+    var sender: String?
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -19,13 +22,15 @@ struct ImportBankSmsIntent: AppIntent {
             return .result(dialog: "DailyMint did not receive a message.")
         }
 
+        let messageSender = sender?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedSender = (messageSender?.isEmpty == false) ? messageSender! : "Shortcut"
         let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
-        let sourceId = "shortcut-\(timestamp)-\(stableHash(text))"
+        let sourceId = "shortcut-\(timestamp)-\(stableHash(normalizedSender + "|" + text))"
         let engine = LedgerEngine(store: FileStore())
         let result = engine.importSingleMessage(
             id: sourceId,
             body: text,
-            sender: "Shortcut",
+            sender: normalizedSender,
             timestamp: timestamp
         )
 
