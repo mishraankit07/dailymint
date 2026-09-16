@@ -120,7 +120,7 @@ fun DailyMintTheme(content: @Composable () -> Unit) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String = "", requestSms: () -> Unit = {}, requestNotifications: () -> Unit = {}) {
     val context = LocalContext.current
@@ -177,11 +177,11 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                         icon = { Icon(item.icon, contentDescription = item.title) },
                         label = { Text(item.title) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Paper,
-                            selectedTextColor = Ink,
-                            indicatorColor = Ink,
-                            unselectedIconColor = InkFaint,
-                            unselectedTextColor = InkFaint
+                            selectedIconColor = Flow,
+                            selectedTextColor = Flow,
+                            indicatorColor = FlowSoft,
+                            unselectedIconColor = InkSoft,
+                            unselectedTextColor = InkSoft
                         )
                     )
                 }
@@ -315,14 +315,13 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                                 Spacer(Modifier.width(8.dp))
                                 Text("Add category")
                             }
-                            categories.forEach { categoryName -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Row {
-                                    Spacer(Modifier.width(9.dp).height(9.dp).background(categoryColor(categoryName), androidx.compose.foundation.shape.RoundedCornerShape(99.dp)))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(categoryName, color = Ink)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                categories.forEach { categoryName ->
+                                    CategoryChip(categoryName, removable = categoryName != "Miscellaneous") {
+                                        deletingCategory = categoryName
+                                    }
                                 }
-                                if (categoryName != "Miscellaneous") IconButton(onClick = { deletingCategory = categoryName }) { Icon(Icons.Default.Close, contentDescription = "Delete " + categoryName, tint = SpendRed) }
-                            } }
+                            }
                         }
                         val unrecognized = engine.unrecognizedMessages()
                         if (unrecognized.isNotEmpty()) {

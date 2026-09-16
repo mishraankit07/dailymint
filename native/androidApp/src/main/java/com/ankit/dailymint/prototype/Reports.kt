@@ -25,7 +25,7 @@ fun MonthContent(engine: LedgerEngine, revision: Int, onEdit: (Entry) -> Unit, o
     BrandHeader("Good evening")
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Ink)
     ) {
         Column(Modifier.padding(20.dp)) {

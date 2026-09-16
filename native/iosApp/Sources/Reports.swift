@@ -128,7 +128,7 @@ struct MonthHero: View {
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.dmInk)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 

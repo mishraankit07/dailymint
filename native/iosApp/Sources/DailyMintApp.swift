@@ -92,7 +92,7 @@ struct DailyMintApp: App {
                 ManualView(model: model).tabItem { Label("Manual", systemImage: "plus.circle") }.tag(AppTab.manual)
                 PlanView().tabItem { Label("Plan", systemImage: "target") }.tag(AppTab.plan)
             }
-            .tint(Color.dmInk)
+            .tint(Color.dmFlow)
             .preferredColorScheme(.light)
         }
     }
@@ -324,23 +324,12 @@ struct SettingsView: View {
             .tint(Color.dmInk)
             .accessibilityLabel("Add category")
             .accessibilityIdentifier("addCategory")
-            ForEach(model.engine.categories(), id: \.self) { item in
-                HStack {
-                    CategoryDot(name: item, size: 9)
-                    Text(item).foregroundStyle(Color.dmInk)
-                    Spacer()
-                    if item != "Miscellaneous" {
-                        Button {
-                            deletion = item
-                        } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundStyle(Color.dmSpend)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Delete " + item)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: 8)], alignment: .leading, spacing: 8) {
+                ForEach(model.engine.categories(), id: \.self) { item in
+                    CategoryChip(name: item, removable: item != "Miscellaneous") {
+                        deletion = item
                     }
                 }
-                .padding(.vertical, 9)
-                .overlay(alignment: .bottom) { Rectangle().fill(Color.dmHairline).frame(height: 1) }
             }
         }
     }

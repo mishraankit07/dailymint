@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +36,7 @@ val InkSoft = Color(0xff4b594e)
 val InkFaint = Color(0xff8b968b)
 val Hairline = Color(0xffd8dbcc)
 val Flow = Color(0xff1f6f78)
+val FlowSoft = Color(0xffe4eeec)
 val IncomeGreen = Color(0xff3f8f5f)
 val SpendRed = Color(0xffc1594a)
 val InvestGold = Color(0xffc99a3d)
@@ -42,7 +45,7 @@ val InvestGold = Color(0xffc99a3d)
 fun RaisedCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = PaperRaised),
         border = BorderStroke(1.dp, Hairline)
     ) {
@@ -103,6 +106,28 @@ fun IconBubble(category: String) {
     ) {
         CategoryDot(category, 11)
     }
+}
+
+@Composable
+fun CategoryChip(name: String, removable: Boolean = false, onDelete: () -> Unit = {}) {
+    val color = categoryColor(name)
+    AssistChip(
+        onClick = { if (removable) onDelete() },
+        label = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CategoryDot(name, 9)
+                Spacer(Modifier.width(7.dp))
+                Text(name, color = color, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                if (removable) {
+                    Spacer(Modifier.width(7.dp))
+                    Text("x", color = color, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+        },
+        colors = AssistChipDefaults.assistChipColors(containerColor = PaperRaised, labelColor = color),
+        border = BorderStroke(1.dp, color),
+        shape = RoundedCornerShape(20.dp)
+    )
 }
 
 fun categoryColor(name: String): Color = when (name.lowercase()) {

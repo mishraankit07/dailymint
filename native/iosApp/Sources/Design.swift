@@ -9,6 +9,7 @@ extension Color {
     static let dmInkFaint = Color(red: 0.545, green: 0.588, blue: 0.545)
     static let dmHairline = Color(red: 0.847, green: 0.859, blue: 0.800)
     static let dmFlow = Color(red: 0.122, green: 0.435, blue: 0.471)
+    static let dmFlowSoft = Color(red: 0.894, green: 0.933, blue: 0.925)
     static let dmIncome = Color(red: 0.247, green: 0.561, blue: 0.373)
     static let dmSpend = Color(red: 0.757, green: 0.349, blue: 0.290)
     static let dmInvest = Color(red: 0.788, green: 0.604, blue: 0.239)
@@ -23,8 +24,8 @@ struct RaisedPanel<Content: View>: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.dmPaperRaised)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
     }
 }
 
@@ -72,6 +73,35 @@ struct IconBubble: View {
             CategoryDot(name: category, size: 11)
         }
         .frame(width: 34, height: 34)
+    }
+}
+
+struct CategoryChip: View {
+    let name: String
+    let removable: Bool
+    var onDelete: (() -> Void)?
+    var body: some View {
+        HStack(spacing: 7) {
+            CategoryDot(name: name, size: 9)
+            Text(name)
+                .font(.caption.weight(.semibold))
+            if removable {
+                Button {
+                    onDelete?()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption2.weight(.bold))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Delete " + name)
+            }
+        }
+        .foregroundStyle(categoryColor(name))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.dmPaperRaised)
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(categoryColor(name), lineWidth: 1))
     }
 }
 
