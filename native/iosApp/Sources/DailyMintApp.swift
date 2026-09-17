@@ -10,6 +10,7 @@ final class FileStore: NSObject, LedgerStore {
         let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         url = directory.appendingPathComponent(testing ? "ui-test-ledger.json" : "ledger-v1.json")
         super.init()
+        protectForBackgroundAccess()
     }
     func load() throws -> LedgerRead {
         guard FileManager.default.fileExists(atPath: url.path) else { return LedgerRead(snapshot: nil) }
@@ -18,6 +19,14 @@ final class FileStore: NSObject, LedgerStore {
     func save(snapshot: String) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try snapshot.write(to: url, atomically: true, encoding: .utf8)
+        protectForBackgroundAccess()
+    }
+    private func protectForBackgroundAccess() {
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try? FileManager.default.setAttributes(
+            [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+            ofItemAtPath: url.path
+        )
     }
     func withExclusiveLock<T>(_ body: () -> T) throws -> T {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -25,6 +34,10 @@ final class FileStore: NSObject, LedgerStore {
         let descriptor = open(lockURL.path, O_CREAT | O_RDWR, mode_t(S_IRUSR | S_IWUSR))
         guard descriptor >= 0 else { throw CocoaError(.fileWriteNoPermission) }
         defer { close(descriptor) }
+        try? FileManager.default.setAttributes(
+            [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+            ofItemAtPath: lockURL.path
+        )
         guard flock(descriptor, LOCK_EX) == 0 else { throw CocoaError(.fileWriteUnknown) }
         defer { flock(descriptor, LOCK_UN) }
         return body()

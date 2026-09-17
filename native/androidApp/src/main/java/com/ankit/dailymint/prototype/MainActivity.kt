@@ -74,12 +74,14 @@ class MainActivity : ComponentActivity() {
         engine = LedgerEngine(PreferenceStore(this))
         smsReader = SmsReader(this) { scanMessages() }
         smsAllowed = smsReader.allowed()
+        smsPermissionRequested = getSharedPreferences("sms-setup", MODE_PRIVATE).getBoolean("permission-requested", false)
         setContent {
             DailyMintTheme {
                 if (!smsAllowed && !smsIntroDismissed) {
                     AndroidSMSOnboarding(
                         onAllow = {
                             smsPermissionRequested = true
+                            getSharedPreferences("sms-setup", MODE_PRIVATE).edit().putBoolean("permission-requested", true).apply()
                             permission.launch(android.Manifest.permission.READ_SMS)
                         },
                         onOpenSettings = {

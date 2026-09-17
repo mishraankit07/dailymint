@@ -39,6 +39,7 @@ enum ShortcutImportLog {
                 try line.write(to: url, atomically: true, encoding: .utf8)
             }
             prune()
+            protectForBackgroundAccess()
         } catch {
             // Best-effort debug log only; import flow must not fail because logging failed.
         }
@@ -69,6 +70,13 @@ enum ShortcutImportLog {
         guard let text = try? String(contentsOf: url, encoding: .utf8) else { return }
         let lines = text.split(separator: "\n").suffix(40).joined(separator: "\n")
         try? (lines + "\n").write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private static func protectForBackgroundAccess() {
+        try? FileManager.default.setAttributes(
+            [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+            ofItemAtPath: url.path
+        )
     }
 
     private static func removeLegacyLog() {
