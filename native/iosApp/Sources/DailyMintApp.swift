@@ -1,6 +1,8 @@
 import SwiftUI
+import Combine
 import DailyMintCore
 import UserNotifications
+import Darwin
 
 final class FileStore: NSObject, LedgerStore {
     let url: URL
@@ -17,6 +19,16 @@ final class FileStore: NSObject, LedgerStore {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try snapshot.write(to: url, atomically: true, encoding: .utf8)
     }
+    func withExclusiveLock<T>(_ body: () -> T) throws -> T {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let lockURL = url.appendingPathExtension("lock")
+        let descriptor = open(lockURL.path, O_CREAT | O_RDWR, mode_t(S_IRUSR | S_IWUSR))
+        guard descriptor >= 0 else { throw CocoaError(.fileWriteNoPermission) }
+        defer { close(descriptor) }
+        guard flock(descriptor, LOCK_EX) == 0 else { throw CocoaError(.fileWriteUnknown) }
+        defer { flock(descriptor, LOCK_UN) }
+        return body()
+    }
 }
 
 @MainActor
@@ -24,6 +36,7 @@ final class LedgerModel: ObservableObject {
     @Published private(set) var engine: LedgerEngine
     @Published var revision = 0
     private let store: FileStore
+    private var lastLoadedModification: Date?
 
     init() {
         let testing = ProcessInfo.processInfo.arguments.contains("--ui-testing")
@@ -34,29 +47,44 @@ final class LedgerModel: ObservableObject {
         }
         #endif
         engine = LedgerEngine(store: store)
+        lastLoadedModification = modificationDate()
     }
     func reload() {
         engine = LedgerEngine(store: store)
+        lastLoadedModification = modificationDate()
         revision += 1
     }
-    func addCategory(_ name: String) -> String? {
-        let result = engine.addCategory(rawName: name)
-        if result.success { revision += 1; return nil }
-        return result.message
+    func refreshIfChanged() {
+        if modificationDate() != lastLoadedModification { reload() }
     }
-    func apply(_ result: SaveResult) -> String? {
-        if result.success { revision += 1; return nil }
-        return result.message
+    private func modificationDate() -> Date? {
+        try? store.url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+    }
+    func mutate(_ operation: (LedgerEngine) -> SaveResult) -> String? {
+        do {
+            return try store.withExclusiveLock {
+                engine = LedgerEngine(store: store)
+                let result = operation(engine)
+                lastLoadedModification = modificationDate()
+                if result.success { revision += 1; return nil }
+                return result.message
+            }
+        } catch {
+            return "Could not access local data. Please try again."
+        }
+    }
+    func addCategory(_ name: String) -> String? {
+        mutate { $0.addCategory(rawName: name) }
     }
     func addEntry(name: String, amount: String, category: String, date: Date, income: Bool) -> String? {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
-        let result = engine.addEntry(id: UUID().uuidString, name: name, amount: amount,
-                                     category: category, date: formatter.string(from: date), income: income)
-        if result.success { revision += 1; return nil }
-        return result.message
+        return mutate {
+            $0.addEntry(id: UUID().uuidString, name: name, amount: amount,
+                        category: category, date: formatter.string(from: date), income: income)
+        }
     }
 }
 
@@ -150,6 +178,9 @@ struct DailyMintApp: App {
                 if phase == .active {
                     model.reload()
                 }
+            }
+            .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
+                if scenePhase == .active { model.refreshIfChanged() }
             }
         }
     }
@@ -303,7 +334,7 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
                 .sheet(isPresented: $showCategory) { CategorySheet(model: model) }
                 .confirmationDialog("Delete category? Transactions will move to Miscellaneous.", isPresented: Binding(get: { deletion != nil }, set: { if !$0 { deletion = nil } })) {
-                    Button("Delete", role: .destructive) { if let deletion { error = model.apply(model.engine.deleteCategory(name: deletion)) }; deletion = nil }
+                    Button("Delete", role: .destructive) { if let deletion { error = model.mutate { $0.deleteCategory(name: deletion) } }; deletion = nil }
                 }
                 .onAppear {
                     reminderEnabled = model.engine.reminderEnabled()
@@ -485,7 +516,7 @@ struct SettingsView: View {
         Binding(
             get: { model.engine.monthStartDay() },
             set: { value in
-                error = model.apply(model.engine.setMonthStartDay(day: value))
+                error = model.mutate { $0.setMonthStartDay(day: value) }
             }
         )
     }
@@ -532,8 +563,7 @@ struct SettingsView: View {
     }
 
     private func updateReminder(time: String) {
-        let result = model.engine.setReminder(enabled: reminderEnabled, time: time)
-        error = model.apply(result)
+        error = model.mutate { $0.setReminder(enabled: reminderEnabled, time: time) }
         if error == nil {
             ReminderScheduler.apply(engine: model.engine)
         }

@@ -364,7 +364,7 @@ struct ImportView: View {
 
                     if !model.engine.reviewRows().isEmpty {
                         Button("Reviewed, save to ledger") {
-                            error = model.apply(model.engine.saveReview())
+                            error = model.mutate { $0.saveReview() }
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(Color.dmInk)
@@ -390,7 +390,7 @@ struct ImportView: View {
                         let values = try url.resourceValues(forKeys: [.fileSizeKey])
                         guard (values.fileSize ?? 0) <= 5_000_000 else { error = "This file is too large."; return }
                         let text = try String(contentsOf: url, encoding: .utf8)
-                        error = model.apply(model.engine.stageWal(text: text, fileName: url.lastPathComponent))
+                        error = model.mutate { $0.stageWal(text: text, fileName: url.lastPathComponent) }
                         if error == nil {
                             let rows = model.engine.reviewRows()
                             var counts = ["Transactions: " + String(rows.filter { $0.entry != nil }.count)]
@@ -406,7 +406,7 @@ struct ImportView: View {
                     Button("OK") { summary = nil }
                 } message: { Text(summary ?? "") }
                 .confirmationDialog("Discard pending import?", isPresented: $discard) {
-                    Button("Discard", role: .destructive) { error = model.apply(model.engine.discardReview()) }
+                    Button("Discard", role: .destructive) { error = model.mutate { $0.discardReview() } }
                 }
                 .sheet(item: $editing) { row in
                     if let entry = row.entry { EntryEditSheet(model: model, entry: entry, reviewId: row.id) }
@@ -441,10 +441,10 @@ struct EntryEditSheet: View {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save") {
-                            let result: SaveResult
-                            if let reviewId { result = model.engine.editReview(id: reviewId, name: name, amount: amount, category: category) }
-                            else { result = model.engine.editEntry(id: entry.id, name: name, amount: amount, category: category, date: entry.date, platform: "ios", nowMillis: Int64(Date().timeIntervalSince1970 * 1000)) }
-                            error = model.apply(result)
+                            error = model.mutate { engine in
+                                if let reviewId { return engine.editReview(id: reviewId, name: name, amount: amount, category: category) }
+                                return engine.editEntry(id: entry.id, name: name, amount: amount, category: category, date: entry.date, platform: "ios", nowMillis: Int64(Date().timeIntervalSince1970 * 1000))
+                            }
                             if error == nil { dismiss() }
                         }
                     }
@@ -452,7 +452,7 @@ struct EntryEditSheet: View {
                 .onAppear { name = entry.name; amount = model.engine.formatAmount(paise: entry.paise); category = entry.category }
                 .confirmationDialog("Delete transaction?", isPresented: $delete) {
                     Button("Delete", role: .destructive) {
-                        error = model.apply(model.engine.deleteEntry(id: entry.id, platform: "ios", nowMillis: Int64(Date().timeIntervalSince1970 * 1000)))
+                        error = model.mutate { $0.deleteEntry(id: entry.id, platform: "ios", nowMillis: Int64(Date().timeIntervalSince1970 * 1000)) }
                         if error == nil { dismiss() }
                     }
                 }

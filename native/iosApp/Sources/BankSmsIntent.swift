@@ -56,9 +56,21 @@ actor ShortcutSMSProcessor {
         let normalizedSender = (messageSender?.isEmpty == false) ? messageSender! : "Shortcut"
         let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
         let sourceId = "shortcut-\(stableHash(normalizedSender + "|" + text))"
-        let engine = LedgerEngine(store: FileStore())
+        let store = FileStore()
+        do {
+            return try store.withExclusiveLock {
+                importLocked(text: text, sender: normalizedSender, timestamp: timestamp, sourceId: sourceId, store: store)
+            }
+        } catch {
+            ShortcutImportLog.record(status: "save failed", sender: normalizedSender, message: text)
+            return "DailyMint could not access its local data. Try again."
+        }
+    }
+
+    private func importLocked(text: String, sender: String, timestamp: Int64, sourceId: String, store: FileStore) -> String {
+        let engine = LedgerEngine(store: store)
         if let loadError = engine.loadError {
-            ShortcutImportLog.record(status: "load failed", sender: normalizedSender, message: text)
+            ShortcutImportLog.record(status: "load failed", sender: sender, message: text)
             return "DailyMint could not open its ledger: \(loadError)"
         }
         let entryCount = engine.entries().count
@@ -66,23 +78,23 @@ actor ShortcutSMSProcessor {
         let result = engine.importSingleMessage(
             id: sourceId,
             body: text,
-            sender: normalizedSender,
+            sender: sender,
             timestamp: timestamp
         )
 
         if result.success {
             if engine.entries().count > entryCount {
-                ShortcutImportLog.record(status: "transaction added", sender: normalizedSender, message: text)
+                ShortcutImportLog.record(status: "transaction added", sender: sender, message: text)
                 return "DailyMint added this transaction."
             }
             if engine.unrecognizedMessages().count > unrecognizedCount {
-                ShortcutImportLog.record(status: "unrecognized", sender: normalizedSender, message: text)
+                ShortcutImportLog.record(status: "unrecognized", sender: sender, message: text)
                 return "DailyMint received this SMS, but could not recognize it yet."
             }
-            ShortcutImportLog.record(status: "no new transaction", sender: normalizedSender, message: text)
+            ShortcutImportLog.record(status: "no new transaction", sender: sender, message: text)
             return "DailyMint received this SMS. It was ignored or already recorded."
         }
-        ShortcutImportLog.record(status: "save failed", sender: normalizedSender, message: text)
+        ShortcutImportLog.record(status: "save failed", sender: sender, message: text)
         return "DailyMint could not save this message."
     }
 
