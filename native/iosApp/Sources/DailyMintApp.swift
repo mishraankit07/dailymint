@@ -21,17 +21,23 @@ final class FileStore: NSObject, LedgerStore {
 
 @MainActor
 final class LedgerModel: ObservableObject {
-    let engine: LedgerEngine
+    @Published private(set) var engine: LedgerEngine
     @Published var revision = 0
+    private let store: FileStore
+
     init() {
         let testing = ProcessInfo.processInfo.arguments.contains("--ui-testing")
-        let store = FileStore(testing: testing)
+        store = FileStore(testing: testing)
         #if DEBUG
         if testing && ProcessInfo.processInfo.arguments.contains("--reset-test-data") {
             try? FileManager.default.removeItem(at: store.url)
         }
         #endif
         engine = LedgerEngine(store: store)
+    }
+    func reload() {
+        engine = LedgerEngine(store: store)
+        revision += 1
     }
     func addCategory(_ name: String) -> String? {
         let result = engine.addCategory(rawName: name)
@@ -82,6 +88,7 @@ enum ReminderScheduler {
 struct DailyMintApp: App {
     @StateObject private var model = LedgerModel()
     @State private var selectedTab = AppTab.month
+    @Environment(\.scenePhase) private var scenePhase
     private enum AppTab: Hashable { case month, growth, imports, manual, plan }
     var body: some Scene {
         WindowGroup {
@@ -94,6 +101,11 @@ struct DailyMintApp: App {
             }
             .tint(Color.dmFlow)
             .preferredColorScheme(.light)
+            .onChange(of: scenePhase) { phase in
+                if phase == .active {
+                    model.reload()
+                }
+            }
         }
     }
 }
@@ -220,7 +232,8 @@ struct SettingsView: View {
     @State private var reminderEnabled = false
     @State private var reminderTime = "21:30"
     @State private var unrecognizedText: String?
-    private let reminderTimes = ["20:00", "20:30", "21:00", "21:30", "22:00"]
+    @State private var reminderDigits = ReminderDigits.from24Hour("21:30")
+    @FocusState private var focusedReminderDigit: ReminderDigit?
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -246,6 +259,7 @@ struct SettingsView: View {
                 .onAppear {
                     reminderEnabled = model.engine.reminderEnabled()
                     reminderTime = model.engine.reminderTime()
+                    reminderDigits = ReminderDigits.from24Hour(reminderTime)
                 }
                 .alert("Unrecognized message", isPresented: Binding(get: { unrecognizedText != nil }, set: { if !$0 { unrecognizedText = nil } })) {
                     Button("Close") { unrecognizedText = nil }
@@ -275,18 +289,27 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("reminderToggle")
 
-            Menu {
-                ForEach(reminderTimes, id: \.self) { time in
-                    Button(time) { reminderTimeBinding.wrappedValue = time }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Reminder time").foregroundStyle(Color.dmInk)
+                HStack(spacing: 8) {
+                    reminderDigitField(.h1)
+                    reminderDigitField(.h2)
+                    Text(":").font(.headline).foregroundStyle(Color.dmInkFaint)
+                    reminderDigitField(.m1)
+                    reminderDigitField(.m2)
+                    Picker("Period", selection: periodBinding) {
+                        Text("AM").tag("AM")
+                        Text("PM").tag("PM")
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 112)
                 }
-            } label: {
-                HStack {
-                    Text("Reminder time").foregroundStyle(Color.dmInk)
-                    Spacer()
-                    Text(reminderTime).foregroundStyle(Color.dmFlow)
-                    Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Color.dmFlow)
+                if let validation = reminderDigits.validationMessage {
+                    Text(validation)
+                        .font(.caption)
+                        .foregroundStyle(Color.dmSpend)
+                        .accessibilityIdentifier("reminderTimeError")
                 }
-                .padding(.vertical, 8)
             }
             .accessibilityIdentifier("reminderTime")
         }
@@ -361,6 +384,16 @@ struct SettingsView: View {
         )
     }
 
+    private var periodBinding: Binding<String> {
+        Binding(
+            get: { reminderDigits.period },
+            set: { value in
+                reminderDigits.period = value
+                commitReminderDigits()
+            }
+        )
+    }
+
     private var monthStartBinding: Binding<Int32> {
         Binding(
             get: { model.engine.monthStartDay() },
@@ -375,6 +408,42 @@ struct SettingsView: View {
         updateReminder(time: reminderTime)
     }
 
+    private func reminderDigitField(_ digit: ReminderDigit) -> some View {
+        let invalid = reminderDigits.invalidDigits.contains(digit)
+        return TextField("", text: reminderDigitBinding(digit))
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.center)
+            .font(.headline.monospacedDigit())
+            .frame(width: 38, height: 42)
+            .background(invalid ? Color.dmSpend.opacity(0.12) : Color.dmPaperRaised)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(invalid ? Color.dmSpend : Color.dmHairline, lineWidth: 1)
+            )
+            .focused($focusedReminderDigit, equals: digit)
+            .accessibilityIdentifier("reminder\(digit.rawValue)")
+    }
+
+    private func reminderDigitBinding(_ digit: ReminderDigit) -> Binding<String> {
+        Binding(
+            get: { reminderDigits.value(for: digit) },
+            set: { value in
+                reminderDigits.set(String(value.filter(\.isNumber).prefix(1)), for: digit)
+                if !reminderDigits.value(for: digit).isEmpty {
+                    focusedReminderDigit = digit.next
+                }
+                commitReminderDigits()
+            }
+        )
+    }
+
+    private func commitReminderDigits() {
+        guard let time = reminderDigits.time24Hour else { return }
+        reminderTime = time
+        updateReminder(time: time)
+    }
+
     private func updateReminder(time: String) {
         let result = model.engine.setReminder(enabled: reminderEnabled, time: time)
         error = model.apply(result)
@@ -385,6 +454,95 @@ struct SettingsView: View {
 
     private func unrecognizedTitle(index: Int, reason: String) -> String {
         "View message " + String(index + 1) + (reason.isEmpty ? "" : " · " + reason)
+    }
+}
+
+private enum ReminderDigit: String, Hashable {
+    case h1 = "HourTens"
+    case h2 = "HourOnes"
+    case m1 = "MinuteTens"
+    case m2 = "MinuteOnes"
+
+    var next: ReminderDigit? {
+        switch self {
+        case .h1: return .h2
+        case .h2: return .m1
+        case .m1: return .m2
+        case .m2: return nil
+        }
+    }
+}
+
+private struct ReminderDigits {
+    var h1: String
+    var h2: String
+    var m1: String
+    var m2: String
+    var period: String
+
+    static func from24Hour(_ time: String) -> ReminderDigits {
+        let parts = time.split(separator: ":").compactMap { Int($0) }
+        let hour24 = parts.first ?? 21
+        let minute = parts.dropFirst().first ?? 30
+        let period = hour24 >= 12 ? "PM" : "AM"
+        let hour12Value = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24)
+        let hour12 = String(format: "%02d", hour12Value)
+        let minuteText = String(format: "%02d", minute)
+        return ReminderDigits(
+            h1: String(hour12[hour12.startIndex]),
+            h2: String(hour12[hour12.index(after: hour12.startIndex)]),
+            m1: String(minuteText[minuteText.startIndex]),
+            m2: String(minuteText[minuteText.index(after: minuteText.startIndex)]),
+            period: period
+        )
+    }
+
+    var hourText: String { h1 + h2 }
+    var minuteText: String { m1 + m2 }
+
+    var time24Hour: String? {
+        guard validationMessage == nil, let hour = Int(hourText), let minute = Int(minuteText) else { return nil }
+        let hour24 = period == "AM" ? (hour == 12 ? 0 : hour) : (hour == 12 ? 12 : hour + 12)
+        return String(format: "%02d:%02d", hour24, minute)
+    }
+
+    var validationMessage: String? {
+        if hourText.count == 2, let hour = Int(hourText), !(1...12).contains(hour) {
+            return "Hour must be between 01 and 12."
+        }
+        if minuteText.count == 2, let minute = Int(minuteText), !(0...59).contains(minute) {
+            return "Minutes must be between 00 and 59."
+        }
+        return nil
+    }
+
+    var invalidDigits: Set<ReminderDigit> {
+        var result = Set<ReminderDigit>()
+        if hourText.count == 2, let hour = Int(hourText), !(1...12).contains(hour) {
+            result.formUnion([.h1, .h2])
+        }
+        if minuteText.count == 2, let minute = Int(minuteText), !(0...59).contains(minute) {
+            result.formUnion([.m1, .m2])
+        }
+        return result
+    }
+
+    func value(for digit: ReminderDigit) -> String {
+        switch digit {
+        case .h1: return h1
+        case .h2: return h2
+        case .m1: return m1
+        case .m2: return m2
+        }
+    }
+
+    mutating func set(_ value: String, for digit: ReminderDigit) {
+        switch digit {
+        case .h1: h1 = value
+        case .h2: h2 = value
+        case .m1: m1 = value
+        case .m2: m2 = value
+        }
     }
 }
 

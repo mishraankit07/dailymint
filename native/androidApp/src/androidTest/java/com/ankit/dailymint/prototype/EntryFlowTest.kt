@@ -54,8 +54,8 @@ class EntryFlowTest {
         compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNodeWithTag("reminderToggle").performClick()
         assertTrue(engine.reminderEnabled())
-        compose.onNodeWithTag("reminderTime").performClick()
-        compose.onNodeWithText("20:30").performClick()
+        compose.onNodeWithTag("reminderH2").performTextClearance()
+        compose.onNodeWithTag("reminderH2").performTextInput("8")
         assertEquals("20:30", LedgerEngine(store).reminderTime())
     }
     @Test fun decimalExpenseUpdatesLedgerAndResetsForm() {

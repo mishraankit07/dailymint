@@ -27,6 +27,8 @@ struct ImportBankSmsIntent: AppIntent {
         let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
         let sourceId = "shortcut-\(timestamp)-\(stableHash(normalizedSender + "|" + text))"
         let engine = LedgerEngine(store: FileStore())
+        let entryCount = engine.entries().count
+        let unrecognizedCount = engine.unrecognizedMessages().count
         let result = engine.importSingleMessage(
             id: sourceId,
             body: text,
@@ -35,7 +37,13 @@ struct ImportBankSmsIntent: AppIntent {
         )
 
         if result.success {
-            return .result(dialog: "DailyMint processed the bank message.")
+            if engine.entries().count > entryCount {
+                return .result(dialog: "DailyMint added this transaction.")
+            }
+            if engine.unrecognizedMessages().count > unrecognizedCount {
+                return .result(dialog: "DailyMint received this SMS, but could not recognize it yet.")
+            }
+            return .result(dialog: "DailyMint received this SMS, but no new transaction was added.")
         }
         return .result(dialog: "DailyMint could not save this message.")
     }

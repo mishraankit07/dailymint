@@ -252,7 +252,6 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                     }
                     4 -> {
                         BrandHeader("Settings")
-                        var reminderMenu by remember { mutableStateOf(false) }
                         RaisedCard {
                             SectionTitle("Daily check-in")
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -272,24 +271,20 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                                 }, modifier = Modifier.testTag("reminderToggle"))
                             }
                             Spacer(Modifier.height(10.dp))
-                            Box {
-                                OutlinedButton(onClick = { reminderMenu = true }, modifier = Modifier.testTag("reminderTime")) {
-                                    Text("Reminder time: " + engine.reminderTime())
-                                }
-                                DropdownMenu(reminderMenu, onDismissRequest = { reminderMenu = false }) {
-                                    listOf("20:00", "20:30", "21:00", "21:30", "22:00").forEach { time ->
-                                        DropdownMenuItem(text = { Text(time) }, onClick = {
-                                            val result = engine.setReminder(engine.reminderEnabled(), time)
-                                            settingsError = result.message
-                                            if (result.success) {
-                                                revision++
-                                                reminderMenu = false
-                                                ReminderScheduler.apply(context, engine)
-                                            }
-                                        })
+                            ReminderTimeEditor(
+                                time = engine.reminderTime(),
+                                error = settingsError,
+                                onError = { settingsError = it },
+                                onValid = { time ->
+                                    val result = engine.setReminder(engine.reminderEnabled(), time)
+                                    settingsError = result.message
+                                    if (result.success) {
+                                        revision++
+                                        ReminderScheduler.apply(context, engine)
                                     }
-                                }
-                            }
+                                },
+                                modifier = Modifier.testTag("reminderTime")
+                            )
                         }
                         RaisedCard {
                             SectionTitle("Tracking cycle")
@@ -375,3 +370,120 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
 }
 
 private data class NavItem(val title: String, val icon: ImageVector)
+
+@Composable
+private fun ReminderTimeEditor(
+    time: String,
+    error: String,
+    onError: (String) -> Unit,
+    onValid: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val initial = remember(time) { ReminderDigits.from24Hour(time) }
+    var h1 by remember(time) { mutableStateOf(initial.h1) }
+    var h2 by remember(time) { mutableStateOf(initial.h2) }
+    var m1 by remember(time) { mutableStateOf(initial.m1) }
+    var m2 by remember(time) { mutableStateOf(initial.m2) }
+    var period by remember(time) { mutableStateOf(initial.period) }
+
+    fun commit(nextH1: String = h1, nextH2: String = h2, nextM1: String = m1, nextM2: String = m2, nextPeriod: String = period) {
+        val digits = ReminderDigits(nextH1, nextH2, nextM1, nextM2, nextPeriod)
+        val validation = digits.validationMessage()
+        onError(validation.orEmpty())
+        val converted = digits.to24Hour()
+        if (validation == null && converted != null) onValid(converted)
+    }
+
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Reminder time", color = Ink)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ReminderDigitField("H1", h1, h1 + h2, isHour = true) { value -> h1 = value; commit(nextH1 = value) }
+            ReminderDigitField("H2", h2, h1 + h2, isHour = true) { value -> h2 = value; commit(nextH2 = value) }
+            Text(":", color = InkFaint, fontWeight = FontWeight.Bold)
+            ReminderDigitField("M1", m1, m1 + m2, isHour = false) { value -> m1 = value; commit(nextM1 = value) }
+            ReminderDigitField("M2", m2, m1 + m2, isHour = false) { value -> m2 = value; commit(nextM2 = value) }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(selected = period == "AM", onClick = { period = "AM"; commit(nextPeriod = "AM") }, label = { Text("AM") })
+                FilterChip(selected = period == "PM", onClick = { period = "PM"; commit(nextPeriod = "PM") }, label = { Text("PM") })
+            }
+        }
+        val validation = ReminderDigits(h1, h2, m1, m2, period).validationMessage()
+        if (validation != null) Text(validation, color = SpendRed, style = MaterialTheme.typography.bodySmall)
+        else if (error.isNotEmpty() && error.contains("reminder", ignoreCase = true)) {
+            Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun ReminderDigitField(
+    label: String,
+    value: String,
+    pair: String,
+    isHour: Boolean,
+    onChange: (String) -> Unit
+) {
+    val invalid = pair.length == 2 && pair.toIntOrNull()?.let {
+        if (isHour) it !in 1..12 else it !in 0..59
+    } == true
+    OutlinedTextField(
+        value = value,
+        onValueChange = { raw -> onChange(raw.filter { it.isDigit() }.take(1)) },
+        singleLine = true,
+        isError = invalid,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        label = { Text(label) },
+        modifier = Modifier.width(52.dp).testTag("reminder$label")
+    )
+}
+
+private data class ReminderDigits(
+    val h1: String,
+    val h2: String,
+    val m1: String,
+    val m2: String,
+    val period: String
+) {
+    fun validationMessage(): String? {
+        val hour = (h1 + h2).takeIf { it.length == 2 }?.toIntOrNull()
+        if (hour != null && hour !in 1..12) return "Hour must be between 01 and 12."
+        val minute = (m1 + m2).takeIf { it.length == 2 }?.toIntOrNull()
+        if (minute != null && minute !in 0..59) return "Minutes must be between 00 and 59."
+        return null
+    }
+
+    fun to24Hour(): String? {
+        val hour = (h1 + h2).takeIf { it.length == 2 }?.toIntOrNull() ?: return null
+        val minute = (m1 + m2).takeIf { it.length == 2 }?.toIntOrNull() ?: return null
+        if (hour !in 1..12 || minute !in 0..59) return null
+        val hour24 = if (period == "AM") {
+            if (hour == 12) 0 else hour
+        } else {
+            if (hour == 12) 12 else hour + 12
+        }
+        return "%02d:%02d".format(hour24, minute)
+    }
+
+    companion object {
+        fun from24Hour(time: String): ReminderDigits {
+            val parts = time.split(":")
+            val hour24 = parts.getOrNull(0)?.toIntOrNull() ?: 21
+            val minute = parts.getOrNull(1)?.toIntOrNull() ?: 30
+            val period = if (hour24 >= 12) "PM" else "AM"
+            val hour12 = when {
+                hour24 == 0 -> 12
+                hour24 > 12 -> hour24 - 12
+                else -> hour24
+            }
+            val hourText = "%02d".format(hour12)
+            val minuteText = "%02d".format(minute)
+            return ReminderDigits(
+                h1 = hourText.substring(0, 1),
+                h2 = hourText.substring(1, 2),
+                m1 = minuteText.substring(0, 1),
+                m2 = minuteText.substring(1, 2),
+                period = period
+            )
+        }
+    }
+}
