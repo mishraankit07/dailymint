@@ -4,6 +4,9 @@ import android.os.Bundle
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -55,8 +58,12 @@ class MainActivity : ComponentActivity() {
     private var scanning = false
     private var rescanRequested = false
     private var smsError by mutableStateOf("")
+    private var smsAllowed by mutableStateOf(false)
+    private var smsIntroDismissed by mutableStateOf(false)
+    private var smsPermissionRequested by mutableStateOf(false)
     private val permission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) { smsError = ""; smsReader.start(); scanMessages() }
+        smsAllowed = granted
+        if (granted) { smsError = ""; smsIntroDismissed = true; smsReader.start(); scanMessages() }
         else smsError = "Allow SMS access to capture bank transactions automatically."
     }
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -66,16 +73,31 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         engine = LedgerEngine(PreferenceStore(this))
         smsReader = SmsReader(this) { scanMessages() }
+        smsAllowed = smsReader.allowed()
         setContent {
             DailyMintTheme {
-                DailyMint(engine, externalRevision, smsError,
-                    requestSms = { permission.launch(android.Manifest.permission.READ_SMS) },
-                    requestNotifications = { requestNotificationPermission() })
+                if (!smsAllowed && !smsIntroDismissed) {
+                    AndroidSMSOnboarding(
+                        onAllow = {
+                            smsPermissionRequested = true
+                            permission.launch(android.Manifest.permission.READ_SMS)
+                        },
+                        onOpenSettings = {
+                            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:$packageName")))
+                        },
+                        showSettings = smsPermissionRequested && !shouldShowRequestPermissionRationale(android.Manifest.permission.READ_SMS),
+                        onContinue = { smsIntroDismissed = true }
+                    )
+                } else {
+                    DailyMint(engine, externalRevision, smsError,
+                        requestSms = { permission.launch(android.Manifest.permission.READ_SMS) },
+                        requestNotifications = { requestNotificationPermission() })
+                }
             }
         }
-        if (!smsReader.allowed()) permission.launch(android.Manifest.permission.READ_SMS)
     }
-    override fun onResume() { super.onResume(); if (::smsReader.isInitialized) { smsReader.start(); scanMessages() } }
+    override fun onResume() { super.onResume(); if (::smsReader.isInitialized) { smsAllowed = smsReader.allowed(); smsReader.start(); scanMessages() } }
     override fun onPause() { if (::smsReader.isInitialized) smsReader.stop(); super.onPause() }
     private fun scanMessages() {
         if (!smsReader.allowed()) return
@@ -101,8 +123,22 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun DailyMintTheme(content: @Composable () -> Unit) {
+    val dark = androidx.compose.foundation.isSystemInDarkTheme()
     MaterialTheme(
-        colorScheme = lightColorScheme(
+        colorScheme = (if (dark) darkColorScheme(
+            primary = Flow,
+            secondary = IncomeGreen,
+            tertiary = InvestGold,
+            background = Paper,
+            surface = PaperRaised,
+            surfaceVariant = FlowSoft,
+            onPrimary = Paper,
+            onSecondary = Paper,
+            onBackground = Ink,
+            onSurface = Ink,
+            outline = Hairline,
+            error = SpendRed
+        ) else lightColorScheme(
             primary = Ink,
             secondary = Flow,
             tertiary = InvestGold,
@@ -115,7 +151,7 @@ fun DailyMintTheme(content: @Composable () -> Unit) {
             onSurface = Ink,
             outline = Hairline,
             error = SpendRed
-        ),
+        )),
         content = content
     )
 }
@@ -164,7 +200,7 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = PaperRaised, tonalElevation = 0.dp) {
+            NavigationBar(containerColor = NavColor, tonalElevation = 0.dp) {
                 listOf(
                     NavItem("Month", Icons.Default.CalendarMonth),
                     NavItem("Growth", Icons.AutoMirrored.Filled.ShowChart),
@@ -177,11 +213,11 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                         icon = { Icon(item.icon, contentDescription = item.title) },
                         label = { Text(item.title) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Flow,
-                            selectedTextColor = Flow,
-                            indicatorColor = FlowSoft,
-                            unselectedIconColor = InkSoft,
-                            unselectedTextColor = InkSoft
+                            selectedIconColor = NavSelected,
+                            selectedTextColor = NavSelected,
+                            indicatorColor = Color.Transparent,
+                            unselectedIconColor = HeroText,
+                            unselectedTextColor = HeroText
                         )
                     )
                 }

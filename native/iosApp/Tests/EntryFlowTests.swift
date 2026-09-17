@@ -48,7 +48,7 @@ final class EntryFlowTests: XCTestCase {
     }
     func testEveryTabOpens() {
         for tab in ["Month", "Growth", "Import", "Manual", "Plan"] {
-            let button = app.tabBars.buttons[tab]
+            let button = app.buttons[tab]
             XCTAssertTrue(button.waitForExistence(timeout: 5), "Missing tab \(tab)")
             button.tap()
             let selected = NSPredicate(format: "selected == true")
@@ -56,8 +56,22 @@ final class EntryFlowTests: XCTestCase {
             waitForExpectations(timeout: 5)
         }
     }
+    func testSMSSetupCanBeDeferredAndReopened() {
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--show-onboarding", "--reset-onboarding"]
+        app.launch()
+        XCTAssertTrue(app.buttons["openShortcuts"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["smsSetupStatus"].exists)
+        app.buttons["continueWithoutSMS"].tap()
+        XCTAssertTrue(app.buttons["Month"].waitForExistence(timeout: 5))
+        app.buttons["settings"].tap()
+        let setup = app.buttons["openSMSSetup"]
+        if !setup.isHittable { app.swipeUp() }
+        setup.tap()
+        XCTAssertTrue(app.buttons["openShortcuts"].waitForExistence(timeout: 5))
+    }
     func testDecimalExpenseUpdatesLedger() {
-        app.tabBars.buttons["Manual"].tap()
+        app.buttons["Manual"].tap()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Lunch")
         app.textFields["entryAmount"].tap()
@@ -68,7 +82,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.alerts["Transaction saved"].waitForExistence(timeout: 5))
         app.alerts.buttons["OK"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
-        let month = app.tabBars.buttons["Month"]
+        let month = app.buttons["Month"]
         month.tap()
         let selected = NSPredicate(format: "selected == true")
         expectation(for: selected, evaluatedWith: month)
@@ -83,7 +97,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(spent.label, "Spent: Rs 62.88")
     }
     func testIncomeEntryUpdatesMoneyInOnly() {
-        app.tabBars.buttons["Manual"].tap()
+        app.buttons["Manual"].tap()
         app.buttons["Income"].tap()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Salary")
@@ -94,7 +108,7 @@ final class EntryFlowTests: XCTestCase {
         save.tap()
         XCTAssertTrue(app.alerts["Transaction saved"].waitForExistence(timeout: 5))
         app.alerts.buttons["OK"].tap()
-        app.tabBars.buttons["Month"].tap()
+        app.buttons["Month"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["moneyIn"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Money in: Rs 1234")
         XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Spent: Rs 0")

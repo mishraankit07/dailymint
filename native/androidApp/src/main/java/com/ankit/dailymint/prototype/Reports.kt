@@ -26,11 +26,11 @@ fun MonthContent(engine: LedgerEngine, revision: Int, onEdit: (Entry) -> Unit, o
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Ink)
+        colors = CardDefaults.cardColors(containerColor = NavColor)
     ) {
         Column(Modifier.padding(20.dp)) {
             Text("Remaining this month", color = Color(0xffb9c6bc), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            Text("Rs " + engine.formatAmount(summary.remaining), color = Paper, fontFamily = FontFamily.Serif,
+            Text("Rs " + engine.formatAmount(summary.remaining), color = HeroText, fontFamily = FontFamily.Serif,
                 fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -83,7 +83,7 @@ private fun HeroStat(label: String, value: String, color: Color, modifier: Modif
             Spacer(Modifier.width(6.dp))
             Text(label, color = Color(0xffb9c6bc), fontSize = 12.sp)
         }
-        Text(value, color = Paper, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        Text(value, color = HeroText, fontWeight = FontWeight.Bold, fontSize = 13.sp)
     }
 }
 
@@ -214,13 +214,14 @@ fun GrowthContent(engine: LedgerEngine, revision: Int) {
         Text("Wealth Progress", color = Ink, fontWeight = FontWeight.Bold)
         Text("Remaining money in bank plus investment", color = InkFaint, fontSize = 12.sp)
         Spacer(Modifier.height(8.dp))
+        val lineColor = IncomeGreen
         Canvas(Modifier.fillMaxWidth().height(190.dp)) {
             val min = minOf(0L, buckets.minOf { it.wealth })
             val max = maxOf(1L, buckets.maxOf { it.wealth })
             fun point(index: Int): Offset = Offset(if (buckets.size == 1) size.width / 2 else index * size.width / (buckets.size - 1),
                 size.height - ((buckets[index].wealth - min).toDouble() / (max - min) * size.height).toFloat())
-            for (index in 1 until buckets.size) drawLine(IncomeGreen, point(index - 1), point(index), 4f)
-            buckets.indices.forEach { drawCircle(IncomeGreen, 5f, point(it)) }
+            for (index in 1 until buckets.size) drawLine(lineColor, point(index - 1), point(index), 4f)
+            buckets.indices.forEach { drawCircle(lineColor, 5f, point(it)) }
         }
         Text("Remaining money in bank plus investment.", color = InkSoft, style = MaterialTheme.typography.bodySmall)
         buckets.forEach { Text(it.label + " · Rs " + engine.formatAmount(it.wealth), color = InkSoft) }

@@ -2,17 +2,28 @@ import SwiftUI
 import UIKit
 
 extension Color {
-    static let dmPaper = Color(red: 0.933, green: 0.941, blue: 0.902)
-    static let dmPaperRaised = Color(red: 0.973, green: 0.976, blue: 0.953)
-    static let dmInk = Color(red: 0.090, green: 0.149, blue: 0.122)
-    static let dmInkSoft = Color(red: 0.294, green: 0.349, blue: 0.306)
-    static let dmInkFaint = Color(red: 0.545, green: 0.588, blue: 0.545)
-    static let dmHairline = Color(red: 0.847, green: 0.859, blue: 0.800)
-    static let dmFlow = Color(red: 0.122, green: 0.435, blue: 0.471)
-    static let dmFlowSoft = Color(red: 0.894, green: 0.933, blue: 0.925)
-    static let dmIncome = Color(red: 0.247, green: 0.561, blue: 0.373)
-    static let dmSpend = Color(red: 0.757, green: 0.349, blue: 0.290)
-    static let dmInvest = Color(red: 0.788, green: 0.604, blue: 0.239)
+    private static func adaptive(light: UInt, dark: UInt) -> Color {
+        Color(uiColor: UIColor { traits in
+            let value = traits.userInterfaceStyle == .dark ? dark : light
+            return UIColor(red: CGFloat((value >> 16) & 255) / 255,
+                           green: CGFloat((value >> 8) & 255) / 255,
+                           blue: CGFloat(value & 255) / 255, alpha: 1)
+        })
+    }
+    static let dmPaper = adaptive(light: 0xEEF0E6, dark: 0x111B18)
+    static let dmPaperRaised = adaptive(light: 0xF8F9F3, dark: 0x1C2923)
+    static let dmInk = adaptive(light: 0x17261F, dark: 0xF0F4EB)
+    static let dmInkSoft = adaptive(light: 0x4B594E, dark: 0xC0CEC1)
+    static let dmInkFaint = adaptive(light: 0x707D70, dark: 0xA0B1A3)
+    static let dmHairline = adaptive(light: 0xD8DBCC, dark: 0x394B40)
+    static let dmFlow = adaptive(light: 0x1F6F78, dark: 0x81CDD0)
+    static let dmFlowSoft = adaptive(light: 0xE4EEEC, dark: 0x284047)
+    static let dmIncome = adaptive(light: 0x3F8F5F, dark: 0x73C995)
+    static let dmSpend = adaptive(light: 0xC1594A, dark: 0xF18B7B)
+    static let dmInvest = adaptive(light: 0xC99A3D, dark: 0xE4B96A)
+    static let dmNav = Color(red: 0.090, green: 0.149, blue: 0.122)
+    static let dmNavSelected = Color(red: 0.53, green: 0.84, blue: 0.67)
+    static let dmHeroText = Color(red: 0.973, green: 0.976, blue: 0.953)
 }
 
 struct RaisedPanel<Content: View>: View {
@@ -132,7 +143,7 @@ struct PaperSegment<Selection: Hashable>: View {
         } label: {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(selection == value ? Color.dmPaper : Color.dmInkSoft)
+                .foregroundStyle(selection == value ? Color.dmPaperRaised : Color.dmInkSoft)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
                 .background(selection == value ? Color.dmInk : Color.clear)
@@ -150,7 +161,7 @@ struct PaperOption: View {
         Button(action: action) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(active ? Color.dmPaper : Color.dmInkSoft)
+                .foregroundStyle(active ? Color.dmPaperRaised : Color.dmInkSoft)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .background(active ? Color.dmInk : Color.dmPaperRaised)

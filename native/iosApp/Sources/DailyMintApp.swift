@@ -88,19 +88,64 @@ enum ReminderScheduler {
 struct DailyMintApp: App {
     @StateObject private var model = LedgerModel()
     @State private var selectedTab = AppTab.month
+    @AppStorage("smsOnboardingSeenV1") private var onboardingSeen = false
     @Environment(\.scenePhase) private var scenePhase
-    private enum AppTab: Hashable { case month, growth, imports, manual, plan }
+    private enum AppTab: String, CaseIterable { case month, growth, imports, manual, plan
+        var title: String { self == .imports ? "Import" : rawValue.capitalized }
+        var icon: String {
+            switch self {
+            case .month: return "calendar"
+            case .growth: return "chart.xyaxis.line"
+            case .imports: return "tray.and.arrow.down"
+            case .manual: return "plus.circle"
+            case .plan: return "target"
+            }
+        }
+    }
+    init() {
+        if ProcessInfo.processInfo.arguments.contains("--reset-onboarding") {
+            UserDefaults.standard.removeObject(forKey: "smsOnboardingSeenV1")
+        }
+    }
     var body: some Scene {
         WindowGroup {
-            TabView(selection: $selectedTab) {
-                MonthView(model: model).tabItem { Label("Month", systemImage: "calendar") }.tag(AppTab.month)
-                GrowthView(model: model).tabItem { Label("Growth", systemImage: "chart.xyaxis.line") }.tag(AppTab.growth)
-                ImportView(model: model).tabItem { Label("Import", systemImage: "tray.and.arrow.down") }.tag(AppTab.imports)
-                ManualView(model: model).tabItem { Label("Manual", systemImage: "plus.circle") }.tag(AppTab.manual)
-                PlanView().tabItem { Label("Plan", systemImage: "target") }.tag(AppTab.plan)
+            Group {
+                if !onboardingSeen && (!ProcessInfo.processInfo.arguments.contains("--ui-testing") || ProcessInfo.processInfo.arguments.contains("--show-onboarding")) {
+                    SMSOnboardingView { onboardingSeen = true }
+                } else {
+                    Group {
+                        switch selectedTab {
+                        case .month: MonthView(model: model)
+                        case .growth: GrowthView(model: model)
+                        case .imports: ImportView(model: model)
+                        case .manual: ManualView(model: model)
+                        case .plan: PlanView()
+                        }
+                    }
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        HStack(spacing: 0) {
+                            ForEach(AppTab.allCases, id: \.self) { tab in
+                                Button { selectedTab = tab } label: {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: tab.icon).font(.system(size: 21, weight: .medium))
+                                        Text(tab.title).font(.system(size: 10, weight: .semibold))
+                                    }
+                                    .foregroundStyle(selectedTab == tab ? Color.dmNavSelected : Color.dmHeroText)
+                                    .frame(maxWidth: .infinity, minHeight: 54)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(tab.title)
+                                .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.top, 7)
+                        .background(Color.dmNav.ignoresSafeArea(edges: .bottom))
+                    }
+                    .tint(Color.dmFlow)
+                }
             }
-            .tint(Color.dmFlow)
-            .preferredColorScheme(.light)
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
                     model.reload()
@@ -226,6 +271,7 @@ struct ManualView: View {
 
 struct SettingsView: View {
     @ObservedObject var model: LedgerModel
+    @AppStorage("smsOnboardingSeenV1") private var onboardingSeen = true
     @State private var showCategory = false
     @State private var deletion: String?
     @State private var error: String?
@@ -246,6 +292,7 @@ struct SettingsView: View {
                         Text(error).font(.caption).foregroundStyle(Color.dmSpend)
                     }
                     categoriesSection
+                    shortcutSetupSection
                     shortcutReceiptsSection
                     unrecognizedSection
                 }
@@ -273,6 +320,22 @@ struct SettingsView: View {
                 } message: {
                     Text(shortcutReceiptText ?? "")
                 }
+        }
+    }
+
+    private var shortcutSetupSection: some View {
+        RaisedPanel {
+            SectionHeading(title: "Automatic SMS capture")
+            Text("Set up or review the Message automation in Shortcuts.")
+                .font(.subheadline)
+                .foregroundStyle(Color.dmInkSoft)
+            Button {
+                onboardingSeen = false
+            } label: {
+                Label("Open setup guide", systemImage: "arrow.right")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("openSMSSetup")
         }
     }
 

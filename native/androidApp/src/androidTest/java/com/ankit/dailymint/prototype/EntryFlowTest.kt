@@ -22,6 +22,18 @@ class EntryFlowTest {
     private val store = Store()
     private val engine = LedgerEngine(store)
     private fun launch() { compose.setContent { DailyMintTheme { DailyMint(engine) } } }
+    @Test fun smsOnboardingExplainsPermissionAndAllowsManualUse() {
+        var continued = false
+        compose.setContent {
+            DailyMintTheme {
+                AndroidSMSOnboarding(onAllow = {}, onOpenSettings = {}, showSettings = false, onContinue = { continued = true })
+            }
+        }
+        compose.onNodeWithText("Your messages stay on this device").assertExists()
+        compose.onNodeWithTag("allowSms").assertExists()
+        compose.onNodeWithTag("skipSms").performClick()
+        assertTrue(continued)
+    }
     @Test fun addCategoryWithKeyboardAndReload() {
         launch()
         compose.onNodeWithContentDescription("Settings").performClick()

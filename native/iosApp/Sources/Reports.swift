@@ -113,7 +113,7 @@ struct MonthHero: View {
             Text("Remaining this month").font(.caption.weight(.semibold)).foregroundStyle(Color(red: 0.725, green: 0.776, blue: 0.737))
             Text("Rs " + model.engine.formatAmount(paise: summary.remaining))
                 .font(.system(size: 38, weight: .semibold, design: .serif))
-                .foregroundStyle(Color.dmPaper)
+                .foregroundStyle(Color.dmHeroText)
                 .minimumScaleFactor(0.65)
             HStack(alignment: .top) {
                 HeroStat(label: "Money in", value: "Rs " + model.engine.formatAmount(paise: summary.moneyIn), color: .dmIncome)
@@ -127,7 +127,7 @@ struct MonthHero: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.dmInk)
+        .background(Color.dmNav)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
@@ -142,7 +142,7 @@ struct HeroStat: View {
                 Circle().fill(color).frame(width: 8, height: 8)
                 Text(label).font(.caption2).foregroundStyle(Color(red: 0.725, green: 0.776, blue: 0.737))
             }
-            Text(value).font(.caption.weight(.bold)).foregroundStyle(Color.dmPaper)
+            Text(value).font(.caption.weight(.bold)).foregroundStyle(Color.dmHeroText)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label + ": " + value)

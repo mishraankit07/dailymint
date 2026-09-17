@@ -13,7 +13,7 @@ struct ShortcutImportReceipt: Identifiable {
 }
 
 enum ShortcutImportLog {
-    private static let fileName = "shortcut-import-log.tsv"
+    private static let fileName = "shortcut-import-log-v2.tsv"
 
     private static var url: URL {
         let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -21,11 +21,12 @@ enum ShortcutImportLog {
     }
 
     static func record(status: String, sender: String, message: String) {
+        removeLegacyLog()
         let line = [
             isoTimestamp(),
             sanitize(status),
-            sanitize(sender),
-            sanitize(message.replacingOccurrences(of: "\n", with: " ").prefix(240).description)
+            "Hidden",
+            String(message.count) + " characters"
         ].joined(separator: "\t") + "\n"
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -44,6 +45,7 @@ enum ShortcutImportLog {
     }
 
     static func recent(limit: Int = 8) -> [ShortcutImportReceipt] {
+        removeLegacyLog()
         guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
         return text
             .split(separator: "\n")
@@ -67,6 +69,11 @@ enum ShortcutImportLog {
         guard let text = try? String(contentsOf: url, encoding: .utf8) else { return }
         let lines = text.split(separator: "\n").suffix(40).joined(separator: "\n")
         try? (lines + "\n").write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private static func removeLegacyLog() {
+        let oldURL = url.deletingLastPathComponent().appendingPathComponent("shortcut-import-log.tsv")
+        try? FileManager.default.removeItem(at: oldURL)
     }
 
     private static func sanitize(_ value: String) -> String {

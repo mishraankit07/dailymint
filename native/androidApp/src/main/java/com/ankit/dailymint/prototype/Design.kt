@@ -21,6 +21,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,17 +30,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-val Paper = Color(0xffeef0e6)
-val PaperRaised = Color(0xfff8f9f3)
-val Ink = Color(0xff17261f)
-val InkSoft = Color(0xff4b594e)
-val InkFaint = Color(0xff8b968b)
-val Hairline = Color(0xffd8dbcc)
-val Flow = Color(0xff1f6f78)
-val FlowSoft = Color(0xffe4eeec)
-val IncomeGreen = Color(0xff3f8f5f)
-val SpendRed = Color(0xffc1594a)
-val InvestGold = Color(0xffc99a3d)
+@Composable private fun adaptive(light: Long, dark: Long) = Color((if (isSystemInDarkTheme()) dark else light).toInt())
+val Paper: Color @Composable get() = adaptive(0xffeef0e6, 0xff111b18)
+val PaperRaised: Color @Composable get() = adaptive(0xfff8f9f3, 0xff1c2923)
+val Ink: Color @Composable get() = adaptive(0xff17261f, 0xfff0f4eb)
+val InkSoft: Color @Composable get() = adaptive(0xff4b594e, 0xffc0cec1)
+val InkFaint: Color @Composable get() = adaptive(0xff707d70, 0xffa0b1a3)
+val Hairline: Color @Composable get() = adaptive(0xffd8dbcc, 0xff394b40)
+val Flow: Color @Composable get() = adaptive(0xff1f6f78, 0xff81cdd0)
+val FlowSoft: Color @Composable get() = adaptive(0xffe4eeec, 0xff284047)
+val IncomeGreen: Color @Composable get() = adaptive(0xff3f8f5f, 0xff73c995)
+val SpendRed: Color @Composable get() = adaptive(0xffc1594a, 0xfff18b7b)
+val InvestGold: Color @Composable get() = adaptive(0xffc99a3d, 0xffe4b96a)
+val NavColor = Color(0xff17261f)
+val NavSelected = Color(0xff88d6ab)
+val HeroText = Color(0xfff8f9f3)
 
 @Composable
 fun RaisedCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
@@ -130,7 +135,7 @@ fun CategoryChip(name: String, removable: Boolean = false, onDelete: () -> Unit 
     )
 }
 
-fun categoryColor(name: String): Color = when (name.lowercase()) {
+@Composable fun categoryColor(name: String): Color = when (name.lowercase()) {
     "home", "house" -> Color(0xff5e7fa3)
     "groceries" -> Color(0xff7c8f3f)
     "food" -> IncomeGreen
