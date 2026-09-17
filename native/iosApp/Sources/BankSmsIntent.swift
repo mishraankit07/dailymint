@@ -19,6 +19,7 @@ struct ImportBankSmsIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
+            ShortcutImportLog.record(status: "empty input", sender: sender ?? "Shortcut", message: message)
             return .result(dialog: "DailyMint did not receive a message.")
         }
 
@@ -38,13 +39,17 @@ struct ImportBankSmsIntent: AppIntent {
 
         if result.success {
             if engine.entries().count > entryCount {
+                ShortcutImportLog.record(status: "transaction added", sender: normalizedSender, message: text)
                 return .result(dialog: "DailyMint added this transaction.")
             }
             if engine.unrecognizedMessages().count > unrecognizedCount {
+                ShortcutImportLog.record(status: "unrecognized", sender: normalizedSender, message: text)
                 return .result(dialog: "DailyMint received this SMS, but could not recognize it yet.")
             }
+            ShortcutImportLog.record(status: "no new transaction", sender: normalizedSender, message: text)
             return .result(dialog: "DailyMint received this SMS, but no new transaction was added.")
         }
+        ShortcutImportLog.record(status: "save failed", sender: normalizedSender, message: text)
         return .result(dialog: "DailyMint could not save this message.")
     }
 
