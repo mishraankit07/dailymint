@@ -36,9 +36,9 @@ struct CaptureIncomingSmsIntent: AppIntent {
     @Parameter(title: "Sender")
     var sender: String?
 
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        let response = await ShortcutSMSProcessor.shared.importMessage(message, sender: sender)
-        return .result(dialog: "\(response)")
+    func perform() async throws -> some IntentResult {
+        _ = await ShortcutSMSProcessor.shared.importMessage(message, sender: sender)
+        return .result()
     }
 }
 
