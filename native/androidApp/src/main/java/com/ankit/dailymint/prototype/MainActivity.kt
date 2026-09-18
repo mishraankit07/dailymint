@@ -38,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
@@ -493,8 +495,14 @@ private fun ReminderDigitField(
         singleLine = true,
         isError = invalid,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        label = { Text(label) },
-        modifier = Modifier.width(52.dp).testTag("reminder$label")
+        modifier = Modifier.width(52.dp).semantics {
+            contentDescription = when (label) {
+                "H1" -> "First hour digit"
+                "H2" -> "Second hour digit"
+                "M1" -> "First minute digit"
+                else -> "Second minute digit"
+            }
+        }.testTag("reminder$label")
     )
 }
 
