@@ -195,6 +195,7 @@ class LedgerEngine(private val store: LedgerStore) {
         return commit(snapshot.copy(entries = entries, smsWatermark = watermark, unrecognized = unknown.takeLast(50)))
     }
     fun today(): String = LedgerDates.today().toString()
+    fun transactionDay(date: String): String = LedgerDates.date(date).toString()
     fun suggestCategory(name: String, income: Boolean): String = MerchantTagger.category(name, income, snapshot.learnedRules, snapshot.categories)
     fun monthSummary(today: String): MonthSummary = LedgerAnalytics.month(snapshot.entries, today, snapshot.monthStartDay)
     fun ledgerDays(): List<DayGroup> = LedgerAnalytics.ledgerDays(snapshot.entries)

@@ -62,5 +62,6 @@ class LedgerParityTest {
         assertEquals("2026-09-12T18:31:00Z", rows[0].entry!!.date)
         assertEquals("bank-file", rows[0].entry!!.source)
         assertEquals("2026-09-13", LedgerDates.date(rows[0].entry!!.date).toString())
+        assertEquals("2026-09-13", LedgerEngine(MemoryStore()).transactionDay(rows[0].entry!!.date))
     }
 }

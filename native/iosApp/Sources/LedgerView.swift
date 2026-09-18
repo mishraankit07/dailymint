@@ -87,7 +87,7 @@ struct LedgerView: View {
                                         .font(.caption).foregroundStyle(Color.dmInkFaint)
                                 }
                                 Text((filterActive ? "Full day · " : "") +
-                                     "Bank in Rs \(model.engine.formatAmount(paise: group.grossIn)) · out Rs \(model.engine.formatAmount(paise: group.grossOut))")
+                                     "Gross in Rs \(model.engine.formatAmount(paise: group.grossIn)) · out Rs \(model.engine.formatAmount(paise: group.grossOut))")
                                     .font(.caption).foregroundStyle(Color.dmInkSoft)
                             }
                             .padding(.vertical, 8)
@@ -198,7 +198,7 @@ struct TransactionDetailView: View {
                         if current.type == "expense" {
                             detailLine("Personal spending", "Rs " + model.engine.formatAmount(paise: current.personalSpent))
                         }
-                        detailLine("Date", String(current.date.prefix(10)))
+                        detailLine("Date", model.engine.transactionDay(date: current.date))
                         detailLine("Category", current.type == "income" ? creditLabel(current.effectiveCreditKind()) : current.category)
                         detailLine("Source", sourceLabel(current.source))
                         if current.ignored {

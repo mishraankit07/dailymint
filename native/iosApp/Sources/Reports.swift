@@ -164,7 +164,7 @@ struct TransactionLine: View {
             IconBubble(category: entry.category)
             VStack(alignment: .leading) {
                 Text(entry.name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.dmInk).lineLimit(1)
-                Text((entry.category == "Received" ? "Other income" : entry.category) + " · " + String(entry.date.prefix(10)))
+                Text((entry.category == "Received" ? "Other income" : entry.category) + " · " + model.engine.transactionDay(date: entry.date))
                     .font(.caption).foregroundStyle(Color.dmInkFaint)
             }
             Spacer()
@@ -313,6 +313,7 @@ struct ImportView: View {
     @State private var discard = false
     @State private var picker = false
     @State private var summary: String?
+    @State private var diagnosticMessage: String?
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -373,6 +374,23 @@ struct ImportView: View {
                         }
                     }
 
+                    let unrecognized = model.engine.unrecognizedMessages()
+                    if !unrecognized.isEmpty {
+                        SectionHeading(title: "Unrecognized messages", trailing: String(unrecognized.count))
+                        ForEach(unrecognized.suffix(10), id: \.id) { row in
+                            Button("View unrecognized message") { diagnosticMessage = row.rawText }
+                                .buttonStyle(.bordered)
+                        }
+                    }
+
+                    let receipts = ShortcutImportLog.recent()
+                    if !receipts.isEmpty {
+                        SectionHeading(title: "Shortcut activity")
+                        ForEach(receipts) { receipt in
+                            Text(receipt.title).font(.caption).foregroundStyle(Color.dmInkSoft)
+                        }
+                    }
+
                     if !model.engine.reviewRows().isEmpty {
                         Button("Reviewed, save to ledger") {
                             error = model.mutate { $0.saveReview() }
@@ -422,6 +440,9 @@ struct ImportView: View {
                 .alert("Import result", isPresented: Binding(get: { summary != nil }, set: { if !$0 { summary = nil } })) {
                     Button("OK") { summary = nil }
                 } message: { Text(summary ?? "") }
+                .alert("Unrecognized message", isPresented: Binding(get: { diagnosticMessage != nil }, set: { if !$0 { diagnosticMessage = nil } })) {
+                    Button("Close") { diagnosticMessage = nil }
+                } message: { Text(diagnosticMessage ?? "") }
                 .confirmationDialog("Discard pending import?", isPresented: $discard) {
                     Button("Discard", role: .destructive) {
                         error = model.mutate { $0.discardReview() }

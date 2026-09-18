@@ -123,6 +123,23 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Rs 0")
     }
 
+    func testReimbursementIsVisibleButNotEarnedIncome() {
+        app.buttons["Add"].tap()
+        app.buttons["Income"].tap()
+        app.textFields["entryName"].tap()
+        app.textFields["entryName"].typeText("Expense reimbursement")
+        app.textFields["entryAmount"].tap()
+        app.textFields["entryAmount"].typeText("200")
+        app.buttons["entryCategory"].tap()
+        app.buttons["Reimbursement"].tap()
+        let save = app.buttons["saveEntry"]
+        if !save.isHittable { app.swipeUp() }
+        save.tap()
+        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Recorded in: Rs 0")
+        app.buttons["Ledger"].tap()
+        XCTAssertTrue(app.staticTexts["Expense reimbursement"].waitForExistence(timeout: 5))
+    }
+
     func testIncomingSMSUpdatesOpenMonthWithoutRelaunch() {
         app.terminate()
         app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]
