@@ -181,7 +181,9 @@ fun TransactionDetail(
                     Text("Credit kind", fontWeight = FontWeight.SemiBold)
                     CreditKind.all.forEach { kind ->
                         FilterChip(selected = entry.effectiveCreditKind() == kind,
-                            onClick = { apply(engine.classifyCredit(id, kind)) }, label = { Text(CreditKind.label(kind)) })
+                            onClick = { apply(engine.classifyCredit(id, kind)) },
+                            label = { Text(CreditKind.label(kind)) },
+                            modifier = Modifier.testTag("creditKind-$kind"))
                     }
                     Text("Reimbursements, refunds, and own-account transfers do not change spending or earned income.",
                         color = InkSoft, style = MaterialTheme.typography.bodySmall)
@@ -207,7 +209,7 @@ fun TransactionDetail(
                     TextButton(onClick = { onDismiss(); onManualEdit(entry) }) { Text("Edit manual entry") }
                 }
                 if (entry.source != "manual") {
-                    TextButton(onClick = { apply(engine.setIgnored(id, !entry.ignored)) }) {
+                    TextButton(onClick = { apply(engine.setIgnored(id, !entry.ignored)) }, modifier = Modifier.testTag("toggleIgnored")) {
                         Text(if (entry.ignored) "Restore transaction" else "Ignore false positive")
                     }
                 }

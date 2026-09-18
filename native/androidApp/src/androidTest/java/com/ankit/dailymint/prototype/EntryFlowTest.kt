@@ -139,4 +139,41 @@ class EntryFlowTest {
         assertEquals(10000L, engine.totals().spent)
         compose.onNodeWithTag("personalAmount").assertTextContains("Rs 100", substring = true)
     }
+    @Test fun reimbursementCreditStaysInLedgerButNotMoneyIn() {
+        assertTrue(engine.addEntry("credit-1", "Roommate paid back", "200", "Other income", "2026-09-14", true).success)
+        launch()
+        compose.onNodeWithTag("moneyIn").assertTextContains("Rs 200", substring = true)
+        compose.onNodeWithTag("navLedger").performClick()
+        compose.onNodeWithTag("ledgerRow-credit-1").performScrollTo().performClick()
+        compose.onNodeWithTag("creditKind-${CreditKind.REIMBURSEMENT}").performScrollTo().performClick()
+        assertEquals(0L, engine.totals().moneyIn)
+        assertEquals(20000L, engine.totals().neutralCredits)
+        compose.onNodeWithTag("personalAmount").assertDoesNotExist()
+        compose.onNodeWithText("Reimbursement").assertExists()
+        compose.onNodeWithText("Close").performClick()
+        compose.onNodeWithTag("navHome").performClick()
+        compose.onNodeWithTag("moneyIn").assertDoesNotExist()
+        compose.onNodeWithTag("spent").assertTextContains("Rs 0", substring = true)
+    }
+    @Test fun ignoredImportedTransactionLeavesAnalyticsAndCanBeRestored() {
+        val sms = "Sent Rs.500.00 From HDFC Bank A/C *5678 To PROMO SHOP On 10/08/26 Ref 900000000017 Not You? Call 18002586161"
+        assertTrue(engine.importSingleMessage("fixture-ignore", sms, "HDFC", 1789299000000).success)
+        val imported = engine.entries().single()
+        launch()
+        compose.onNodeWithTag("spent").assertTextContains("Rs 500", substring = true)
+        compose.onNodeWithTag("navLedger").performClick()
+        compose.onNodeWithTag("ledgerRow-${imported.id}").performScrollTo().performClick()
+        compose.onNodeWithTag("toggleIgnored").performScrollTo().performClick()
+        assertEquals(0L, engine.totals().spent)
+        assertTrue(engine.entries().single().ignored)
+        compose.onNodeWithText("Ignored: excluded from all totals").assertExists()
+        compose.onNodeWithText("Close").performClick()
+        compose.onNodeWithTag("navHome").performClick()
+        compose.onNodeWithTag("spent").assertTextContains("Rs 0", substring = true)
+        compose.onNodeWithTag("navLedger").performClick()
+        compose.onNodeWithTag("ledgerRow-${imported.id}").performScrollTo().performClick()
+        compose.onNodeWithTag("toggleIgnored").performScrollTo().performClick()
+        assertEquals(50000L, engine.totals().spent)
+        assertFalse(engine.entries().single().ignored)
+    }
 }
