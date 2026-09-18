@@ -28,8 +28,11 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -94,7 +97,10 @@ class MainActivity : ComponentActivity() {
                 } else {
                     DailyMint(engine, externalRevision, smsError,
                         requestSms = { permission.launch(android.Manifest.permission.READ_SMS) },
-                        requestNotifications = { requestNotificationPermission() })
+                        requestNotifications = { requestNotificationPermission() },
+                        smsAccessAllowed = smsAllowed,
+                        openAppSettings = { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:$packageName"))) })
                 }
             }
         }
@@ -160,10 +166,14 @@ fun DailyMintTheme(content: @Composable () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String = "", requestSms: () -> Unit = {}, requestNotifications: () -> Unit = {}) {
+fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String = "", requestSms: () -> Unit = {},
+    requestNotifications: () -> Unit = {}, smsAccessAllowed: Boolean = true, openAppSettings: () -> Unit = {}) {
     val context = LocalContext.current
+    val stateHolder = rememberSaveableStateHolder()
     var revision by remember { mutableIntStateOf(0) }
-    var tab by remember { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var addReturnTab by rememberSaveable { mutableIntStateOf(0) }
+    var settingsReturnTab by rememberSaveable { mutableIntStateOf(0) }
     var showCategory by remember { mutableStateOf(false) }
     var categoryName by remember { mutableStateOf("") }
     var categoryError by remember { mutableStateOf("") }
@@ -174,9 +184,8 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
     var categoryMenu by remember { mutableStateOf(false) }
     var date by remember { mutableStateOf(LocalDate.now().toString()) }
     var entryError by remember { mutableStateOf("") }
-    var saved by remember { mutableStateOf(false) }
     var edited by remember { mutableStateOf<Entry?>(null) }
-    var debug by remember { mutableStateOf<Entry?>(null) }
+    var detailId by rememberSaveable { mutableStateOf<String?>(null) }
     var unrecognizedDebug by remember { mutableStateOf<ReviewRow?>(null) }
     var deletingCategory by remember { mutableStateOf<String?>(null) }
     var monthMenu by remember { mutableStateOf(false) }
@@ -188,15 +197,15 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("DailyMint", color = Ink, fontWeight = FontWeight.Bold)
-                        Text("Know your flow", color = InkFaint, style = MaterialTheme.typography.labelMedium)
-                    }
+                    Text("DailyMint", color = Ink, fontWeight = FontWeight.Bold)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Paper),
                 actions = {
-                    IconButton(onClick = { tab = if (tab == 4) 0 else 4 }) {
-                        Icon(if (tab == 4) Icons.Default.Close else Icons.Default.Settings, contentDescription = if (tab == 4) "Close settings" else "Settings", tint = Ink)
+                    IconButton(onClick = {
+                        if (tab == 5) tab = settingsReturnTab else { settingsReturnTab = tab; tab = 5 }
+                    }) {
+                        Icon(if (tab == 5) Icons.Default.Close else Icons.Default.Settings,
+                            contentDescription = if (tab == 5) "Close settings" else "Settings", tint = Ink)
                     }
                 }
             )
@@ -204,15 +213,21 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
         bottomBar = {
             NavigationBar(containerColor = NavColor, tonalElevation = 0.dp) {
                 listOf(
-                    NavItem("Month", Icons.Default.CalendarMonth),
+                    NavItem("Home", Icons.Default.CalendarMonth),
                     NavItem("Growth", Icons.AutoMirrored.Filled.ShowChart),
-                    NavItem("Manual", Icons.Default.AddCircle),
+                    NavItem("Add", Icons.Default.AddCircle),
+                    NavItem("Ledger", Icons.AutoMirrored.Filled.ReceiptLong),
                     NavItem("Plan", Icons.Default.Flag)
                 ).forEachIndexed { index, item ->
                     NavigationBarItem(
-                        selected = tab == index,
-                        onClick = { tab = index },
-                        icon = { Icon(item.icon, contentDescription = item.title) },
+                        modifier = Modifier.testTag("nav${item.title}"),
+                        selected = (if (tab == 5) settingsReturnTab else tab) == index,
+                        onClick = {
+                            if (index == 2 && tab != 2) addReturnTab = if (tab == 5) settingsReturnTab else tab
+                            tab = index
+                        },
+                        icon = { Icon(item.icon, contentDescription = item.title,
+                            modifier = Modifier.size(if (index == 2) 30.dp else 24.dp)) },
                         label = { Text(item.title) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = NavSelected,
@@ -226,15 +241,19 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
             }
         }
     ) { padding ->
+        stateHolder.SaveableStateProvider(tab) {
         Column(Modifier.padding(padding).fillMaxSize()) {
-            Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
+            if (tab == 3) {
+                LedgerContent(engine, revision + externalRevision, smsError,
+                    onDetail = { detailId = it.id }, onUnrecognized = { unrecognizedDebug = it })
+            } else Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 engine.loadError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 if (smsError.isNotEmpty()) { Text(smsError); TextButton(onClick = requestSms) { Text("Allow SMS access") } }
                 when (tab) {
-                    0 -> MonthContent(engine, revision + externalRevision, onEdit = { edited = it }, onDebug = { debug = it })
+                    0 -> MonthContent(engine, revision + externalRevision, onOpenLedger = { tab = 3 }, onDetail = { detailId = it.id })
                     1 -> GrowthContent(engine, revision + externalRevision)
-                    3 -> {
+                    4 -> {
                         BrandHeader("Plan")
                         RaisedCard {
                             Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
@@ -258,12 +277,14 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                                 listOf("Expense", "Income").forEachIndexed { index, label ->
                                     SegmentedButton(selected = income == (index == 1),
-                                        onClick = { income = index == 1; category = if (income) "Received" else "Miscellaneous" },
+                                        onClick = { income = index == 1; category = if (income) "Other income" else "Miscellaneous" },
                                         shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(label) }
                                 }
                             }
                             Spacer(Modifier.height(12.dp))
-                            OutlinedTextField(name, { name = it; category = engine.suggestCategory(it, income) }, label = { Text("Name") }, singleLine = true,
+                            OutlinedTextField(name, { name = it; category = engine.suggestCategory(it, income).let { suggestion ->
+                                if (suggestion == "Received") "Other income" else suggestion
+                            } }, label = { Text("Name") }, singleLine = true,
                                 modifier = Modifier.fillMaxWidth().testTag("entryName"))
                             OutlinedTextField(amount, { amount = it }, label = { Text("Amount") }, singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -271,9 +292,12 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                             Box {
                                 OutlinedButton(onClick = { categoryMenu = true }, modifier = Modifier.testTag("entryCategory")) { Text(category) }
                                 DropdownMenu(expanded = categoryMenu, onDismissRequest = { categoryMenu = false }) {
-                                    (if (income) listOf("Salary", "Received") else categories).forEach { option ->
+                                    (if (income) CreditKind.all.map(CreditKind::label) else categories).forEach { option ->
                                         DropdownMenuItem(text = { Text(option) }, onClick = { category = option; categoryMenu = false })
                                     }
+                                    if (!income) DropdownMenuItem(text = { Text("Add category") }, onClick = {
+                                        categoryMenu = false; categoryName = ""; categoryError = ""; showCategory = true
+                                    })
                                 }
                             }
                             OutlinedTextField(date, { date = it }, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true,
@@ -283,12 +307,16 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                                 val result = engine.addEntry(UUID.randomUUID().toString(), name, amount, category, date, income)
                                 entryError = result.message
                                 if (result.success) {
-                                    revision++; name = ""; amount = ""; category = if (income) "Received" else "Miscellaneous"; saved = true
+                                    revision++; name = ""; amount = ""; category = if (income) "Other income" else "Miscellaneous"
+                                    tab = addReturnTab
                                 }
                             }, enabled = engine.loadError == null, modifier = Modifier.fillMaxWidth().testTag("saveEntry")) { Text("Save") }
+                            OutlinedButton(onClick = {
+                                name = ""; amount = ""; entryError = ""; tab = addReturnTab
+                            }, modifier = Modifier.fillMaxWidth().testTag("cancelEntry")) { Text("Cancel") }
                         }
                     }
-                    4 -> {
+                    5 -> {
                         BrandHeader("Settings")
                         RaisedCard {
                             SectionTitle("Daily check-in")
@@ -337,6 +365,14 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                                 }
                             }
                         }
+                        RaisedCard {
+                            SectionTitle("SMS access")
+                            Text(if (smsAccessAllowed) "Enabled" else "Off. Allow access to capture bank transactions automatically.", color = InkSoft)
+                            if (!smsAccessAllowed) {
+                                TextButton(onClick = requestSms) { Text("Allow SMS access") }
+                                TextButton(onClick = openAppSettings) { Text("Open app settings") }
+                            }
+                        }
                         if (settingsError.isNotEmpty()) Text(settingsError, color = MaterialTheme.colorScheme.error)
                         RaisedCard {
                             SectionTitle("Categories")
@@ -356,26 +392,15 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                                 }
                             }
                         }
-                        val unrecognized = engine.unrecognizedMessages()
-                        if (unrecognized.isNotEmpty()) {
-                            RaisedCard {
-                                SectionTitle("Unrecognized messages", trailing = unrecognized.size.toString())
-                                unrecognized.takeLast(10).forEachIndexed { index, row ->
-                                    OutlinedButton(onClick = { unrecognizedDebug = row }, modifier = Modifier.fillMaxWidth()) {
-                                        Text("View message " + (index + 1) + if (row.reason.isNotEmpty()) " · " + row.reason else "")
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }
         }
+        }
     }
     edited?.let { EntryEditor(it, engine, onDismiss = { edited = null }, onChanged = { revision++ }) }
-    debug?.let { entry -> AlertDialog(onDismissRequest = { debug = null }, title = { Text("Message details") },
-        text = { Text("From: " + entry.sender + "\nDate: " + entry.date + "\n\n" + entry.rawSms) },
-        confirmButton = { TextButton(onClick = { debug = null }) { Text("Close") } }) }
+    detailId?.let { id -> TransactionDetail(id, engine, revision + externalRevision,
+        onDismiss = { detailId = null }, onChanged = { revision++ }, onManualEdit = { edited = it }) }
     unrecognizedDebug?.let { row -> AlertDialog(onDismissRequest = { unrecognizedDebug = null }, title = { Text("Unrecognized message") },
         text = { Text((if (row.reason.isNotEmpty()) "Reason: " + row.reason + "\n\n" else "") + row.rawText) },
         confirmButton = { TextButton(onClick = { unrecognizedDebug = null }) { Text("Close") } }) }
@@ -399,12 +424,10 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
             confirmButton = { TextButton(onClick = {
                 val result = engine.addCategory(categoryName)
                 categoryError = result.message
-                if (result.success) { revision++; showCategory = false }
+                if (result.success) { revision++; if (tab == 2) category = categoryName.trim(); showCategory = false }
             }, modifier = Modifier.testTag("saveCategory")) { Text("Save") } },
             dismissButton = { TextButton(onClick = { showCategory = false }, modifier = Modifier.testTag("cancelCategory")) { Text("Cancel") } })
     }
-    if (saved) AlertDialog(onDismissRequest = { saved = false }, title = { Text("Transaction saved") },
-        confirmButton = { TextButton(onClick = { saved = false }) { Text("OK") } })
 }
 
 private data class NavItem(val title: String, val icon: ImageVector)
@@ -440,10 +463,10 @@ private fun ReminderTimeEditor(
             Text(":", color = InkFaint, fontWeight = FontWeight.Bold)
             ReminderDigitField("M1", m1, m1 + m2, isHour = false) { value -> m1 = value; commit(nextM1 = value) }
             ReminderDigitField("M2", m2, m1 + m2, isHour = false) { value -> m2 = value; commit(nextM2 = value) }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip(selected = period == "AM", onClick = { period = "AM"; commit(nextPeriod = "AM") }, label = { Text("AM") })
-                FilterChip(selected = period == "PM", onClick = { period = "PM"; commit(nextPeriod = "PM") }, label = { Text("PM") })
-            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = period == "AM", onClick = { period = "AM"; commit(nextPeriod = "AM") }, label = { Text("AM") })
+            FilterChip(selected = period == "PM", onClick = { period = "PM"; commit(nextPeriod = "PM") }, label = { Text("PM") })
         }
         val validation = ReminderDigits(h1, h2, m1, m2, period).validationMessage()
         if (validation != null) Text(validation, color = SpendRed, style = MaterialTheme.typography.bodySmall)

@@ -69,34 +69,74 @@ class EntryFlowTest {
         compose.onNodeWithTag("reminderH2").performTextClearance()
         compose.onNodeWithTag("reminderH2").performTextInput("8")
         assertEquals("20:30", LedgerEngine(store).reminderTime())
+        compose.onNodeWithText("AM").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("PM").performScrollTo().assertIsDisplayed()
     }
     @Test fun decimalExpenseUpdatesLedgerAndResetsForm() {
         launch()
-        compose.onNodeWithText("Manual").performClick()
+        compose.onNodeWithText("Add").performClick()
         compose.onNodeWithTag("entryName").performTextInput("Lunch")
         compose.onNodeWithTag("entryAmount").performTextInput("62.88")
         compose.onNodeWithTag("saveEntry").performScrollTo().performClick()
-        compose.onNodeWithText("Transaction saved").assertExists()
-        compose.onNodeWithText("OK").performClick()
-        assertEquals("", compose.onNodeWithTag("entryAmount").fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
-        compose.onNodeWithText("Month").performClick()
+        compose.onNodeWithContentDescription("Home", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("spent").assertTextContains("Rs 62.88", substring = true)
         assertEquals(6288L, LedgerEngine(store).totals().spent)
     }
     @Test fun incomeEntryUpdatesMoneyInOnly() {
         launch()
-        compose.onNodeWithText("Manual").performClick()
+        compose.onNodeWithText("Add").performClick()
         compose.onNodeWithText("Income").performClick()
         compose.onNodeWithTag("entryName").performTextInput("Salary")
         compose.onNodeWithTag("entryAmount").performTextInput("1234.00")
         compose.onNodeWithTag("saveEntry").performScrollTo().performClick()
-        compose.onNodeWithText("Transaction saved").assertExists()
-        compose.onNodeWithText("OK").performClick()
-        compose.onNodeWithText("Month").performClick()
+        compose.onNodeWithContentDescription("Home", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("moneyIn").assertTextContains("Rs 1234", substring = true)
         compose.onNodeWithTag("spent").assertTextContains("Rs 0", substring = true)
         val totals = LedgerEngine(store).totals()
         assertEquals(123400L, totals.moneyIn)
         assertEquals(0L, totals.spent)
+    }
+    @Test fun fiveDestinationsAndSettingsReturnToGrowth() {
+        launch()
+        listOf("Home", "Growth", "Add", "Ledger", "Plan").forEach { compose.onNodeWithContentDescription(it, useUnmergedTree = true).assertExists() }
+        compose.onNodeWithTag("navGrowth").performClick()
+        compose.onNodeWithContentDescription("Settings").performClick()
+        compose.onNodeWithText("Tracking cycle").assertExists()
+        compose.onNodeWithContentDescription("Close settings").performClick()
+        compose.onNodeWithText("Spending trend").assertExists()
+    }
+    @Test fun addCancelReturnsWithoutSaving() {
+        launch()
+        compose.onNodeWithTag("navGrowth").performClick()
+        compose.onNodeWithTag("navAdd").performClick()
+        compose.onNodeWithTag("entryName").performTextInput("Draft")
+        compose.onNodeWithTag("entryAmount").performTextInput("10")
+        compose.onNodeWithTag("cancelEntry").performScrollTo().performClick()
+        compose.onNodeWithText("Spending trend").assertExists()
+        assertTrue(engine.entries().isEmpty())
+    }
+    @Test fun homeRoutesToLedgerAndSearchFindsOlderHistory() {
+        assertTrue(engine.addEntry("older", "Older lunch", "42", "Food", "2026-01-10", false).success)
+        launch()
+        compose.onNodeWithTag("seeAllTransactions").performScrollTo().performClick()
+        compose.onNodeWithTag("ledgerSearch").performTextInput("Older lunch")
+        compose.onNodeWithTag("ledgerRow-older").assertExists()
+        compose.onNodeWithText("2026-01-10").assertExists()
+    }
+    @Test fun importedExpenseShareChangesHomeButNotOriginalAmount() {
+        val sms = "Sent Rs.300.00 From HDFC Bank A/C *5678 To SAMPLE SHOP On 10/08/26 Ref 900000000016 Not You? Call 18002586161"
+        assertTrue(engine.importSingleMessage("fixture", sms, "HDFC", 1789299000000).success)
+        val imported = engine.entries().single()
+        assertEquals(30000L, imported.paise)
+        launch()
+        compose.onNodeWithTag("navLedger").performClick()
+        compose.onNodeWithTag("ledgerRow-${imported.id}").performScrollTo().performClick()
+        compose.onNodeWithTag("originalAmount").assertTextContains("Rs 300", substring = true)
+        compose.onNodeWithTag("personalShare").performTextClearance()
+        compose.onNodeWithTag("personalShare").performTextInput("100")
+        compose.onNodeWithTag("savePersonalShare").performScrollTo().performClick()
+        assertEquals(30000L, engine.entries().single().paise)
+        assertEquals(10000L, engine.totals().spent)
+        compose.onNodeWithTag("personalAmount").assertTextContains("Rs 100", substring = true)
     }
 }

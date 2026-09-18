@@ -2,6 +2,8 @@ package com.ankit.dailymint.prototype
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -10,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -19,60 +22,45 @@ import androidx.compose.ui.unit.sp
 import com.ankit.dailymint.core.*
 
 @Composable
-fun MonthContent(engine: LedgerEngine, revision: Int, onEdit: (Entry) -> Unit, onDebug: (Entry) -> Unit) {
-    var detailed by remember { mutableStateOf(false) }
+fun MonthContent(engine: LedgerEngine, revision: Int, onOpenLedger: () -> Unit, onDetail: (Entry) -> Unit) {
     val summary = remember(revision) { engine.monthSummary(engine.today()) }
-    BrandHeader("Good evening")
+    BrandHeader("Home")
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = NavColor)
     ) {
         Column(Modifier.padding(20.dp)) {
-            Text("Remaining this month", color = Color(0xffb9c6bc), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            Text("Rs " + engine.formatAmount(summary.remaining), color = HeroText, fontFamily = FontFamily.Serif,
-                fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold)
+            Text("Spent this cycle", color = Color(0xffb9c6bc), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text("Rs " + engine.formatAmount(summary.spent), color = HeroText, fontFamily = FontFamily.Serif,
+                fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.testTag("spent"))
+            Text(summary.label, color = Color(0xffb9c6bc), fontSize = 12.sp)
             Spacer(Modifier.height(14.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                HeroStat("Money in", "Rs " + engine.formatAmount(summary.moneyIn), IncomeGreen, Modifier.testTag("moneyIn"))
-                HeroStat("Spent", "Rs " + engine.formatAmount(summary.spent), SpendRed, Modifier.testTag("spent"))
-                HeroStat("Invested", "Rs " + engine.formatAmount(summary.invested), InvestGold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                if (summary.moneyIn > 0) HeroStat("Money in", "Rs " + engine.formatAmount(summary.moneyIn), IncomeGreen, Modifier.testTag("moneyIn"))
+                if (summary.invested > 0) HeroStat("Invested", "Rs " + engine.formatAmount(summary.invested), InvestGold)
             }
         }
     }
-    SectionTitle("Where it went", trailing = summary.label)
-    MoneySplitCard(summary)
-    SectionTitle("Outflow breakdown")
+    if (summary.days.isEmpty()) {
+        Text("No transactions in this cycle. Add one manually or let bank messages import.", color = InkSoft)
+        OutlinedButton(onClick = onOpenLedger, modifier = Modifier.fillMaxWidth().testTag("seeAllTransactions")) { Text("See all transactions") }
+        return
+    }
+    SectionTitle("Personal spending by category")
     RaisedCard {
-        if (summary.categories.isEmpty()) Text("No outflow yet.", color = InkFaint)
+        if (summary.categories.isEmpty()) Text("No personal spending yet.", color = InkFaint)
         summary.categories.forEach {
             CategoryBreakdownRow(it.name, it.percent, "Rs " + engine.formatAmount(it.paise))
         }
     }
-    SectionTitle("Top 5 transactions")
+    SectionTitle("Biggest spends")
     RaisedCard {
-        if (summary.topFive.isEmpty()) Text("No transactions yet.", color = InkFaint)
-        summary.topFive.forEach { TransactionRow(it, engine) }
+        if (summary.topFive.isEmpty()) Text("No personal expenses yet.", color = InkFaint)
+        summary.topFive.forEach { TransactionRow(it, engine, onClick = { onDetail(it) }) }
     }
-    OutlinedButton(onClick = { detailed = !detailed }, modifier = Modifier.fillMaxWidth().testTag("detailedReport")) { Text(if (detailed) "Collapse" else "Detailed report") }
-    if (detailed) {
-        SectionTitle("Detailed report")
-        summary.days.forEach { day ->
-            RaisedCard {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(day.date, color = Ink, fontWeight = FontWeight.Bold)
-                    Text("In Rs " + engine.formatAmount(day.moneyIn) + " · Out Rs " + engine.formatAmount(day.moneyOut), color = InkFaint, fontSize = 12.sp)
-                }
-                day.entries.forEach { entry ->
-                    TransactionRow(entry, engine)
-                    Row {
-                        if (engine.canEdit(entry.id, "android", System.currentTimeMillis())) TextButton(onClick = { onEdit(entry) }) { Text("Edit") }
-                        if (entry.rawSms.isNotEmpty()) TextButton(onClick = { onDebug(entry) }) { Text("Debug") }
-                    }
-                }
-            }
-        }
-    }
+    OutlinedButton(onClick = onOpenLedger, modifier = Modifier.fillMaxWidth().testTag("seeAllTransactions")) { Text("See all transactions") }
 }
 
 @Composable
@@ -137,16 +125,20 @@ private fun CategoryBreakdownRow(name: String, percent: Double, amount: String) 
 }
 
 @Composable
-fun TransactionRow(entry: Entry, engine: LedgerEngine) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+fun TransactionRow(entry: Entry, engine: LedgerEngine, onClick: (() -> Unit)? = null, tag: String? = null) {
+    Row(Modifier.fillMaxWidth().then(if (tag != null) Modifier.testTag(tag) else Modifier)
+        .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+        .padding(vertical = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
         IconBubble(entry.category)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(entry.name, color = Ink, fontWeight = FontWeight.SemiBold)
-            Text(entry.category + " · " + entry.date.take(10), color = InkFaint, fontSize = 12.sp)
+            Text((if (entry.type == "income") CreditKind.label(entry.effectiveCreditKind()) else entry.category) + " · " + entry.date.take(10), color = InkFaint, fontSize = 12.sp)
         }
-        Text((if (entry.type == "income") "+" else "-") + "Rs " + engine.formatAmount(entry.paise),
-            color = if (entry.type == "income") IncomeGreen else SpendRed, fontWeight = FontWeight.Bold)
+        val displayed = if (entry.type == "expense") entry.personalSpent else entry.paise
+        Text((if (entry.type == "income") "+" else "-") + "Rs " + engine.formatAmount(displayed),
+            color = if (entry.type == "income") IncomeGreen else if (entry.type == "investment") InvestGold else SpendRed,
+            fontWeight = FontWeight.Bold)
     }
     HorizontalDivider(color = Hairline)
 }
@@ -156,6 +148,7 @@ fun GrowthContent(engine: LedgerEngine, revision: Int) {
     var years by remember { mutableStateOf(false) }
     var count by remember { mutableIntStateOf(3) }
     var expanded by remember { mutableStateOf(false) }
+    var selected by remember { mutableIntStateOf(-1) }
     BrandHeader("Growth")
     Row {
         FilterChip(selected = !years, onClick = { years = false; count = 3 }, label = { Text("Months") })
@@ -174,57 +167,44 @@ fun GrowthContent(engine: LedgerEngine, revision: Int) {
     }
     val buckets = remember(revision, count, years) { engine.trendBuckets(engine.today(), years, count) }
     RaisedCard {
-        val colors = listOf(IncomeGreen, SpendRed, InvestGold)
-        Text(if (years) "Yearly flow" else "Monthly flow", color = Ink, fontWeight = FontWeight.Bold)
-        Text("Money in vs. spent vs. invested", color = InkFaint, fontSize = 12.sp)
+        val colors = listOf(SpendRed, InvestGold)
+        Text("Spending trend", color = Ink, fontWeight = FontWeight.Bold)
+        Text("Full calendar " + if (years) "years" else "months", color = InkFaint, fontSize = 12.sp)
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            FlowLegend("In", IncomeGreen)
-            FlowLegend("Spent", SpendRed)
+            FlowLegend("Personal spent", SpendRed)
             FlowLegend("Invested", InvestGold)
         }
-        Canvas(Modifier.fillMaxWidth().height(190.dp).padding(top = 10.dp)) {
-            val maximum = buckets.flatMap { listOf(it.moneyIn, it.spent, it.invested) }.maxOrNull()?.coerceAtLeast(1) ?: 1
+        if (buckets.all { it.spent == 0L && it.invested == 0L }) {
+            Text("No spending or investments in these periods.", color = InkSoft, modifier = Modifier.padding(vertical = 24.dp))
+        } else Canvas(Modifier.fillMaxWidth().height(190.dp).padding(top = 10.dp)
+            .pointerInput(buckets) { detectTapGestures { point -> selected = (point.x / (size.width / buckets.size)).toInt().coerceIn(buckets.indices) } }) {
+            val maximum = buckets.flatMap { listOf(it.spent, it.invested) }.maxOrNull()?.coerceAtLeast(1) ?: 1
             val groupWidth = size.width / buckets.size.coerceAtLeast(1)
             val clusterWidth = kotlin.math.min(groupWidth * 0.58f, 78f)
             val barGap = clusterWidth * 0.12f
-            val barWidth = (clusterWidth - barGap * 2) / 3f
+            val barWidth = (clusterWidth - barGap) / 2f
             buckets.forEachIndexed { index, bucket ->
                 val clusterStart = index * groupWidth + (groupWidth - clusterWidth) / 2f
-                listOf(bucket.moneyIn, bucket.spent, bucket.invested).forEachIndexed { series, amount ->
+                listOf(bucket.spent, bucket.invested).forEachIndexed { series, amount ->
                     val height = (amount.toDouble() / maximum * size.height).toFloat()
                     val x = clusterStart + series * (barWidth + barGap)
                     drawRect(colors[series], Offset(x, size.height - height), Size(barWidth, height))
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            buckets.forEach {
-                Text(
-                    it.label.takeLast(if (years) 4 else 2),
-                    color = InkSoft,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+        Row(Modifier.fillMaxWidth()) {
+            buckets.forEachIndexed { index, bucket ->
+                Box(Modifier.weight(1f).clickable { selected = index }, contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    Text(bucket.label.takeLast(if (years) 4 else 2), color = InkSoft, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
-        Text("Money in, spending and investments across calendar periods.", color = InkSoft, style = MaterialTheme.typography.bodySmall)
-    }
-    RaisedCard {
-        Text("Wealth Progress", color = Ink, fontWeight = FontWeight.Bold)
-        Text("Remaining money in bank plus investment", color = InkFaint, fontSize = 12.sp)
-        Spacer(Modifier.height(8.dp))
-        val lineColor = IncomeGreen
-        Canvas(Modifier.fillMaxWidth().height(190.dp)) {
-            val min = minOf(0L, buckets.minOf { it.wealth })
-            val max = maxOf(1L, buckets.maxOf { it.wealth })
-            fun point(index: Int): Offset = Offset(if (buckets.size == 1) size.width / 2 else index * size.width / (buckets.size - 1),
-                size.height - ((buckets[index].wealth - min).toDouble() / (max - min) * size.height).toFloat())
-            for (index in 1 until buckets.size) drawLine(lineColor, point(index - 1), point(index), 4f)
-            buckets.indices.forEach { drawCircle(lineColor, 5f, point(it)) }
+        buckets.getOrNull(selected)?.let { bucket ->
+            Text(bucket.label + " · Personal spent Rs " + engine.formatAmount(bucket.spent) +
+                " · Invested Rs " + engine.formatAmount(bucket.invested), color = InkSoft,
+                style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
         }
-        Text("Remaining money in bank plus investment.", color = InkSoft, style = MaterialTheme.typography.bodySmall)
-        buckets.forEach { Text(it.label + " · Rs " + engine.formatAmount(it.wealth), color = InkSoft) }
     }
 }
 
@@ -253,7 +233,7 @@ fun EntryEditor(entry: Entry, engine: LedgerEngine, onDismiss: () -> Unit, onCha
             Box {
                 OutlinedButton(onClick = { expanded = true }) { Text(category) }
                 DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
-                    (if (entry.type == "income") listOf("Salary", "Received") else engine.categories()).forEach { option ->
+                    (if (entry.type == "income") CreditKind.all.map(CreditKind::label) else engine.categories()).forEach { option ->
                         DropdownMenuItem(text = { Text(option) }, onClick = { category = option; expanded = false })
                     }
                 }
