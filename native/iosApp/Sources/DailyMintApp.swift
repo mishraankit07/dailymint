@@ -262,6 +262,7 @@ struct ManualView: View {
     @State private var category = "Miscellaneous"
     @State private var date = Date()
     @State private var error: String?
+    @State private var showingCategory = false
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case name, amount }
     var body: some View {
@@ -290,6 +291,13 @@ struct ManualView: View {
                         Menu {
                             ForEach(income ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"] : model.engine.categories(), id: \.self) { option in
                                 Button(option) { category = option }
+                            }
+                            if !income {
+                                Divider()
+                                Button { showingCategory = true } label: {
+                                    Label("Add category", systemImage: "plus")
+                                }
+                                    .accessibilityIdentifier("addCategoryFromEntry")
                             }
                         } label: {
                             HStack {
@@ -325,6 +333,7 @@ struct ManualView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
+            .sheet(isPresented: $showingCategory) { CategorySheet(model: model) }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onFinish).accessibilityIdentifier("cancelEntry")

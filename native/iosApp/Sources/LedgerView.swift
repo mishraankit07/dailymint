@@ -45,58 +45,66 @@ struct LedgerView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) {
                     BrandHeader(title: "Ledger")
-                    HStack {
-                        Button("Import") { showingImport = true }
-                            .buttonStyle(.bordered)
-                            .accessibilityIdentifier("ledgerImport")
-                        if !model.engine.reviewRows().isEmpty {
-                            Button("Review pending import") { showingImport = true }
-                                .buttonStyle(.bordered)
-                                .accessibilityIdentifier("reviewPendingImport")
-                        }
-                        Spacer()
-                        Text("\(model.engine.entries().count) transactions")
-                            .font(.caption).foregroundStyle(Color.dmInkFaint)
-                    }
-                    PaperField(placeholder: "Search transactions", text: $query)
-                        .accessibilityIdentifier("ledgerSearch")
-                    filterControls
-
-                    if groups.isEmpty {
+                    if let loadError = model.engine.loadError {
                         RaisedPanel {
-                            Text(model.engine.entries().isEmpty ? "No transactions yet" : "No matching transactions")
-                                .font(.headline).foregroundStyle(Color.dmInk)
-                            Text(model.engine.entries().isEmpty
-                                 ? "Add an entry or set up SMS automation in Settings."
-                                 : "Try a different search or clear the filters.")
-                                .font(.subheadline).foregroundStyle(Color.dmInkSoft)
-                            if !model.engine.entries().isEmpty {
-                                Button("Clear filters", action: clearFilters)
-                                    .accessibilityIdentifier("clearLedgerFilters")
+                            Text("Ledger unavailable")
+                                .font(.headline).foregroundStyle(Color.dmSpend)
+                            Text(loadError).font(.subheadline).foregroundStyle(Color.dmInkSoft)
+                        }
+                    } else {
+                        HStack {
+                            Button("Import") { showingImport = true }
+                                .buttonStyle(.bordered)
+                                .accessibilityIdentifier("ledgerImport")
+                            if !model.engine.reviewRows().isEmpty {
+                                Button("Review pending import") { showingImport = true }
+                                    .buttonStyle(.bordered)
+                                    .accessibilityIdentifier("reviewPendingImport")
+                            }
+                            Spacer()
+                            Text("\(model.engine.entries().count) transactions")
+                                .font(.caption).foregroundStyle(Color.dmInkFaint)
+                        }
+                        PaperField(placeholder: "Search transactions", text: $query)
+                            .accessibilityIdentifier("ledgerSearch")
+                        filterControls
+
+                        if groups.isEmpty {
+                            RaisedPanel {
+                                Text(model.engine.entries().isEmpty ? "No transactions yet" : "No matching transactions")
+                                    .font(.headline).foregroundStyle(Color.dmInk)
+                                Text(model.engine.entries().isEmpty
+                                     ? "Add an entry or set up SMS automation in Settings."
+                                     : "Try a different search or clear the filters.")
+                                    .font(.subheadline).foregroundStyle(Color.dmInkSoft)
+                                if !model.engine.entries().isEmpty {
+                                    Button("Clear filters", action: clearFilters)
+                                        .accessibilityIdentifier("clearLedgerFilters")
+                                }
                             }
                         }
-                    }
 
-                    ForEach(groups) { group in
-                        VStack(alignment: .leading, spacing: 0) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                HStack {
-                                    Text(group.date).font(.headline).foregroundStyle(Color.dmInk)
-                                    Spacer()
-                                    Text("\(group.entries.count) entries")
-                                        .font(.caption).foregroundStyle(Color.dmInkFaint)
+                        ForEach(groups) { group in
+                            VStack(alignment: .leading, spacing: 0) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack {
+                                        Text(group.date).font(.headline).foregroundStyle(Color.dmInk)
+                                        Spacer()
+                                        Text("\(group.entries.count) entries")
+                                            .font(.caption).foregroundStyle(Color.dmInkFaint)
+                                    }
+                                    Text((filterActive ? "Full day · " : "") +
+                                         "Gross in Rs \(model.engine.formatAmount(paise: group.grossIn)) · out Rs \(model.engine.formatAmount(paise: group.grossOut))")
+                                        .font(.caption).foregroundStyle(Color.dmInkSoft)
                                 }
-                                Text((filterActive ? "Full day · " : "") +
-                                     "Gross in Rs \(model.engine.formatAmount(paise: group.grossIn)) · out Rs \(model.engine.formatAmount(paise: group.grossOut))")
-                                    .font(.caption).foregroundStyle(Color.dmInkSoft)
-                            }
-                            .padding(.vertical, 8)
-                            ForEach(group.entries, id: \.id) { entry in
-                                Button { detail = entry } label: {
-                                    TransactionLine(entry: entry, model: model)
+                                .padding(.vertical, 8)
+                                ForEach(group.entries, id: \.id) { entry in
+                                    Button { detail = entry } label: {
+                                        TransactionLine(entry: entry, model: model)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityIdentifier("ledgerEntry-\(entry.id)")
                                 }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("ledgerEntry-\(entry.id)")
                             }
                         }
                     }

@@ -13,36 +13,44 @@ struct MonthView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     BrandHeader(title: "Home")
-                    MonthHero(summary: summary, model: model)
-                    if summary.spent == 0 && summary.invested == 0 && summary.moneyIn == 0 {
+                    if let loadError = model.engine.loadError {
                         RaisedPanel {
-                            Text("No transactions in this cycle yet")
-                                .font(.headline).foregroundStyle(Color.dmInk)
-                            Text("Add an entry or import bank messages to start tracking.")
-                                .font(.subheadline).foregroundStyle(Color.dmInkSoft)
+                            Text("Ledger unavailable")
+                                .font(.headline).foregroundStyle(Color.dmSpend)
+                            Text(loadError).font(.subheadline).foregroundStyle(Color.dmInkSoft)
                         }
-                    }
-                    if summary.spent > 0 {
-                        SectionHeading(title: "Where it went")
-                        HairlineBlock {
-                            ForEach(summary.categories, id: \.name) { item in
-                                CategoryLine(name: item.name, percent: item.percent, amount: "Rs " + model.engine.formatAmount(paise: item.paise))
+                    } else {
+                        MonthHero(summary: summary, model: model)
+                        if summary.spent == 0 && summary.invested == 0 && summary.moneyIn == 0 {
+                            RaisedPanel {
+                                Text("No transactions in this cycle yet")
+                                    .font(.headline).foregroundStyle(Color.dmInk)
+                                Text("Add an entry or import bank messages to start tracking.")
+                                    .font(.subheadline).foregroundStyle(Color.dmInkSoft)
                             }
                         }
-                        SectionHeading(title: "Biggest spends")
-                        HairlineBlock {
-                            ForEach(summary.topFive, id: \.id) { entry in
-                                Button { detail = entry } label: {
-                                    TransactionLine(entry: entry, model: model)
+                        if summary.spent > 0 {
+                            SectionHeading(title: "Where it went")
+                            HairlineBlock {
+                                ForEach(summary.categories, id: \.name) { item in
+                                    CategoryLine(name: item.name, percent: item.percent, amount: "Rs " + model.engine.formatAmount(paise: item.paise))
                                 }
-                                .buttonStyle(.plain)
+                            }
+                            SectionHeading(title: "Biggest spends")
+                            HairlineBlock {
+                                ForEach(summary.topFive, id: \.id) { entry in
+                                    Button { detail = entry } label: {
+                                        TransactionLine(entry: entry, model: model)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
+                        Button("See all transactions", action: onSeeAll)
+                            .buttonStyle(.bordered)
+                            .frame(maxWidth: .infinity)
+                            .accessibilityIdentifier("seeAllTransactions")
                     }
-                    Button("See all transactions", action: onSeeAll)
-                        .buttonStyle(.bordered)
-                        .frame(maxWidth: .infinity)
-                        .accessibilityIdentifier("seeAllTransactions")
                 }
                 .padding(20)
             }
@@ -55,50 +63,23 @@ struct MonthView: View {
     }
 }
 
-struct MoneySplitPanel: View {
-    let summary: MonthSummary
-    private var moneyIn: Double { max(1, Double(summary.moneyIn)) }
-    private var investedPercent: Double { summary.moneyIn > 0 ? Double(summary.invested) / moneyIn * 100 : 0 }
-    private var spentPercent: Double { summary.spentPercent?.doubleValue ?? 0 }
-    private var remainingPercent: Double { max(0, 100 - spentPercent - investedPercent) }
-    private var visualTotal: Double { max(100, spentPercent + investedPercent) }
-    var body: some View {
-        RaisedPanel {
-            GeometryReader { proxy in
-                HStack(spacing: 0) {
-                    Color.dmInvest.frame(width: proxy.size.width * investedPercent / visualTotal)
-                    Color.dmSpend.frame(width: proxy.size.width * spentPercent / visualTotal)
-                    Color.dmHairline.frame(maxWidth: .infinity)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            }
-            .frame(height: 14)
-            HStack(spacing: 14) {
-                SplitLegend(name: "Invested", percent: investedPercent, color: .dmInvest)
-                SplitLegend(name: "Spent", percent: spentPercent, color: .dmSpend)
-                SplitLegend(name: "Remaining", percent: remainingPercent, color: .dmHairline)
-            }
-        }
-    }
-}
-
-struct SplitLegend: View {
-    let name: String
-    let percent: Double
-    let color: Color
-    var body: some View {
-        HStack(spacing: 5) {
-            Circle().fill(color).frame(width: 8, height: 8)
-            Text(name + " · " + String(Int(percent.rounded())) + "%")
-                .font(.caption)
-                .foregroundStyle(Color.dmInkSoft)
-        }
-    }
-}
-
 struct MonthHero: View {
     let summary: MonthSummary
     @ObservedObject var model: LedgerModel
+    private var cycleRange: String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = TimeZone(identifier: "Asia/Kolkata")
+        formatter.locale = Locale(identifier: "en_IN")
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let start = formatter.date(from: summary.start),
+              let endExclusive = formatter.date(from: summary.endExclusive),
+              let end = formatter.calendar.date(byAdding: .day, value: -1, to: endExclusive) else {
+            return summary.label
+        }
+        formatter.dateFormat = "d MMM yyyy"
+        return formatter.string(from: start) + " - " + formatter.string(from: end)
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Spent this cycle").font(.caption.weight(.semibold)).foregroundStyle(Color.dmHeroMuted)
@@ -107,7 +88,7 @@ struct MonthHero: View {
                 .foregroundStyle(Color.dmHeroText)
                 .minimumScaleFactor(0.65)
                 .accessibilityIdentifier("spent")
-            Text(summary.label).font(.caption).foregroundStyle(Color.dmHeroMuted)
+            Text(cycleRange).font(.caption).foregroundStyle(Color.dmHeroMuted)
             HStack(alignment: .top) {
                 HeroStat(label: "Recorded in", value: "Rs " + model.engine.formatAmount(paise: summary.moneyIn), color: .dmIncome)
                     .accessibilityIdentifier("moneyIn")
