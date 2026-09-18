@@ -43,8 +43,8 @@ jobs:
       - name: Verify shared code and SwiftUI build on release toolchain
         run: |
           if [ "$(uname -m)" = arm64 ]; then ./gradlew :shared:iosSimulatorArm64Test; else ./gradlew :shared:iosX64Test; fi
-          xcodebuild build -project iosApp/DailyMintNative.xcodeproj -scheme DailyMintNative -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO
-      - name: Sign, archive and upload prototype
+          xcodebuild build -project iosApp/DailyMint.xcodeproj -scheme DailyMint -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO
+      - name: Sign, archive and upload DailyMint
         env:
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}

@@ -110,7 +110,7 @@ struct MonthHero: View {
     @ObservedObject var model: LedgerModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Remaining this month").font(.caption.weight(.semibold)).foregroundStyle(Color(red: 0.725, green: 0.776, blue: 0.737))
+            Text("Remaining this month").font(.caption.weight(.semibold)).foregroundStyle(Color.dmHeroMuted)
             Text("Rs " + model.engine.formatAmount(paise: summary.remaining))
                 .font(.system(size: 38, weight: .semibold, design: .serif))
                 .foregroundStyle(Color.dmHeroText)
@@ -140,7 +140,7 @@ struct HeroStat: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Circle().fill(color).frame(width: 8, height: 8)
-                Text(label).font(.caption2).foregroundStyle(Color(red: 0.725, green: 0.776, blue: 0.737))
+                Text(label).font(.caption2).foregroundStyle(Color.dmHeroMuted)
             }
             Text(value).font(.caption.weight(.bold)).foregroundStyle(Color.dmHeroText)
         }
@@ -263,7 +263,22 @@ struct GrowthView: View {
                         Chart(buckets, id: \.label) { bucket in
                             LineMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(Color.dmIncome)
                             PointMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.wealth) / 100)).foregroundStyle(Color.dmIncome)
-                        }.frame(height: 200)
+                        }
+                        .chartXAxis {
+                            AxisMarks(values: buckets.map { $0.label }) { _ in
+                                AxisGridLine().foregroundStyle(Color.dmHairline)
+                                AxisTick().foregroundStyle(Color.dmInkFaint)
+                                AxisValueLabel().foregroundStyle(Color.dmInkSoft)
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .trailing) { _ in
+                                AxisGridLine().foregroundStyle(Color.dmHairline.opacity(0.65))
+                                AxisTick().foregroundStyle(Color.dmInkFaint)
+                                AxisValueLabel().foregroundStyle(Color.dmInkSoft)
+                            }
+                        }
+                        .frame(height: 200)
                     }
                 }
                 .padding(20)

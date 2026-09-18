@@ -53,13 +53,13 @@ security list-keychains -d user -s "$KEYCHAIN" "$HOME/Library/Keychains/login.ke
 
 mkdir -p iosApp/build
 BUILD_NUMBER="${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-xcodebuild archive -project iosApp/DailyMintNative.xcodeproj -scheme DailyMintNative \
+xcodebuild archive -project iosApp/DailyMint.xcodeproj -scheme DailyMint \
   -configuration Release -destination 'generic/platform=iOS' \
-  -archivePath iosApp/build/DailyMintNative.xcarchive \
+  -archivePath iosApp/build/DailyMint.xcarchive \
   DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Manual \
   CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
   PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
-xcodebuild -exportArchive -archivePath iosApp/build/DailyMintNative.xcarchive \
+xcodebuild -exportArchive -archivePath iosApp/build/DailyMint.xcarchive \
   -exportOptionsPlist "$SIGNING_DIR/ExportOptions.plist" -exportPath iosApp/build/export
 
 mkdir -p "$SIGNING_DIR/private_keys"

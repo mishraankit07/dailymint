@@ -24,6 +24,12 @@ extension Color {
     static let dmNav = Color(red: 0.090, green: 0.149, blue: 0.122)
     static let dmNavSelected = Color(red: 0.53, green: 0.84, blue: 0.67)
     static let dmHeroText = Color(red: 0.973, green: 0.976, blue: 0.953)
+    static let dmHeroMuted = Color(red: 0.725, green: 0.776, blue: 0.737)
+    static let dmCategoryHome = adaptive(light: 0x5E7FA3, dark: 0x9BBDE0)
+    static let dmCategoryGroceries = adaptive(light: 0x7C8F3F, dark: 0xB4CE75)
+    static let dmCategoryGym = adaptive(light: 0x7B5AA6, dark: 0xBBA0DF)
+    static let dmCategorySelf = adaptive(light: 0x2E8F8A, dark: 0x72CFC6)
+    static let dmCategoryOther = adaptive(light: 0x76766F, dark: 0xB7C2B5)
 }
 
 struct RaisedPanel<Content: View>: View {
@@ -189,13 +195,13 @@ struct SectionHeading: View {
 
 func categoryColor(_ name: String) -> Color {
     switch name.lowercased() {
-    case "home", "house": return Color(red: 0.369, green: 0.498, blue: 0.639)
-    case "groceries": return Color(red: 0.486, green: 0.561, blue: 0.247)
+    case "home", "house": return .dmCategoryHome
+    case "groceries": return .dmCategoryGroceries
     case "food": return .dmIncome
     case "fun": return .dmSpend
-    case "gym": return Color(red: 0.482, green: 0.353, blue: 0.651)
-    case "self": return Color(red: 0.180, green: 0.561, blue: 0.541)
+    case "gym": return .dmCategoryGym
+    case "self": return .dmCategorySelf
     case "investment", "investments": return .dmInvest
-    default: return Color(red: 0.541, green: 0.541, blue: 0.494)
+    default: return .dmCategoryOther
     }
 }

@@ -95,8 +95,8 @@ chmod +x gradlew
 ./gradlew :shared:iosSimulatorArm64Test
 brew install xcodegen
 xcodegen generate --spec iosApp/project.yml
-xcodebuild -list -project iosApp/DailyMintNative.xcodeproj
-xcodebuild test -project iosApp/DailyMintNative.xcodeproj -scheme DailyMintNative -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild -list -project iosApp/DailyMint.xcodeproj
+xcodebuild test -project iosApp/DailyMint.xcodeproj -scheme DailyMint -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
 Use iosX64Test on an Intel Mac; select an installed simulator name.

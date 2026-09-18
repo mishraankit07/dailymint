@@ -113,4 +113,40 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Money in: Rs 1234")
         XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Spent: Rs 0")
     }
+
+    func testIncomingSMSUpdatesOpenMonthWithoutRelaunch() {
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]
+        app.launch()
+        let spent = app.descendants(matching: .any)["spent"]
+        XCTAssertTrue(spent.waitForExistence(timeout: 5))
+        let updated = NSPredicate(format: "label == %@", "Spent: Rs 5")
+        expectation(for: updated, evaluatedWith: spent)
+        waitForExpectations(timeout: 10)
+    }
+
+    func testDarkModeScreensAndSettingsRemainUsable() {
+        let previousAppearance = XCUIDevice.shared.appearance
+        defer { XCUIDevice.shared.appearance = previousAppearance }
+        XCUIDevice.shared.appearance = .dark
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--reset-test-data"]
+        app.launch()
+
+        for tab in ["Month", "Growth", "Import", "Manual", "Plan"] {
+            let button = app.buttons[tab]
+            XCTAssertTrue(button.waitForExistence(timeout: 5))
+            button.tap()
+            XCTAssertTrue(button.isSelected)
+        }
+
+        app.buttons["Month"].tap()
+        app.buttons["settings"].tap()
+        XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 5))
+        let addCategory = app.buttons["addCategory"]
+        if !addCategory.isHittable { app.swipeUp() }
+        addCategory.tap()
+        XCTAssertTrue(app.textFields["categoryName"].waitForExistence(timeout: 5))
+        app.buttons["cancelCategory"].tap()
+    }
 }

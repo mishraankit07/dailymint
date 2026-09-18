@@ -49,7 +49,12 @@ final class LedgerModel: ObservableObject {
     @Published private(set) var engine: LedgerEngine
     @Published var revision = 0
     private let store: FileStore
-    private var lastLoadedModification: Date?
+    private var lastLoadedFileState: FileState?
+
+    private struct FileState: Equatable {
+        let modificationDate: Date?
+        let size: UInt64?
+    }
 
     init() {
         let testing = ProcessInfo.processInfo.arguments.contains("--ui-testing")
@@ -60,25 +65,29 @@ final class LedgerModel: ObservableObject {
         }
         #endif
         engine = LedgerEngine(store: store)
-        lastLoadedModification = modificationDate()
+        lastLoadedFileState = fileState()
     }
     func reload() {
         engine = LedgerEngine(store: store)
-        lastLoadedModification = modificationDate()
+        lastLoadedFileState = fileState()
         revision += 1
     }
     func refreshIfChanged() {
-        if modificationDate() != lastLoadedModification { reload() }
+        if fileState() != lastLoadedFileState { reload() }
     }
-    private func modificationDate() -> Date? {
-        try? store.url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+    private func fileState() -> FileState? {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: store.url.path) else { return nil }
+        return FileState(
+            modificationDate: attributes[.modificationDate] as? Date,
+            size: (attributes[.size] as? NSNumber)?.uint64Value
+        )
     }
     func mutate(_ operation: (LedgerEngine) -> SaveResult) -> String? {
         do {
             return try store.withExclusiveLock {
                 engine = LedgerEngine(store: store)
                 let result = operation(engine)
-                lastLoadedModification = modificationDate()
+                lastLoadedFileState = fileState()
                 if result.success { revision += 1; return nil }
                 return result.message
             }
@@ -192,9 +201,23 @@ struct DailyMintApp: App {
                     model.reload()
                 }
             }
-            .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
+            .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
                 if scenePhase == .active { model.refreshIfChanged() }
             }
+            #if DEBUG
+            .task {
+                if ProcessInfo.processInfo.arguments.contains("--simulate-sms-after-launch") {
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "dd/MM/yyyy"
+                    let date = formatter.string(from: Date())
+                    _ = await ShortcutSMSProcessor.shared.importMessage(
+                        "A/c *2468 debited by Rs.5.00 towards mandate for APPLE MEDIA on \(date).RRN:900000000022 Avl bal is Rs.6247.64-INDIAN BANK",
+                        sender: "INDIAN BANK"
+                    )
+                }
+            }
+            #endif
         }
     }
 }
@@ -543,6 +566,7 @@ struct SettingsView: View {
         let invalid = reminderDigits.invalidDigits.contains(digit)
         return TextField("", text: reminderDigitBinding(digit))
             .keyboardType(.numberPad)
+            .foregroundStyle(Color.dmInk)
             .multilineTextAlignment(.center)
             .font(.headline.monospacedDigit())
             .frame(width: 38, height: 42)

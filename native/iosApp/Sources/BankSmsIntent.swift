@@ -56,7 +56,7 @@ actor ShortcutSMSProcessor {
         let normalizedSender = (messageSender?.isEmpty == false) ? messageSender! : "Shortcut"
         let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
         let sourceId = "shortcut-\(stableHash(normalizedSender + "|" + text))"
-        let store = FileStore()
+        let store = FileStore(testing: ProcessInfo.processInfo.arguments.contains("--ui-testing"))
         do {
             return try store.withExclusiveLock {
                 importLocked(text: text, sender: normalizedSender, timestamp: timestamp, sourceId: sourceId, store: store)
