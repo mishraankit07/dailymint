@@ -73,6 +73,27 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["cancelEntry"].tap()
         XCTAssertTrue(app.buttons["Plan"].isSelected)
     }
+    func testHomeGreetingFollowsTimeOfDay() {
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--reset-test-data", "--test-hour=9"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Good morning"].waitForExistence(timeout: 5))
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--test-hour=14"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Good afternoon"].waitForExistence(timeout: 5))
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--test-hour=20"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Good evening"].waitForExistence(timeout: 5))
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--test-hour=23"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Good night"].waitForExistence(timeout: 5))
+    }
     func testLedgerOffersFileImportAndSettings() {
         app.buttons["Ledger"].tap()
         XCTAssertTrue(app.buttons["ledgerImport"].waitForExistence(timeout: 5))

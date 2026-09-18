@@ -7,12 +7,30 @@ struct MonthView: View {
     @ObservedObject var model: LedgerModel
     let onSeeAll: () -> Void
     @State private var detail: Entry?
+    private var greeting: String {
+        Self.greeting(for: Date(), arguments: ProcessInfo.processInfo.arguments)
+    }
+
+    static func greeting(for date: Date, arguments: [String] = []) -> String {
+        let hour = arguments
+            .first { $0.hasPrefix("--test-hour=") }
+            .flatMap { Int($0.replacingOccurrences(of: "--test-hour=", with: "")) }
+            .map { max(0, min(23, $0)) }
+            ?? Calendar.current.component(.hour, from: date)
+        switch hour {
+        case 5..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<22: return "Good evening"
+        default: return "Good night"
+        }
+    }
+
     var body: some View {
         NavigationStack {
             let summary = model.engine.monthSummary(today: model.engine.today())
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    BrandHeader(title: "Home")
+                    BrandHeader(title: greeting)
                     if let loadError = model.engine.loadError {
                         RaisedPanel {
                             Text("Ledger unavailable")
