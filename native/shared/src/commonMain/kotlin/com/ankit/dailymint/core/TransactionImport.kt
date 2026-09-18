@@ -55,7 +55,9 @@ object TransactionImport {
         val id = "bank-" + stableHash(identity)
         val entry = Entry(id, name, parsed.paise!!, category, date,
             if (income) "income" else if (category == "Investments") "investment" else "expense",
-            "bank-wal", capturedAt, raw, sender, parsed.referenceId.orEmpty(), parsed.bank.orEmpty())
+            "bank-wal", capturedAt, raw, sender, parsed.referenceId.orEmpty(), parsed.bank.orEmpty(),
+            creditKind = if (income) CreditKind.fromLabel(category) else null,
+            originalName = name, originalCategory = category)
         return ReviewRow(id, entry, "new", raw)
     }
     private fun stableHash(text: String): String {
@@ -68,4 +70,3 @@ object TransactionImport {
         return hash(2166136261u) + hash(2246822519u)
     }
 }
-

@@ -22,9 +22,9 @@ class LedgerParityTest {
             entry("food", "2026-09-13", 1000, "expense"), entry("sip", "2026-09-13", 2000, "investment", "Investments"),
             entry("misc", "2026-09-13", 3000, "expense", "Miscellaneous"))
         val summary = LedgerAnalytics.month(entries, "2026-09-13", 1)
-        assertEquals(6000, summary.todaySpend)
+        assertEquals(4000, summary.todaySpend)
         assertEquals(100.0, summary.spentPercent!! + summary.savedInvestedPercent!!)
-        assertTrue(summary.topFive.none { it.type == "income" })
+        assertTrue(summary.topFive.all { it.type == "expense" })
         assertTrue(summary.days.flatMap { it.entries }.any { it.type == "income" })
         assertEquals("Miscellaneous", summary.categories.last().name)
         assertEquals(100.0, summary.categories.sumOf { it.percent }, 0.0001)
@@ -63,4 +63,3 @@ class LedgerParityTest {
         assertEquals("2026-09-13", LedgerDates.date(rows[0].entry!!.date).toString())
     }
 }
-

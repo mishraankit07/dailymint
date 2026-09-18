@@ -17,7 +17,39 @@ interface LedgerStore {
 @Serializable
 data class Entry(val id: String, val name: String, val paise: Long, val category: String, val date: String, val type: String,
     val source: String = "manual", val capturedAtMillis: Long = 0,
-    val rawSms: String = "", val sender: String = "", val referenceId: String = "", val bank: String = "")
+    val rawSms: String = "", val sender: String = "", val referenceId: String = "", val bank: String = "",
+    val personalExpensePaise: Long? = null, val creditKind: String? = null, val ignored: Boolean = false,
+    val originalName: String = "", val originalCategory: String = "") {
+    val personalSpent: Long get() = if (type == "expense" && !ignored) personalExpensePaise ?: paise else 0
+    val earnedIncome: Long get() = if (type == "income" && !ignored && effectiveCreditKind() in CreditKind.earned) paise else 0
+    val neutralCredit: Long get() = if (type == "income" && !ignored && effectiveCreditKind() in CreditKind.neutral) paise else 0
+    fun effectiveCreditKind(): String = creditKind ?: if (category == "Salary") CreditKind.SALARY else CreditKind.OTHER_INCOME
+}
+
+object CreditKind {
+    const val SALARY = "salary"
+    const val OTHER_INCOME = "other_income"
+    const val REIMBURSEMENT = "reimbursement"
+    const val REFUND = "refund"
+    const val OWN_TRANSFER = "own_transfer"
+    val earned = setOf(SALARY, OTHER_INCOME)
+    val neutral = setOf(REIMBURSEMENT, REFUND, OWN_TRANSFER)
+    val all = earned + neutral
+    fun label(kind: String): String = when (kind) {
+        SALARY -> "Salary"
+        REIMBURSEMENT -> "Reimbursement"
+        REFUND -> "Refund"
+        OWN_TRANSFER -> "Own-account transfer"
+        else -> "Other income"
+    }
+    fun fromLabel(label: String): String = when (label) {
+        "Salary" -> SALARY
+        "Reimbursement" -> REIMBURSEMENT
+        "Refund" -> REFUND
+        "Own-account transfer" -> OWN_TRANSFER
+        else -> OTHER_INCOME
+    }
+}
 
 @Serializable
 data class ReviewRow(val id: String, val entry: Entry? = null, val status: String, val rawText: String = "", val reason: String = "")
@@ -27,7 +59,7 @@ data class IncomingSms(val id: String, val body: String, val sender: String, val
 
 @Serializable
 data class Snapshot(
-    val schemaVersion: Int = 1,
+    val schemaVersion: Int = 2,
     val categories: List<String> = listOf("Home", "Groceries", "Food", "Fun", "Gym", "Self", "Investments", "Miscellaneous"),
     val entries: List<Entry> = emptyList(),
     val learnedRules: Map<String, String> = emptyMap(),
@@ -41,21 +73,23 @@ data class Snapshot(
 )
 
 data class SaveResult(val success: Boolean, val message: String)
-data class Totals(val moneyIn: Long, val spent: Long, val invested: Long) {
+data class Totals(val moneyIn: Long, val spent: Long, val invested: Long, val neutralCredits: Long = 0) {
     val remaining: Long get() = moneyIn - spent - invested
 }
 
 object Money {
     // Integer paise avoids floating-point rounding; bounded values keep aggregate arithmetic safe.
     private const val MAX_PAISE = 100_000_000_000L
-    fun parse(value: String): Long? {
+    fun parse(value: String): Long? = parseAmount(value, false)
+    fun parseShare(value: String): Long? = parseAmount(value, true)
+    private fun parseAmount(value: String, allowZero: Boolean): Long? {
         val text = value.trim()
         if (!Regex("^(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+|[0-9]{1,2}(?:,[0-9]{2})*,[0-9]{3})(?:\\.[0-9]{1,2})?$").matches(text)) return null
         val parts = text.replace(",", "").split('.')
         val whole = parts[0].toLongOrNull() ?: return null
         if (whole > MAX_PAISE / 100) return null
         val result = whole * 100 + (parts.getOrNull(1)?.padEnd(2, '0')?.toLongOrNull() ?: 0)
-        return result.takeIf { it in 1..MAX_PAISE }
+        return result.takeIf { it in (if (allowZero) 0 else 1)..MAX_PAISE }
     }
     fun display(paise: Long): String {
         val absolute = if (paise < 0) -paise else paise
@@ -85,16 +119,23 @@ class LedgerEngine(private val store: LedgerStore) {
         try {
             store.load().snapshot?.let {
                 val loaded = Json.decodeFromString<Snapshot>(it)
-                require(loaded.schemaVersion == 1)
+                require(loaded.schemaVersion in 1..2)
                 require(loaded.categories.contains("Miscellaneous"))
                 require(loaded.categories.map(String::lowercase).distinct().size == loaded.categories.size)
                 require(loaded.entries.size <= 100_000)
                 require(loaded.entries.map { entry -> entry.id }.distinct().size == loaded.entries.size)
                 require(loaded.entries.all { entry ->
                     entry.paise in 1..100_000_000_000L && validDate(entry.date) &&
-                        entry.type in listOf("income", "expense", "investment")
+                        entry.type in listOf("income", "expense", "investment") &&
+                        (entry.personalExpensePaise == null || entry.personalExpensePaise in 0..entry.paise) &&
+                        (entry.creditKind == null || entry.creditKind in CreditKind.all)
                 })
-                snapshot = loaded
+                snapshot = if (loaded.schemaVersion == 1) loaded.copy(schemaVersion = 2,
+                    entries = loaded.entries.map { entry ->
+                        entry.copy(creditKind = if (entry.type == "income") entry.effectiveCreditKind() else null,
+                            originalName = if (entry.source != "manual") entry.name else "",
+                            originalCategory = if (entry.source != "manual") entry.category else "")
+                    }) else loaded
             }
         } catch (_: Exception) {
             loadError = "Could not read your saved ledger. Your data has not been replaced."
@@ -127,7 +168,10 @@ class LedgerEngine(private val store: LedgerStore) {
         val entry = row.entry ?: return SaveResult(false, "This message could not be parsed.")
         val error = validateEntry(name, amount, category, entry.date, entry.type == "income")
         if (error != null) return SaveResult(false, error)
-        val updated = entry.copy(name = name.trim(), paise = Money.parse(amount)!!, category = category, type = entryType(entry.type == "income", category))
+        if (entry.source != "manual" && Money.parse(amount) != entry.paise) return SaveResult(false, "The bank's original amount cannot be changed.")
+        val updated = entry.copy(name = name.trim(), paise = Money.parse(amount)!!, category = category,
+            type = entryType(entry.type == "income", category),
+            creditKind = if (entry.type == "income") CreditKind.fromLabel(category) else null)
         return commit(snapshot.copy(review = snapshot.review.map { if (it.id == id) it.copy(entry = updated) else it }, learnedRules = learn(name, category)))
     }
     fun importMessages(json: String): SaveResult {
@@ -156,7 +200,7 @@ class LedgerEngine(private val store: LedgerStore) {
     fun trendBuckets(today: String, years: Boolean, count: Int): List<TrendBucket> = LedgerAnalytics.trends(snapshot.entries, today, years, count)
     fun canEdit(id: String, platform: String, nowMillis: Long): Boolean {
         val entry = snapshot.entries.find { it.id == id } ?: return false
-        return (entry.source == "manual" || platform == "android") && entry.capturedAtMillis > 0 &&
+        return entry.source == "manual" && entry.capturedAtMillis > 0 &&
             nowMillis - entry.capturedAtMillis in 0..86_400_000L
     }
     fun setMonthStartDay(day: Int): SaveResult = if (day in 1..31) commit(snapshot.copy(monthStartDay = day)) else SaveResult(false, "Choose a day from 1 to 31.")
@@ -166,7 +210,7 @@ class LedgerEngine(private val store: LedgerStore) {
     }
     fun deleteCategory(name: String): SaveResult {
         if (name == "Miscellaneous" || name !in snapshot.categories) return SaveResult(false, "This category cannot be deleted.")
-        fun remap(entry: Entry): Entry = if (entry.category == name) entry.copy(category = "Miscellaneous", type = if (entry.type == "income") "income" else "expense") else entry
+        fun remap(entry: Entry): Entry = if (entry.category == name) entry.copy(category = "Miscellaneous") else entry
         return commit(snapshot.copy(categories = snapshot.categories - name,
             entries = snapshot.entries.map(::remap), learnedRules = snapshot.learnedRules.filterValues { it != name },
             review = snapshot.review.map { it.copy(entry = it.entry?.let(::remap)) }))
@@ -183,6 +227,38 @@ class LedgerEngine(private val store: LedgerStore) {
         if (!canEdit(id, platform, nowMillis)) return SaveResult(false, "This transaction is no longer editable.")
         return commit(snapshot.copy(entries = snapshot.entries.filter { it.id != id }))
     }
+    fun setPersonalExpense(id: String, amount: String): SaveResult {
+        val entry = snapshot.entries.find { it.id == id && it.source != "manual" && it.type == "expense" }
+            ?: return SaveResult(false, "Choose an imported expense.")
+        val value = Money.parseShare(amount) ?: return SaveResult(false, "Enter an amount with up to two decimal places.")
+        if (value > entry.paise) return SaveResult(false, "Personal spending cannot exceed the bank amount.")
+        return commit(snapshot.copy(entries = snapshot.entries.map {
+            if (it.id == id) it.copy(personalExpensePaise = value.takeIf { share -> share != entry.paise }) else it
+        }))
+    }
+    fun classifyCredit(id: String, kind: String): SaveResult {
+        if (kind !in CreditKind.all) return SaveResult(false, "Choose a credit kind.")
+        val entry = snapshot.entries.find { it.id == id && it.type == "income" }
+            ?: return SaveResult(false, "Choose a credit.")
+        return commit(snapshot.copy(entries = snapshot.entries.map {
+            if (it.id == id) entry.copy(category = CreditKind.label(kind), creditKind = kind) else it
+        }))
+    }
+    fun correctImported(id: String, name: String, category: String): SaveResult {
+        val entry = snapshot.entries.find { it.id == id && it.source != "manual" && it.type != "income" }
+            ?: return SaveResult(false, "Choose an imported outflow.")
+        if (name.trim().isEmpty() || name.trim().length > 120) return SaveResult(false, "Enter a name between 1 and 120 characters.")
+        if (category !in snapshot.categories) return SaveResult(false, "Choose a valid category.")
+        return commit(snapshot.copy(entries = snapshot.entries.map {
+            if (it.id == id) entry.copy(name = name.trim(), category = category,
+                type = if (category == "Investments") "investment" else "expense") else it
+        }, learnedRules = learn(name, category)))
+    }
+    fun setIgnored(id: String, ignored: Boolean): SaveResult {
+        val entry = snapshot.entries.find { it.id == id && it.source != "manual" }
+            ?: return SaveResult(false, "Choose an imported transaction.")
+        return commit(snapshot.copy(entries = snapshot.entries.map { if (it.id == id) entry.copy(ignored = ignored) else it }))
+    }
     private fun learn(name: String, category: String): Map<String, String> {
         val key = MerchantTagger.learningKey(name)
         return if (key.isNotEmpty() && category in snapshot.categories && category != "Miscellaneous") snapshot.learnedRules + (key to category) else snapshot.learnedRules
@@ -192,19 +268,20 @@ class LedgerEngine(private val store: LedgerStore) {
         if (Money.parse(amount) == null) return "Enter a positive amount with up to two decimal places."
         if (name.trim().isEmpty() || name.trim().length > 120) return "Enter a name between 1 and 120 characters."
         if (!validDate(date)) return "Choose a valid transaction date."
-        if (category !in (if (income) listOf("Salary", "Received") else snapshot.categories)) return "Choose a valid category."
+        if (category !in (if (income) CreditKind.all.map(CreditKind::label) + "Received" else snapshot.categories)) return "Choose a valid category."
         return null
     }
     fun formatAmount(paise: Long): String = Money.display(paise)
     fun totals(): Totals = Totals(
-        snapshot.entries.filter { it.type == "income" }.sumOf { it.paise },
-        snapshot.entries.filter { it.type == "expense" }.sumOf { it.paise },
-        snapshot.entries.filter { it.type == "investment" }.sumOf { it.paise }
+        snapshot.entries.sumOf { it.earnedIncome },
+        snapshot.entries.sumOf { it.personalSpent },
+        snapshot.entries.filter { it.type == "investment" && !it.ignored }.sumOf { it.paise },
+        snapshot.entries.sumOf { it.neutralCredit }
     )
     fun addCategory(rawName: String): SaveResult {
         val name = rawName.trim().replace(Regex("\\s+"), " ")
         if (name.isBlank() || name.length > 40) return SaveResult(false, "Enter a category name between 1 and 40 characters.")
-        if ((snapshot.categories + listOf("Salary", "Received")).any { it.equals(name, true) })
+        if ((snapshot.categories + CreditKind.all.map(CreditKind::label) + "Received").any { it.equals(name, true) })
             return SaveResult(false, "This category already exists.")
         return commit(snapshot.copy(categories = snapshot.categories + name))
     }
@@ -213,11 +290,13 @@ class LedgerEngine(private val store: LedgerStore) {
         if (id.isBlank() || snapshot.entries.any { it.id == id }) return SaveResult(false, "This record already exists.")
         if (name.trim().isEmpty() || name.trim().length > 120) return SaveResult(false, "Enter a name between 1 and 120 characters.")
         if (!validDate(date)) return SaveResult(false, "Choose a valid transaction date.")
-        val allowed = if (income) listOf("Salary", "Received") else snapshot.categories
+        val allowed = if (income) CreditKind.all.map(CreditKind::label) + "Received" else snapshot.categories
         if (category !in allowed) return SaveResult(false, "Choose a valid category.")
         if (snapshot.entries.size >= 100_000) return SaveResult(false, "Ledger capacity reached.")
         val type = if (income) "income" else if (category == "Investments") "investment" else "expense"
-        return commit(snapshot.copy(entries = snapshot.entries + Entry(id, name.trim(), paise, category, date, type, capturedAtMillis = Clock.System.now().toEpochMilliseconds()), learnedRules = learn(name, category)))
+        return commit(snapshot.copy(entries = snapshot.entries + Entry(id, name.trim(), paise, category, date, type,
+            capturedAtMillis = Clock.System.now().toEpochMilliseconds(),
+            creditKind = if (income) CreditKind.fromLabel(category) else null), learnedRules = learn(name, category)))
     }
     internal fun commit(next: Snapshot): SaveResult {
         loadError?.let { return SaveResult(false, it) }

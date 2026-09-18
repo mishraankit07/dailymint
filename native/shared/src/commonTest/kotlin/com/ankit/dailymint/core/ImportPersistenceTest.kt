@@ -13,15 +13,17 @@ class ImportPersistenceTest {
         assertEquals(0L, engine.totals().spent)
         val restored = LedgerEngine(store)
         assertEquals(1, restored.reviewRows().size)
-        assertTrue(restored.editReview("row-0", "Travel", "62.88", "Fun").success)
+        val originalAmount = restored.reviewRows().single().entry!!.paise
+        assertFalse(restored.editReview("row-0", "Travel", Money.display(originalAmount + 1), "Fun").success)
+        assertTrue(restored.editReview("row-0", "Travel", Money.display(originalAmount), "Fun").success)
         assertTrue(restored.saveReview().success)
-        assertEquals(6288L, restored.totals().spent)
+        assertEquals(originalAmount, restored.totals().spent)
         assertTrue(restored.reviewRows().isEmpty())
         assertTrue(restored.stageWal("current_date:13 Sep 2026 at 9:02:00 AM IST\n$raw", "repeat.txt").success)
         assertEquals("already-recorded", restored.reviewRows().first().status)
         assertFalse(restored.editReview("row-0", "Travel", "99", "Food").success)
         assertTrue(restored.saveReview().success)
-        assertEquals(6288L, restored.totals().spent)
+        assertEquals(originalAmount, restored.totals().spent)
     }
     @Test fun failedReviewSaveKeepsQueueAndOldTotals() {
         val store = MemoryStore()
