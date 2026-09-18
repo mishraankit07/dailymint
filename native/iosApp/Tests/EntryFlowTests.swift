@@ -47,7 +47,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.textFields["categoryName"].exists)
     }
     func testEveryTabOpens() {
-        for tab in ["Month", "Growth", "Import", "Manual", "Plan"] {
+        for tab in ["Home", "Growth", "Ledger", "Plan"] {
             let button = app.buttons[tab]
             XCTAssertTrue(button.waitForExistence(timeout: 5), "Missing tab \(tab)")
             button.tap()
@@ -55,6 +55,19 @@ final class EntryFlowTests: XCTestCase {
             expectation(for: selected, evaluatedWith: button)
             waitForExpectations(timeout: 5)
         }
+        app.buttons["Add"].tap()
+        XCTAssertTrue(app.textFields["entryName"].waitForExistence(timeout: 5))
+        app.buttons["cancelEntry"].tap()
+        XCTAssertTrue(app.buttons["Plan"].isSelected)
+    }
+    func testLedgerOffersFileImportAndSettings() {
+        app.buttons["Ledger"].tap()
+        XCTAssertTrue(app.buttons["ledgerImport"].waitForExistence(timeout: 5))
+        app.buttons["ledgerImport"].tap()
+        XCTAssertTrue(app.buttons["importFile"].waitForExistence(timeout: 5))
+        app.buttons["closeImport"].tap()
+        app.buttons["settings"].tap()
+        XCTAssertTrue(app.buttons["openSMSSetup"].waitForExistence(timeout: 5))
     }
     func testSMSSetupCanBeDeferredAndReopened() {
         app.terminate()
@@ -63,7 +76,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["openShortcuts"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["smsSetupStatus"].exists)
         app.buttons["continueWithoutSMS"].tap()
-        XCTAssertTrue(app.buttons["Month"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
         app.buttons["settings"].tap()
         let setup = app.buttons["openSMSSetup"]
         if !setup.isHittable { app.swipeUp() }
@@ -71,7 +84,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["openShortcuts"].waitForExistence(timeout: 5))
     }
     func testDecimalExpenseUpdatesLedger() {
-        app.buttons["Manual"].tap()
+        app.buttons["Add"].tap()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Lunch")
         app.textFields["entryAmount"].tap()
@@ -79,25 +92,23 @@ final class EntryFlowTests: XCTestCase {
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
-        XCTAssertTrue(app.alerts["Transaction saved"].waitForExistence(timeout: 5))
-        app.alerts.buttons["OK"].tap()
+        XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
-        let month = app.buttons["Month"]
-        month.tap()
+        let month = app.buttons["Home"]
         let selected = NSPredicate(format: "selected == true")
         expectation(for: selected, evaluatedWith: month)
         waitForExpectations(timeout: 5)
         let spent = app.descendants(matching: .any)["spent"]
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        XCTAssertEqual(spent.label, "Spent: Rs 62.88")
+        XCTAssertEqual(spent.label, "Rs 62.88")
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        XCTAssertEqual(spent.label, "Spent: Rs 62.88")
+        XCTAssertEqual(spent.label, "Rs 62.88")
     }
     func testIncomeEntryUpdatesMoneyInOnly() {
-        app.buttons["Manual"].tap()
+        app.buttons["Add"].tap()
         app.buttons["Income"].tap()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Salary")
@@ -106,12 +117,10 @@ final class EntryFlowTests: XCTestCase {
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
-        XCTAssertTrue(app.alerts["Transaction saved"].waitForExistence(timeout: 5))
-        app.alerts.buttons["OK"].tap()
-        app.buttons["Month"].tap()
+        XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["moneyIn"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Money in: Rs 1234")
-        XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Spent: Rs 0")
+        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Recorded in: Rs 1234")
+        XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Rs 0")
     }
 
     func testIncomingSMSUpdatesOpenMonthWithoutRelaunch() {
@@ -120,7 +129,7 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         let spent = app.descendants(matching: .any)["spent"]
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        let updated = NSPredicate(format: "label == %@", "Spent: Rs 5")
+        let updated = NSPredicate(format: "label == %@", "Rs 5")
         expectation(for: updated, evaluatedWith: spent)
         waitForExpectations(timeout: 10)
     }
@@ -133,14 +142,14 @@ final class EntryFlowTests: XCTestCase {
         app.launchArguments = ["--ui-testing", "--reset-test-data"]
         app.launch()
 
-        for tab in ["Month", "Growth", "Import", "Manual", "Plan"] {
+        for tab in ["Home", "Growth", "Ledger", "Plan"] {
             let button = app.buttons[tab]
             XCTAssertTrue(button.waitForExistence(timeout: 5))
             button.tap()
             XCTAssertTrue(button.isSelected)
         }
 
-        app.buttons["Month"].tap()
+        app.buttons["Home"].tap()
         app.buttons["settings"].tap()
         XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 5))
         let addCategory = app.buttons["addCategory"]
@@ -148,5 +157,12 @@ final class EntryFlowTests: XCTestCase {
         addCategory.tap()
         XCTAssertTrue(app.textFields["categoryName"].waitForExistence(timeout: 5))
         app.buttons["cancelCategory"].tap()
+    }
+
+    func testHomeRoutesToLedgerAndImport() {
+        app.buttons["seeAllTransactions"].tap()
+        XCTAssertTrue(app.buttons["Ledger"].isSelected)
+        app.buttons["ledgerImport"].tap()
+        XCTAssertTrue(app.buttons["importFile"].waitForExistence(timeout: 5))
     }
 }

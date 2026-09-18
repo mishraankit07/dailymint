@@ -137,17 +137,18 @@ enum ReminderScheduler {
 @main
 struct DailyMintApp: App {
     @StateObject private var model = LedgerModel()
-    @State private var selectedTab = AppTab.month
+    @State private var selectedTab = AppTab.home
+    @State private var showingAdd = false
     @AppStorage("smsOnboardingSeenV1") private var onboardingSeen = false
     @Environment(\.scenePhase) private var scenePhase
-    private enum AppTab: String, CaseIterable { case month, growth, imports, manual, plan
-        var title: String { self == .imports ? "Import" : rawValue.capitalized }
+    private enum AppTab: String, CaseIterable { case home, growth, add, ledger, plan
+        var title: String { rawValue.capitalized }
         var icon: String {
             switch self {
-            case .month: return "calendar"
+            case .home: return "house"
             case .growth: return "chart.xyaxis.line"
-            case .imports: return "tray.and.arrow.down"
-            case .manual: return "plus.circle"
+            case .add: return "plus.circle.fill"
+            case .ledger: return "list.bullet.rectangle"
             case .plan: return "target"
             }
         }
@@ -165,28 +166,30 @@ struct DailyMintApp: App {
                 } else {
                     Group {
                         switch selectedTab {
-                        case .month: MonthView(model: model)
+                        case .home: MonthView(model: model, onSeeAll: { selectedTab = .ledger })
                         case .growth: GrowthView(model: model)
-                        case .imports: ImportView(model: model)
-                        case .manual: ManualView(model: model)
-                        case .plan: PlanView()
+                        case .add: EmptyView()
+                        case .ledger: LedgerView(model: model)
+                        case .plan: PlanView(model: model)
                         }
                     }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         HStack(spacing: 0) {
                             ForEach(AppTab.allCases, id: \.self) { tab in
-                                Button { selectedTab = tab } label: {
+                                Button {
+                                    if tab == .add { showingAdd = true } else { selectedTab = tab }
+                                } label: {
                                     VStack(spacing: 4) {
-                                        Image(systemName: tab.icon).font(.system(size: 21, weight: .medium))
+                                        Image(systemName: tab.icon).font(.system(size: tab == .add ? 27 : 21, weight: .medium))
                                         Text(tab.title).font(.system(size: 10, weight: .semibold))
                                     }
-                                    .foregroundStyle(selectedTab == tab ? Color.dmNavSelected : Color.dmHeroText)
-                                    .frame(maxWidth: .infinity, minHeight: 54)
+                                    .foregroundStyle(selectedTab == tab || tab == .add ? Color.dmNavSelected : Color.dmHeroText)
+                                    .frame(maxWidth: .infinity, minHeight: 56)
                                     .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(tab.title)
-                                .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
+                                .accessibilityAddTraits(selectedTab == tab && tab != .add ? .isSelected : [])
                             }
                         }
                         .padding(.horizontal, 8)
@@ -195,6 +198,9 @@ struct DailyMintApp: App {
                     }
                     .tint(Color.dmFlow)
                 }
+            }
+            .sheet(isPresented: $showingAdd) {
+                ManualView(model: model, onFinish: { showingAdd = false })
             }
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
@@ -223,50 +229,39 @@ struct DailyMintApp: App {
 }
 
 struct PlanView: View {
+    @ObservedObject var model: LedgerModel
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                BrandHeader(title: "Plan")
-                RaisedPanel {
-                    ZStack {
-                        Circle().stroke(Color.dmFlow.opacity(0.24), lineWidth: 18).frame(width: 126, height: 126)
-                        Circle().stroke(Color.dmIncome, lineWidth: 10).frame(width: 86, height: 86)
-                        Circle().fill(Color.dmInvest).frame(width: 18, height: 18)
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    BrandHeader(title: "Plan")
+                    RaisedPanel {
+                        Text("Coming soon")
+                            .font(.headline)
+                            .foregroundStyle(Color.dmInk)
+                        Text("Budgets and savings goals are not available yet.")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.dmInkSoft)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    Text("Coming soon")
-                        .font(.system(size: 28, weight: .semibold, design: .serif))
-                        .foregroundStyle(Color.dmInk)
-                    Text("Plan a goal, set aside money, and watch the gap close over time.")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.dmInkSoft)
-                    HStack {
-                        CategoryDot(name: "Investment")
-                        Text("Goal planning")
-                        Spacer()
-                        Text("Soon").foregroundStyle(Color.dmFlow)
-                    }
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.dmInkFaint)
-                    .padding(.top, 8)
                 }
+                .padding(20)
             }
-            .padding(20)
+            .background(Color.dmPaper)
+            .navigationTitle("")
+            .withSettings(model: model)
         }
-        .background(Color.dmPaper)
     }
 }
 
 struct ManualView: View {
     @ObservedObject var model: LedgerModel
+    let onFinish: () -> Void
     @State private var name = ""
     @State private var amount = ""
     @State private var income = false
     @State private var category = "Miscellaneous"
     @State private var date = Date()
     @State private var error: String?
-    @State private var saved = false
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case name, amount }
     var body: some View {
@@ -280,7 +275,7 @@ struct ManualView: View {
                             PaperSegment(title: "Expense", value: false, selection: $income)
                             PaperSegment(title: "Income", value: true, selection: $income)
                         }
-                        .onChange(of: income) { value in category = value ? "Received" : "Miscellaneous" }
+                        .onChange(of: income) { value in category = value ? "Other income" : "Miscellaneous" }
                         .padding(4)
                         .background(Color.dmHairline.opacity(0.55))
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -293,7 +288,7 @@ struct ManualView: View {
                             .accessibilityIdentifier("entryAmount")
                             .focused($focusedField, equals: .amount)
                         Menu {
-                            ForEach(income ? ["Salary", "Received"] : model.engine.categories(), id: \.self) { option in
+                            ForEach(income ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"] : model.engine.categories(), id: \.self) { option in
                                 Button(option) { category = option }
                             }
                         } label: {
@@ -315,7 +310,7 @@ struct ManualView: View {
                         Button("Save") {
                             focusedField = nil
                             error = model.addEntry(name: name, amount: amount, category: category, date: date, income: income)
-                            if error == nil { name = ""; amount = ""; category = income ? "Received" : "Miscellaneous"; saved = true }
+                            if error == nil { onFinish() }
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(Color.dmInk)
@@ -330,8 +325,12 @@ struct ManualView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onFinish).accessibilityIdentifier("cancelEntry")
+                }
+            }
             .onDisappear { focusedField = nil }
-            .alert("Transaction saved", isPresented: $saved) { Button("OK", role: .cancel) {} }
         }
     }
 }
@@ -739,32 +738,5 @@ struct CategorySheet: View {
     private func save() {
         error = model.addCategory(name)
         if error == nil { dismiss() }
-    }
-}
-
-struct LedgerView: View {
-    @ObservedObject var model: LedgerModel
-    var body: some View {
-        NavigationStack {
-            List {
-                Section("All entries") {
-                    let totals = model.engine.totals()
-                    Text("Money in: Rs " + model.engine.formatAmount(paise: totals.moneyIn)).accessibilityIdentifier("moneyIn")
-                    Text("Spent: Rs " + model.engine.formatAmount(paise: totals.spent)).accessibilityIdentifier("spent")
-                    Text("Invested: Rs " + model.engine.formatAmount(paise: totals.invested))
-                    Text("Remaining: Rs " + model.engine.formatAmount(paise: totals.remaining))
-                }
-                ForEach(model.engine.entries().reversed(), id: \.id) { entry in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(entry.name)
-                            Text(entry.category + " - " + entry.date).font(.caption).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text((entry.type == "income" ? "+" : "-") + "Rs " + model.engine.formatAmount(paise: entry.paise))
-                    }
-                }
-            }.navigationTitle("Ledger")
-        }
     }
 }
