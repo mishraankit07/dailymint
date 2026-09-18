@@ -27,7 +27,7 @@ object TransactionImport {
             val timestamp = date(match)
             if (timestamp == null) ReviewRow("invalid-$index", status = "unrecognized", rawText = raw, reason = "invalid_date")
             else {
-                val row = sms(raw, "", timestamp, captureMillis, snapshot)
+                val row = sms(raw, "", timestamp, captureMillis, snapshot, "bank-file")
                 if (row.entry == null) row.copy(id = "message-$index")
                 else {
                     val existing = snapshot.entries.find { it.id == row.entry.id }
@@ -37,7 +37,7 @@ object TransactionImport {
             }
         }
     }
-    fun sms(raw: String, sender: String, date: String, capturedAt: Long, snapshot: Snapshot): ReviewRow {
+    fun sms(raw: String, sender: String, date: String, capturedAt: Long, snapshot: Snapshot, source: String = "bank-sms"): ReviewRow {
         val parsed = BankSmsParser.parse(raw, sender, 75)
         if (!parsed.parsed) {
             val ignored = parsed.reason in listOf("otp", "future_debit", "card_payment_ack", "reward_offer", "no_transaction_keyword")
@@ -55,7 +55,7 @@ object TransactionImport {
         val id = "bank-" + stableHash(identity)
         val entry = Entry(id, name, parsed.paise!!, category, date,
             if (income) "income" else if (category == "Investments") "investment" else "expense",
-            "bank-wal", capturedAt, raw, sender, parsed.referenceId.orEmpty(), parsed.bank.orEmpty(),
+            source, capturedAt, raw, sender, parsed.referenceId.orEmpty(), parsed.bank.orEmpty(),
             creditKind = if (income) CreditKind.fromLabel(category) else null,
             originalName = name, originalCategory = category)
         return ReviewRow(id, entry, "new", raw)

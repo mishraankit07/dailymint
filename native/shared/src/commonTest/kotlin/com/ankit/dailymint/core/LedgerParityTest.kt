@@ -60,6 +60,7 @@ class LedgerParityTest {
         val rows = TransactionImport.rows(text, Snapshot(), 1000)
         assertEquals(listOf("new", "repeated"), rows.map { it.status })
         assertEquals("2026-09-12T18:31:00Z", rows[0].entry!!.date)
+        assertEquals("bank-file", rows[0].entry!!.source)
         assertEquals("2026-09-13", LedgerDates.date(rows[0].entry!!.date).toString())
     }
 }

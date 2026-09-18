@@ -43,6 +43,23 @@ class PersonalExpenseTest {
         store.fail = false
         assertTrue(engine.setPersonalExpense("bank-1", "0").success)
         assertEquals(0, engine.totals().spent)
+        assertTrue(engine.monthSummary("2026-09-15").topFive.isEmpty())
+    }
+
+    @Test fun ledgerDaysKeepGrossTotalsAcrossMonthsAndExcludeIgnoredFromTotals() {
+        val engine = LedgerEngine(MemoryStore())
+        val expense = imported("expense", 30000)
+        val olderCredit = imported("credit", 20000, type = "income", category = "Received", date = "2026-08-20")
+        assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(expense, olderCredit))).success)
+        assertTrue(engine.setPersonalExpense("expense", "100").success)
+        val days = engine.ledgerDays()
+        assertEquals(listOf("2026-09-10", "2026-08-20"), days.map { it.date })
+        assertEquals(30000, days.first().moneyOut)
+        assertEquals(10000, days.first().entries.single().personalSpent)
+        assertEquals(20000, days.last().moneyIn)
+        assertTrue(engine.setIgnored("expense", true).success)
+        assertEquals(0, engine.ledgerDays().first().moneyOut)
+        assertEquals(1, engine.ledgerDays().first().entries.size)
     }
 
     @Test fun neutralCreditsRemainGrossHistoryWithoutEarnedIncome() {

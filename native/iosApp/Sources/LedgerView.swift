@@ -1,6 +1,14 @@
 import SwiftUI
 import DailyMintCore
 
+private struct LedgerDateGroup: Identifiable {
+    let date: String
+    let entries: [Entry]
+    let grossIn: Int64
+    let grossOut: Int64
+    var id: String { date }
+}
+
 struct LedgerView: View {
     @ObservedObject var model: LedgerModel
     @State private var query = ""
@@ -12,26 +20,24 @@ struct LedgerView: View {
     @State private var showingImport = false
     @State private var detail: Entry?
 
-    private var filteredEntries: [Entry] {
+    private var filterActive: Bool {
+        !query.isEmpty || typeFilter != "All" || categoryFilter != "All" || useDateRange
+    }
+
+    private var groups: [LedgerDateGroup] {
         let start = Self.dateKey(startDate)
         let end = Self.dateKey(endDate)
-        return model.engine.entries()
-            .filter { entry in
+        return model.engine.ledgerDays().compactMap { day in
+            guard !useDateRange || (day.date >= start && day.date <= end) else { return nil }
+            let entries = day.entries.filter { entry in
                 (query.isEmpty || entry.name.localizedCaseInsensitiveContains(query)) &&
                 (typeFilter == "All" || entry.type == typeFilter || (typeFilter == "neutral" && entry.neutralCredit > 0)) &&
                 (categoryFilter == "All" || entry.category == categoryFilter ||
-                    (categoryFilter == "Other income" && entry.category == "Received")) &&
-                (!useDateRange || (String(entry.date.prefix(10)) >= start && String(entry.date.prefix(10)) <= end))
+                    (categoryFilter == "Other income" && entry.category == "Received"))
             }
-            .sorted {
-                if $0.date != $1.date { return $0.date > $1.date }
-                return $0.capturedAtMillis > $1.capturedAtMillis
-            }
-    }
-
-    private var groups: [(date: String, entries: [Entry])] {
-        let grouped = Dictionary(grouping: filteredEntries, by: { String($0.date.prefix(10)) })
-        return grouped.keys.sorted(by: >).map { ($0, grouped[$0] ?? []) }
+            return entries.isEmpty ? nil : LedgerDateGroup(date: day.date, entries: entries,
+                                                            grossIn: day.moneyIn, grossOut: day.moneyOut)
+        }
     }
 
     var body: some View {
@@ -71,13 +77,18 @@ struct LedgerView: View {
                         }
                     }
 
-                    ForEach(groups, id: \.date) { group in
+                    ForEach(groups) { group in
                         VStack(alignment: .leading, spacing: 0) {
-                            HStack {
-                                Text(group.date).font(.headline).foregroundStyle(Color.dmInk)
-                                Spacer()
-                                Text("\(group.entries.count) entries")
-                                    .font(.caption).foregroundStyle(Color.dmInkFaint)
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack {
+                                    Text(group.date).font(.headline).foregroundStyle(Color.dmInk)
+                                    Spacer()
+                                    Text("\(group.entries.count) entries")
+                                        .font(.caption).foregroundStyle(Color.dmInkFaint)
+                                }
+                                Text((filterActive ? "Full day · " : "") +
+                                     "Bank in Rs \(model.engine.formatAmount(paise: group.grossIn)) · out Rs \(model.engine.formatAmount(paise: group.grossOut))")
+                                    .font(.caption).foregroundStyle(Color.dmInkSoft)
                             }
                             .padding(.vertical, 8)
                             ForEach(group.entries, id: \.id) { entry in
@@ -336,7 +347,9 @@ struct TransactionDetailView: View {
     private func sourceLabel(_ source: String) -> String {
         switch source {
         case "manual": return "Manual"
-        case "bank-wal": return "Bank message or file"
+        case "bank-sms": return "Bank SMS via Shortcut"
+        case "bank-file": return "Imported file"
+        case "bank-wal": return "Legacy bank import"
         default: return "Imported"
         }
     }

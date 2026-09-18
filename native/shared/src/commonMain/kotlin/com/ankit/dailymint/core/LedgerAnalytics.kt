@@ -29,6 +29,16 @@ data class TrendBucket(val label: String, val moneyIn: Long, val spent: Long, va
     val neutralCredits: Long = 0)
 
 object LedgerAnalytics {
+    fun ledgerDays(entries: List<Entry>): List<DayGroup> = entries
+        .groupBy { LedgerDates.date(it.date).toString() }
+        .map { (date, items) ->
+            DayGroup(date,
+                items.filter { it.type == "income" && !it.ignored }.sumOf { it.paise },
+                items.filter { it.type != "income" && !it.ignored }.sumOf { it.paise },
+                items.sortedWith(compareByDescending<Entry> { it.date }.thenByDescending { it.capturedAtMillis }))
+        }
+        .sortedByDescending { it.date }
+
     fun month(entries: List<Entry>, today: String, startDay: Int): MonthSummary {
         val now = LedgerDates.date(today)
         var start = LedgerDates.start(now.year, now.monthNumber, startDay)
@@ -59,7 +69,7 @@ object LedgerAnalytics {
             if (moneyIn > 0) (moneyIn - spent).toDouble() / moneyIn * 100 else null,
             entries.filter { !it.ignored && LedgerDates.date(it.date) == now }.sumOf { it.personalSpent },
             entries.filter { val date = LedgerDates.date(it.date); !it.ignored && date >= weekStart && date < weekEnd }.sumOf { it.personalSpent },
-            categoryTotals, selected.filter { it.type == "expense" }.sortedByDescending { it.personalSpent }.take(5), days,
+            categoryTotals, selected.filter { it.type == "expense" && it.personalSpent > 0 }.sortedByDescending { it.personalSpent }.take(5), days,
             neutralCredits)
     }
     fun trends(entries: List<Entry>, today: String, years: Boolean, count: Int): List<TrendBucket> {

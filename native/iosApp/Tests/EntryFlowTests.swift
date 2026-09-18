@@ -134,6 +134,38 @@ final class EntryFlowTests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
+    func testImportedPersonalShareUpdatesHomeAndSurvivesRelaunch() {
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]
+        app.launch()
+        let spent = app.descendants(matching: .any)["spent"]
+        XCTAssertTrue(spent.waitForExistence(timeout: 5))
+        expectation(for: NSPredicate(format: "label == %@", "Rs 5"), evaluatedWith: spent)
+        waitForExpectations(timeout: 10)
+
+        app.buttons["Ledger"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "ledgerEntry-")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        let share = app.textFields["personalShare"]
+        XCTAssertTrue(share.waitForExistence(timeout: 5))
+        share.tap()
+        share.typeText(XCUIKeyboardKey.delete.rawValue + "2")
+        let save = app.buttons["savePersonalShare"]
+        if !save.isHittable { app.swipeUp() }
+        save.tap()
+        XCTAssertFalse(app.staticTexts["transactionError"].exists)
+        app.buttons["Done"].tap()
+        app.buttons["Home"].tap()
+        XCTAssertEqual(spent.label, "Rs 2")
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        XCTAssertTrue(spent.waitForExistence(timeout: 5))
+        XCTAssertEqual(spent.label, "Rs 2")
+    }
+
     func testDarkModeScreensAndSettingsRemainUsable() {
         let previousAppearance = XCUIDevice.shared.appearance
         defer { XCUIDevice.shared.appearance = previousAppearance }
