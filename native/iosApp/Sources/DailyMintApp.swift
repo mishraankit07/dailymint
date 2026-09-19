@@ -315,7 +315,6 @@ struct ManualView: View {
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .withSettings(model: model)
             .sheet(isPresented: $showingCategory) { CategorySheet(model: model) }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
