@@ -189,9 +189,12 @@ struct GrowthView: View {
     @State private var count: Int32 = 3
     @State private var selectedPeriod: String?
     private var rangeOptions: [Int32] { years ? [1, 2, 3, 5] : [3, 6] }
+    private var safeCount: Int32 {
+        rangeOptions.contains(count) ? count : rangeOptions[0]
+    }
     var body: some View {
         NavigationStack {
-            let buckets = model.engine.trendBuckets(today: model.engine.today(), years: years, count: count)
+            let buckets = model.engine.trendBuckets(today: model.engine.today(), years: years, count: safeCount)
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     BrandHeader(title: "Growth")
@@ -208,7 +211,7 @@ struct GrowthView: View {
                         ForEach(rangeOptions, id: \.self) { value in
                             PaperOption(
                                 title: String(value) + (years ? " years" : " months"),
-                                active: count == value,
+                                active: safeCount == value,
                                 action: { count = value }
                             )
                         }

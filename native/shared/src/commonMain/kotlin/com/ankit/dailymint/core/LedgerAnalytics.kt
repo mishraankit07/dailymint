@@ -74,10 +74,10 @@ object LedgerAnalytics {
     }
     fun trends(entries: List<Entry>, today: String, years: Boolean, count: Int): List<TrendBucket> {
         val allowed = if (years) listOf(1, 2, 3, 5) else listOf(3, 6)
-        require(count in allowed)
+        val safeCount = if (count in allowed) count else allowed.first()
         val now = LedgerDates.date(today)
         var cumulative = 0L
-        return (count - 1 downTo 0).map { offset ->
+        return (safeCount - 1 downTo 0).map { offset ->
             val start = if (years) LocalDate(now.year - offset, 1, 1)
                 else LocalDate(now.year, now.monthNumber, 1).minus(DatePeriod(months = offset))
             val end = start.plus(if (years) DatePeriod(years = 1) else DatePeriod(months = 1))

@@ -130,5 +130,8 @@ class PersonalExpenseTest {
         val buckets = engine.trendBuckets("2026-09-15", false, 3)
         assertEquals(10000, buckets[1].spent)
         assertEquals(20000, buckets[2].spent)
+        val transientToggleBuckets = engine.trendBuckets("2026-09-15", true, 6)
+        assertEquals(1, transientToggleBuckets.size)
+        assertEquals(30000, transientToggleBuckets.single().spent)
     }
 }
