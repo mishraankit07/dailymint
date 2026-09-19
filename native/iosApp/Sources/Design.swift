@@ -21,8 +21,8 @@ extension Color {
     static let dmIncome = adaptive(light: 0x3F8F5F, dark: 0x73C995)
     static let dmSpend = adaptive(light: 0xC1594A, dark: 0xF18B7B)
     static let dmInvest = adaptive(light: 0xC99A3D, dark: 0xE4B96A)
-    static let dmNav = Color(red: 0.090, green: 0.149, blue: 0.122)
-    static let dmNavSelected = Color(red: 0.53, green: 0.84, blue: 0.67)
+    static let dmNav = adaptive(light: 0xF8F9F3, dark: 0x17261F)
+    static let dmNavSelected = adaptive(light: 0x1F6F78, dark: 0x81CDD0)
     static let dmHeroText = Color(red: 0.973, green: 0.976, blue: 0.953)
     static let dmHeroMuted = Color(red: 0.725, green: 0.776, blue: 0.737)
     static let dmCategoryHome = adaptive(light: 0x5E7FA3, dark: 0x9BBDE0)
@@ -43,6 +43,107 @@ struct RaisedPanel<Content: View>: View {
         .background(Color.dmPaperRaised)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
+    }
+}
+
+struct ScreenSurface<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                content
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 24)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color.dmPaper.ignoresSafeArea())
+    }
+}
+
+struct PrimaryPillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.dmHeroText)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+            .background(Color.dmInk.opacity(configuration.isPressed ? 0.86 : 1))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+struct SecondaryPillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.dmInk)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+            .background(Color.dmPaperRaised.opacity(configuration.isPressed ? 0.72 : 1))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
+    }
+}
+
+struct DestructivePillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.dmSpend)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+            .background(Color.dmPaperRaised.opacity(configuration.isPressed ? 0.72 : 1))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmSpend.opacity(0.45), lineWidth: 1))
+    }
+}
+
+struct DockedTabBar<Tab: Hashable>: View {
+    let tabs: [Tab]
+    let selected: Tab
+    let title: (Tab) -> String
+    let icon: (Tab) -> String
+    let isCenterAction: (Tab) -> Bool
+    let action: (Tab) -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(tabs, id: \.self) { tab in
+                Button {
+                    action(tab)
+                } label: {
+                    VStack(spacing: 4) {
+                        ZStack {
+                            if isCenterAction(tab) {
+                                Circle()
+                                    .fill(Color.dmInk)
+                                    .frame(width: 42, height: 42)
+                            }
+                            Image(systemName: icon(tab))
+                                .font(.system(size: isCenterAction(tab) ? 22 : 20, weight: .semibold))
+                                .foregroundStyle(isCenterAction(tab) ? Color.dmHeroText : (selected == tab ? Color.dmNavSelected : Color.dmInkSoft))
+                        }
+                        .frame(height: 42)
+                        Text(title(tab))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(selected == tab && !isCenterAction(tab) ? Color.dmNavSelected : Color.dmInkSoft)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 60)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(title(tab))
+                .accessibilityAddTraits(selected == tab && !isCenterAction(tab) ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+        .background(Color.dmNav)
+        .overlay(alignment: .top) { Rectangle().fill(Color.dmHairline).frame(height: 1) }
     }
 }
 
@@ -68,6 +169,15 @@ struct BrandHeader: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, 4)
+    }
+}
+
+struct FieldLabel: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Color.dmInkFaint)
     }
 }
 
@@ -130,7 +240,9 @@ struct PaperField: View {
         TextField(placeholder, text: $text)
             .keyboardType(keyboard)
             .textFieldStyle(.plain)
+            .font(.body)
             .foregroundStyle(Color.dmInk)
+            .tint(Color.dmFlow)
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .background(Color.dmPaperRaised)

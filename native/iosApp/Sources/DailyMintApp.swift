@@ -174,27 +174,16 @@ struct DailyMintApp: App {
                         }
                     }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        HStack(spacing: 0) {
-                            ForEach(AppTab.allCases, id: \.self) { tab in
-                                Button {
-                                    if tab == .add { showingAdd = true } else { selectedTab = tab }
-                                } label: {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: tab.icon).font(.system(size: tab == .add ? 27 : 21, weight: .medium))
-                                        Text(tab.title).font(.system(size: 10, weight: .semibold))
-                                    }
-                                    .foregroundStyle(selectedTab == tab || tab == .add ? Color.dmNavSelected : Color.dmHeroText)
-                                    .frame(maxWidth: .infinity, minHeight: 56)
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(tab.title)
-                                .accessibilityAddTraits(selectedTab == tab && tab != .add ? .isSelected : [])
+                        DockedTabBar(
+                            tabs: AppTab.allCases,
+                            selected: selectedTab,
+                            title: { $0.title },
+                            icon: { $0.icon },
+                            isCenterAction: { $0 == .add },
+                            action: { tab in
+                                if tab == .add { showingAdd = true } else { selectedTab = tab }
                             }
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.top, 7)
-                        .background(Color.dmNav.ignoresSafeArea(edges: .bottom))
+                        )
                     }
                     .tint(Color.dmFlow)
                 }
@@ -232,21 +221,17 @@ struct PlanView: View {
     @ObservedObject var model: LedgerModel
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    BrandHeader(title: "Plan")
-                    RaisedPanel {
-                        Text("Coming soon")
-                            .font(.headline)
-                            .foregroundStyle(Color.dmInk)
-                        Text("Budgets and savings goals are not available yet.")
-                            .font(.subheadline)
-                            .foregroundStyle(Color.dmInkSoft)
-                    }
+            ScreenSurface {
+                BrandHeader(title: "Plan")
+                RaisedPanel {
+                    Text("Coming soon")
+                        .font(.headline)
+                        .foregroundStyle(Color.dmInk)
+                    Text("Budgets and savings goals are not available yet.")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.dmInkSoft)
                 }
-                .padding(20)
             }
-            .background(Color.dmPaper)
             .navigationTitle("")
             .withSettings(model: model)
         }
@@ -267,69 +252,67 @@ struct ManualView: View {
     private enum Field: Hashable { case name, amount }
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    BrandHeader(title: "Add transaction")
-                    RaisedPanel {
-                        if let loadError = model.engine.loadError { Text(loadError).foregroundStyle(.red) }
-                        HStack(spacing: 6) {
-                            PaperSegment(title: "Expense", value: false, selection: $income)
-                            PaperSegment(title: "Income", value: true, selection: $income)
-                        }
-                        .onChange(of: income) { value in category = value ? "Other income" : "Miscellaneous" }
-                        .padding(4)
-                        .background(Color.dmHairline.opacity(0.55))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                        PaperField(placeholder: "Name", text: $name)
-                            .accessibilityIdentifier("entryName")
-                            .focused($focusedField, equals: .name)
-                            .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
-                        PaperField(placeholder: "Amount", text: $amount, keyboard: .decimalPad)
-                            .accessibilityIdentifier("entryAmount")
-                            .focused($focusedField, equals: .amount)
-                        Menu {
-                            ForEach(income ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"] : model.engine.categories(), id: \.self) { option in
-                                Button(option) { category = option }
-                            }
-                            if !income {
-                                Divider()
-                                Button { showingCategory = true } label: {
-                                    Label("Add category", systemImage: "plus")
-                                }
-                                    .accessibilityIdentifier("addCategoryFromEntry")
-                            }
-                        } label: {
-                            HStack {
-                                Text(category).foregroundStyle(Color.dmFlow)
-                                Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Color.dmFlow)
-                                Spacer()
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
-                            .background(Color.dmPaperRaised)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
-                        }
-                        .accessibilityIdentifier("entryCategory")
-                        DatePicker("Date", selection: $date, displayedComponents: .date)
-                            .foregroundStyle(Color.dmInk)
-                        if let error { Text(error).foregroundStyle(.red).accessibilityIdentifier("entryError") }
-                        Button("Save") {
-                            focusedField = nil
-                            error = model.addEntry(name: name, amount: amount, category: category, date: date, income: income)
-                            if error == nil { onFinish() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.dmInk)
-                        .frame(maxWidth: .infinity)
-                        .accessibilityIdentifier("saveEntry")
-                        .disabled(model.engine.loadError != nil)
+            ScreenSurface {
+                BrandHeader(title: "Add transaction")
+                RaisedPanel {
+                    if let loadError = model.engine.loadError { Text(loadError).foregroundStyle(Color.dmSpend) }
+                    HStack(spacing: 6) {
+                        PaperSegment(title: "Expense", value: false, selection: $income)
+                        PaperSegment(title: "Income", value: true, selection: $income)
                     }
+                    .onChange(of: income) { value in category = value ? "Other income" : "Miscellaneous" }
+                    .padding(4)
+                    .background(Color.dmHairline.opacity(0.55))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    FieldLabel(text: "Name")
+                    PaperField(placeholder: "Name", text: $name)
+                        .accessibilityIdentifier("entryName")
+                        .focused($focusedField, equals: .name)
+                        .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
+                    FieldLabel(text: "Amount")
+                    PaperField(placeholder: "Amount", text: $amount, keyboard: .decimalPad)
+                        .accessibilityIdentifier("entryAmount")
+                        .focused($focusedField, equals: .amount)
+                    FieldLabel(text: income ? "Credit kind" : "Category")
+                    Menu {
+                        ForEach(income ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"] : model.engine.categories(), id: \.self) { option in
+                            Button(option) { category = option }
+                        }
+                        if !income {
+                            Divider()
+                            Button { showingCategory = true } label: {
+                                Label("Add category", systemImage: "plus")
+                            }
+                                .accessibilityIdentifier("addCategoryFromEntry")
+                        }
+                    } label: {
+                        HStack {
+                            Text(category).foregroundStyle(Color.dmFlow)
+                            Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Color.dmFlow)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Color.dmPaperRaised)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
+                    }
+                    .accessibilityIdentifier("entryCategory")
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                        .foregroundStyle(Color.dmInk)
+                    if let error { Text(error).foregroundStyle(Color.dmSpend).accessibilityIdentifier("entryError") }
+                    Button("Save") {
+                        focusedField = nil
+                        error = model.addEntry(name: name, amount: amount, category: category, date: date, income: income)
+                        if error == nil { onFinish() }
+                    }
+                    .buttonStyle(PrimaryPillButtonStyle())
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("saveEntry")
+                    .disabled(model.engine.loadError != nil)
                 }
-                .padding(20)
             }
-            .background(Color.dmPaper)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
@@ -358,22 +341,18 @@ struct SettingsView: View {
     @FocusState private var focusedReminderDigit: ReminderDigit?
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    BrandHeader(title: "Settings")
-                    dailyCheckInSection
-                    trackingCyclePicker
-                    if let error {
-                        Text(error).font(.caption).foregroundStyle(Color.dmSpend)
-                    }
-                    categoriesSection
-                    shortcutSetupSection
-                    shortcutReceiptsSection
-                    unrecognizedSection
+            ScreenSurface {
+                BrandHeader(title: "Settings")
+                dailyCheckInSection
+                trackingCyclePicker
+                if let error {
+                    Text(error).font(.caption).foregroundStyle(Color.dmSpend)
                 }
-                .padding(20)
+                categoriesSection
+                shortcutSetupSection
+                shortcutReceiptsSection
+                unrecognizedSection
             }
-            .background(Color.dmPaper)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
                 .sheet(isPresented: $showCategory) { CategorySheet(model: model) }
@@ -409,7 +388,7 @@ struct SettingsView: View {
             } label: {
                 Label("Open setup guide", systemImage: "arrow.right")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(SecondaryPillButtonStyle())
             .accessibilityIdentifier("openSMSSetup")
         }
     }
@@ -488,8 +467,7 @@ struct SettingsView: View {
                 Label("Add category", systemImage: "plus.circle.fill")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
-            .tint(Color.dmInk)
+            .buttonStyle(SecondaryPillButtonStyle())
             .accessibilityLabel("Add category")
             .accessibilityIdentifier("addCategory")
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: 8)], alignment: .leading, spacing: 8) {
@@ -512,8 +490,7 @@ struct SettingsView: View {
                     Button(receipt.title) {
                         shortcutReceiptText = "Status: \(receipt.status)\nSender: \(receipt.sender)\n\n\(receipt.preview)"
                     }
-                    .buttonStyle(.bordered)
-                    .tint(Color.dmFlow)
+                    .buttonStyle(SecondaryPillButtonStyle())
                 }
             }
         }
@@ -529,8 +506,7 @@ struct SettingsView: View {
                     Button(unrecognizedTitle(index: index, reason: row.reason)) {
                         unrecognizedText = row.rawText
                     }
-                    .buttonStyle(.bordered)
-                    .tint(Color.dmFlow)
+                    .buttonStyle(SecondaryPillButtonStyle())
                 }
             }
         }
@@ -716,23 +692,20 @@ struct CategorySheet: View {
     @FocusState private var focused: Bool
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    BrandHeader(title: "Add category")
-                    RaisedPanel {
-                        PaperField(placeholder: "Category name", text: $name)
-                            .focused($focused)
-                            .accessibilityIdentifier("categoryName")
-                            .submitLabel(.done)
-                            .onSubmit(save)
-                        if let error {
-                            Text(error).font(.caption).foregroundStyle(Color.dmSpend).accessibilityIdentifier("categoryError")
-                        }
+            ScreenSurface {
+                BrandHeader(title: "Add category")
+                RaisedPanel {
+                    FieldLabel(text: "Category name")
+                    PaperField(placeholder: "Category name", text: $name)
+                        .focused($focused)
+                        .accessibilityIdentifier("categoryName")
+                        .submitLabel(.done)
+                        .onSubmit(save)
+                    if let error {
+                        Text(error).font(.caption).foregroundStyle(Color.dmSpend).accessibilityIdentifier("categoryError")
                     }
                 }
-                .padding(20)
             }
-            .background(Color.dmPaper)
             .navigationTitle("Add category").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {

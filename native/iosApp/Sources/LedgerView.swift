@@ -42,7 +42,7 @@ struct LedgerView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ScreenSurface {
                 LazyVStack(alignment: .leading, spacing: 14) {
                     BrandHeader(title: "Ledger")
                     if let loadError = model.engine.loadError {
@@ -52,22 +52,24 @@ struct LedgerView: View {
                             Text(loadError).font(.subheadline).foregroundStyle(Color.dmInkSoft)
                         }
                     } else {
-                        HStack {
-                            Button("Import") { showingImport = true }
-                                .buttonStyle(.bordered)
-                                .accessibilityIdentifier("ledgerImport")
-                            if !model.engine.reviewRows().isEmpty {
-                                Button("Review pending import") { showingImport = true }
-                                    .buttonStyle(.bordered)
-                                    .accessibilityIdentifier("reviewPendingImport")
+                        RaisedPanel {
+                            HStack {
+                                Button("Import") { showingImport = true }
+                                    .buttonStyle(PrimaryPillButtonStyle())
+                                    .accessibilityIdentifier("ledgerImport")
+                                if !model.engine.reviewRows().isEmpty {
+                                    Button("Review") { showingImport = true }
+                                        .buttonStyle(SecondaryPillButtonStyle())
+                                        .accessibilityIdentifier("reviewPendingImport")
+                                }
+                                Spacer()
+                                Text("\(model.engine.entries().count) transactions")
+                                    .font(.caption).foregroundStyle(Color.dmInkFaint)
                             }
-                            Spacer()
-                            Text("\(model.engine.entries().count) transactions")
-                                .font(.caption).foregroundStyle(Color.dmInkFaint)
+                            PaperField(placeholder: "Search transactions", text: $query)
+                                .accessibilityIdentifier("ledgerSearch")
+                            filterControls
                         }
-                        PaperField(placeholder: "Search transactions", text: $query)
-                            .accessibilityIdentifier("ledgerSearch")
-                        filterControls
 
                         if groups.isEmpty {
                             RaisedPanel {
@@ -85,7 +87,7 @@ struct LedgerView: View {
                         }
 
                         ForEach(groups) { group in
-                            VStack(alignment: .leading, spacing: 0) {
+                            RaisedPanel {
                                 VStack(alignment: .leading, spacing: 3) {
                                     HStack {
                                         Text(group.date).font(.headline).foregroundStyle(Color.dmInk)
@@ -109,9 +111,7 @@ struct LedgerView: View {
                         }
                     }
                 }
-                .padding(20)
             }
-            .background(Color.dmPaper)
             .navigationTitle("")
             .withSettings(model: model)
             .sheet(isPresented: $showingImport) { ImportView(model: model) }
@@ -140,7 +140,7 @@ struct LedgerView: View {
                         .frame(minHeight: 44)
                 }
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(SecondaryPillButtonStyle())
             Toggle("Date range", isOn: $useDateRange)
                 .tint(Color.dmFlow)
             if useDateRange {
@@ -198,8 +198,7 @@ struct TransactionDetailView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+            ScreenSurface {
                     BrandHeader(title: current.name)
                     RaisedPanel {
                         detailLine("Original amount", "Rs " + model.engine.formatAmount(paise: current.paise))
@@ -226,8 +225,9 @@ struct TransactionDetailView: View {
                                 Button("Count full amount") {
                                     share = model.engine.formatAmount(paise: current.paise)
                                 }
+                                .buttonStyle(SecondaryPillButtonStyle())
                                 Button("Save amount", action: saveShare)
-                                    .buttonStyle(.borderedProminent)
+                                    .buttonStyle(PrimaryPillButtonStyle())
                                     .accessibilityIdentifier("savePersonalShare")
                             }
                         }
@@ -242,10 +242,11 @@ struct TransactionDetailView: View {
                                 }
                             }
                             .pickerStyle(.menu)
+                            .tint(Color.dmFlow)
                             Button("Save classification") {
                                 error = model.mutate { $0.classifyCredit(id: current.id, kind: creditKind) }
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(PrimaryPillButtonStyle())
                             .accessibilityIdentifier("saveCreditKind")
                         }
                     }
@@ -261,36 +262,40 @@ struct TransactionDetailView: View {
                             } label: {
                                 Label(category, systemImage: "tag")
                             }
+                            .buttonStyle(SecondaryPillButtonStyle())
                             Button("Save correction") {
                                 error = model.mutate { $0.correctImported(id: current.id, name: name, category: category) }
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(SecondaryPillButtonStyle())
                         }
                     }
 
                     if model.engine.canEdit(id: current.id, platform: "ios", nowMillis: Int64(Date().timeIntervalSince1970 * 1000)) {
                         Button("Edit manual entry") { showingManualEdit = true }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(SecondaryPillButtonStyle())
                     }
                     if imported {
-                        Button(current.ignored ? "Restore transaction" : "Ignore transaction") {
-                            confirmingIgnore = true
+                        if current.ignored {
+                            Button("Restore transaction") {
+                                confirmingIgnore = true
+                            }
+                            .buttonStyle(SecondaryPillButtonStyle())
+                        } else {
+                            Button("Ignore transaction") {
+                                confirmingIgnore = true
+                            }
+                            .buttonStyle(DestructivePillButtonStyle())
                         }
-                        .buttonStyle(.bordered)
-                        .tint(current.ignored ? Color.dmIncome : Color.dmSpend)
                     }
                     if !current.rawSms.isEmpty {
                         Button("View original message") { showingOriginal = true }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(SecondaryPillButtonStyle())
                     }
                     if let error {
                         Text(error).foregroundStyle(Color.dmSpend)
                             .accessibilityIdentifier("transactionError")
                     }
-                }
-                .padding(20)
             }
-            .background(Color.dmPaper)
             .navigationTitle("Transaction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

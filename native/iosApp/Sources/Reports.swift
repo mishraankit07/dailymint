@@ -27,51 +27,47 @@ struct MonthView: View {
     var body: some View {
         NavigationStack {
             let summary = model.engine.monthSummary(today: model.engine.today())
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    BrandHeader(title: greeting)
-                    if let loadError = model.engine.loadError {
-                        RaisedPanel {
-                            Text("Ledger unavailable")
-                                .font(.headline).foregroundStyle(Color.dmSpend)
-                            Text(loadError).font(.subheadline).foregroundStyle(Color.dmInkSoft)
-                        }
-                    } else {
-                        MonthHero(summary: summary, model: model)
-                        if summary.spent == 0 && summary.invested == 0 && summary.moneyIn == 0 {
-                            RaisedPanel {
-                                Text("No transactions in this cycle yet")
-                                    .font(.headline).foregroundStyle(Color.dmInk)
-                                Text("Add an entry or import bank messages to start tracking.")
-                                    .font(.subheadline).foregroundStyle(Color.dmInkSoft)
-                            }
-                        }
-                        if summary.spent > 0 {
-                            SectionHeading(title: "Where it went")
-                            HairlineBlock {
-                                ForEach(summary.categories, id: \.name) { item in
-                                    CategoryLine(name: item.name, percent: item.percent, amount: "Rs " + model.engine.formatAmount(paise: item.paise))
-                                }
-                            }
-                            SectionHeading(title: "Biggest spends")
-                            HairlineBlock {
-                                ForEach(summary.topFive, id: \.id) { entry in
-                                    Button { detail = entry } label: {
-                                        TransactionLine(entry: entry, model: model)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                        Button("See all transactions", action: onSeeAll)
-                            .buttonStyle(.bordered)
-                            .frame(maxWidth: .infinity)
-                            .accessibilityIdentifier("seeAllTransactions")
+            ScreenSurface {
+                BrandHeader(title: greeting)
+                if let loadError = model.engine.loadError {
+                    RaisedPanel {
+                        Text("Ledger unavailable")
+                            .font(.headline).foregroundStyle(Color.dmSpend)
+                        Text(loadError).font(.subheadline).foregroundStyle(Color.dmInkSoft)
                     }
+                } else {
+                    MonthHero(summary: summary, model: model)
+                    if summary.spent == 0 && summary.invested == 0 && summary.moneyIn == 0 {
+                        RaisedPanel {
+                            Text("No transactions in this cycle yet")
+                                .font(.headline).foregroundStyle(Color.dmInk)
+                            Text("Add an entry or import bank messages to start tracking.")
+                                .font(.subheadline).foregroundStyle(Color.dmInkSoft)
+                        }
+                    }
+                    if summary.spent > 0 {
+                        SectionHeading(title: "Where it went")
+                        RaisedPanel {
+                            ForEach(summary.categories, id: \.name) { item in
+                                CategoryLine(name: item.name, percent: item.percent, amount: "Rs " + model.engine.formatAmount(paise: item.paise))
+                            }
+                        }
+                        SectionHeading(title: "Biggest spends")
+                        RaisedPanel {
+                            ForEach(summary.topFive, id: \.id) { entry in
+                                Button { detail = entry } label: {
+                                    TransactionLine(entry: entry, model: model)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    Button("See all transactions", action: onSeeAll)
+                        .buttonStyle(SecondaryPillButtonStyle())
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("seeAllTransactions")
                 }
-                .padding(20)
             }
-            .background(Color.dmPaper)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
@@ -143,7 +139,7 @@ struct CategoryLine: View {
     let amount: String
     var body: some View {
         HStack(spacing: 10) {
-            Text(name).font(.caption.weight(.semibold)).foregroundStyle(Color.dmInk).frame(width: 92, alignment: .leading)
+            Text(name).font(.caption.weight(.semibold)).foregroundStyle(Color.dmInk).frame(width: 98, alignment: .leading)
             ProgressView(value: min(1, max(0, percent / 100))).tint(categoryColor(name))
             Text(amount).font(.caption).foregroundStyle(Color.dmInkSoft).frame(width: 82, alignment: .trailing)
         }
@@ -195,95 +191,103 @@ struct GrowthView: View {
     var body: some View {
         NavigationStack {
             let buckets = model.engine.trendBuckets(today: model.engine.today(), years: years, count: safeCount)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    BrandHeader(title: "Growth")
-                    HStack(spacing: 6) {
-                        PaperSegment(title: "Months", value: false, selection: $years)
-                        PaperSegment(title: "Years", value: true, selection: $years)
-                    }
-                    .onChange(of: years) { value in count = value ? 1 : 3 }
-                    .padding(4)
-                    .background(Color.dmHairline.opacity(0.55))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            ScreenSurface {
+                BrandHeader(title: "Growth")
+                HStack(spacing: 6) {
+                    PaperSegment(title: "Months", value: false, selection: $years)
+                    PaperSegment(title: "Years", value: true, selection: $years)
+                }
+                .onChange(of: years) { value in count = value ? 1 : 3 }
+                .padding(4)
+                .background(Color.dmHairline.opacity(0.55))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                    HStack(spacing: 8) {
-                        ForEach(rangeOptions, id: \.self) { value in
-                            PaperOption(
-                                title: String(value) + (years ? " years" : " months"),
-                                active: safeCount == value,
-                                action: { count = value }
-                            )
+                HStack(spacing: 8) {
+                    ForEach(rangeOptions, id: \.self) { value in
+                        PaperOption(
+                            title: String(value) + (years ? " years" : " months"),
+                            active: safeCount == value,
+                            action: { count = value }
+                        )
+                    }
+                }
+
+                Text(years ? "Full calendar years" : "Full calendar months")
+                    .font(.caption).foregroundStyle(Color.dmInkFaint)
+
+                RaisedPanel {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Money movement")
+                            .font(.headline)
+                            .foregroundStyle(Color.dmInk)
+                        Text("Grouped by \(years ? "calendar year" : "calendar month")")
+                            .font(.caption)
+                            .foregroundStyle(Color.dmInkFaint)
+                    }
+                    if buckets.allSatisfy({ $0.spent == 0 && $0.invested == 0 && $0.moneyIn == 0 }) {
+                        Text("No movement in these periods.")
+                            .font(.subheadline).foregroundStyle(Color.dmInkSoft)
+                            .frame(maxWidth: .infinity, minHeight: 150)
+                    } else {
+                        Chart {
+                            ForEach(buckets, id: \.label) { bucket in
+                                BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.moneyIn) / 100))
+                                    .foregroundStyle(by: .value("Type", "Money in"))
+                                    .position(by: .value("Type", "Money in"))
+                                BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.spent) / 100))
+                                    .foregroundStyle(by: .value("Type", "Personal spent"))
+                                    .position(by: .value("Type", "Personal spent"))
+                                BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.invested) / 100))
+                                    .foregroundStyle(by: .value("Type", "Invested"))
+                                    .position(by: .value("Type", "Invested"))
+                            }
+                        }
+                        .chartForegroundStyleScale(["Money in": Color.dmIncome, "Personal spent": Color.dmSpend, "Invested": Color.dmInvest])
+                        .chartLegend(position: .bottom, alignment: .leading)
+                        .chartXAxis {
+                            AxisMarks(values: buckets.map { $0.label }) { _ in
+                                AxisGridLine().foregroundStyle(Color.dmHairline)
+                                AxisTick().foregroundStyle(Color.dmInkFaint)
+                                AxisValueLabel()
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.dmInkSoft)
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .trailing) { _ in
+                                AxisGridLine().foregroundStyle(Color.dmHairline.opacity(0.65))
+                                AxisTick().foregroundStyle(Color.dmInkFaint)
+                                AxisValueLabel()
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.dmInkSoft)
+                            }
+                        }
+                        .frame(height: 240)
+                    }
+                }
+                if !buckets.isEmpty {
+                    SectionHeading(title: "Period details")
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(buckets, id: \.label) { bucket in
+                                PaperOption(title: bucket.label, active: selectedPeriod == bucket.label,
+                                            action: { selectedPeriod = bucket.label })
+                            }
                         }
                     }
-
-                    Text(years ? "Full calendar years" : "Full calendar months")
-                        .font(.caption).foregroundStyle(Color.dmInkFaint)
-
-                    RaisedPanel {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Spending trend")
-                                .font(.headline)
-                                .foregroundStyle(Color.dmInk)
-                            Text("Personal spent and invested")
-                                .font(.caption)
-                                .foregroundStyle(Color.dmInkFaint)
-                        }
-                        if buckets.allSatisfy({ $0.spent == 0 && $0.invested == 0 }) {
-                            Text("No spending or investments in these periods.")
-                                .font(.subheadline).foregroundStyle(Color.dmInkSoft)
-                                .frame(maxWidth: .infinity, minHeight: 150)
-                        } else {
-                            Chart {
-                                ForEach(buckets, id: \.label) { bucket in
-                                    BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.spent) / 100))
-                                        .foregroundStyle(by: .value("Type", "Personal spent")).position(by: .value("Type", "Personal spent"))
-                                    BarMark(x: .value("Period", bucket.label), y: .value("Rupees", Double(bucket.invested) / 100))
-                                        .foregroundStyle(by: .value("Type", "Invested")).position(by: .value("Type", "Invested"))
-                                }
-                            }
-                            .chartForegroundStyleScale(["Personal spent": Color.dmSpend, "Invested": Color.dmInvest])
-                            .chartXAxis {
-                                AxisMarks(values: buckets.map { $0.label }) { _ in
-                                    AxisGridLine().foregroundStyle(Color.dmHairline)
-                                    AxisTick().foregroundStyle(Color.dmInkFaint)
-                                    AxisValueLabel().foregroundStyle(Color.dmInkSoft)
-                                }
-                            }
-                            .chartYAxis {
-                                AxisMarks(position: .trailing) { _ in
-                                    AxisGridLine().foregroundStyle(Color.dmHairline.opacity(0.65))
-                                    AxisTick().foregroundStyle(Color.dmInkFaint)
-                                    AxisValueLabel().foregroundStyle(Color.dmInkSoft)
-                                }
-                            }
-                            .frame(height: 220)
-                        }
-                    }
-                    if !buckets.isEmpty {
-                        SectionHeading(title: "Period details")
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(buckets, id: \.label) { bucket in
-                                    PaperOption(title: bucket.label, active: selectedPeriod == bucket.label,
-                                                action: { selectedPeriod = bucket.label })
-                                }
-                            }
-                        }
-                        if let selected = buckets.first(where: { $0.label == selectedPeriod }) ?? buckets.last {
-                            RaisedPanel {
-                                Text(selected.label).font(.headline).foregroundStyle(Color.dmInk)
-                                Text("Personal spent: Rs " + model.engine.formatAmount(paise: selected.spent))
-                                    .foregroundStyle(Color.dmSpend)
-                                Text("Invested: Rs " + model.engine.formatAmount(paise: selected.invested))
-                                    .foregroundStyle(Color.dmInvest)
-                            }
+                    if let selected = buckets.first(where: { $0.label == selectedPeriod }) ?? buckets.last {
+                        RaisedPanel {
+                            Text(selected.label).font(.headline).foregroundStyle(Color.dmInk)
+                            Text("Money in: Rs " + model.engine.formatAmount(paise: selected.moneyIn))
+                                .foregroundStyle(Color.dmIncome)
+                            Text("Personal spent: Rs " + model.engine.formatAmount(paise: selected.spent))
+                                .foregroundStyle(Color.dmSpend)
+                            Text("Invested: Rs " + model.engine.formatAmount(paise: selected.invested))
+                                .foregroundStyle(Color.dmInvest)
                         }
                     }
                 }
-                .padding(20)
             }
-            .background(Color.dmPaper)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
@@ -297,7 +301,12 @@ struct SettingsAccess: ViewModifier {
     func body(content: Content) -> some View {
         content.toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button { visible = true } label: { Image(systemName: "gearshape") }.accessibilityIdentifier("settings")
+                Button { visible = true } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.dmFlow)
+                }
+                .accessibilityIdentifier("settings")
             }
         }.sheet(isPresented: $visible) { SettingsView(model: model) }
     }
@@ -317,99 +326,92 @@ struct ImportView: View {
     @State private var diagnosticMessage: String?
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ScreenSurface {
                 let stats = model.engine.monthSummary(today: model.engine.today())
                 let rows = model.engine.reviewRows().filter { $0.entry != nil }
-                VStack(alignment: .leading, spacing: 14) {
-                    BrandHeader(title: "Pending import")
-                    RaisedPanel {
-                        HStack(spacing: 16) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Today's spend").font(.caption.weight(.semibold)).foregroundStyle(Color.dmInkFaint)
-                                Text("Rs " + model.engine.formatAmount(paise: stats.todaySpend))
-                                    .font(.title3.weight(.semibold))
-                                    .foregroundStyle(Color.dmSpend)
-                            }
-                            Spacer()
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Week's spend").font(.caption.weight(.semibold)).foregroundStyle(Color.dmInkFaint)
-                                Text("Rs " + model.engine.formatAmount(paise: stats.weekSpend))
-                                    .font(.title3.weight(.semibold))
-                                    .foregroundStyle(Color.dmInk)
-                            }
+                BrandHeader(title: "Import")
+                RaisedPanel {
+                    HStack(spacing: 16) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Today's spend").font(.caption.weight(.semibold)).foregroundStyle(Color.dmInkFaint)
+                            Text("Rs " + model.engine.formatAmount(paise: stats.todaySpend))
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(Color.dmSpend)
+                        }
+                        Spacer()
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Week's spend").font(.caption.weight(.semibold)).foregroundStyle(Color.dmInkFaint)
+                            Text("Rs " + model.engine.formatAmount(paise: stats.weekSpend))
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(Color.dmInk)
                         }
                     }
+                }
 
-                    Button {
-                        picker = true
-                    } label: {
-                        Label("Import transaction file", systemImage: "tray.and.arrow.down")
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.dmInk)
-                    .accessibilityIdentifier("importFile")
+                Button {
+                    picker = true
+                } label: {
+                    Label("Import transaction file", systemImage: "tray.and.arrow.down")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(PrimaryPillButtonStyle())
+                .accessibilityIdentifier("importFile")
 
-                    if !model.engine.reviewFile().isEmpty {
-                        Text(model.engine.reviewFile()).font(.caption).foregroundStyle(Color.dmInkFaint)
-                    }
-                    if let error {
-                        Text(error).font(.caption).foregroundStyle(Color.dmSpend)
-                    }
+                if !model.engine.reviewFile().isEmpty {
+                    Text(model.engine.reviewFile()).font(.caption).foregroundStyle(Color.dmInkFaint)
+                }
+                if let error {
+                    Text(error).font(.caption).foregroundStyle(Color.dmSpend)
+                }
 
-                    if !rows.isEmpty {
-                        SectionHeading(title: "Imported transactions", trailing: String(rows.count) + " rows")
-                        ForEach(rows, id: \.id) { row in
-                            if let entry = row.entry {
-                                RaisedPanel {
-                                    TransactionLine(entry: entry, model: model)
-                                    if row.status == "new" {
-                                        Button("Edit") { editing = row }
-                                            .buttonStyle(.bordered)
-                                            .tint(Color.dmFlow)
-                                    } else {
-                                        Text("Already recorded").font(.caption.weight(.semibold)).foregroundStyle(Color.dmIncome)
-                                    }
+                if !rows.isEmpty {
+                    SectionHeading(title: "Imported transactions", trailing: String(rows.count) + " rows")
+                    ForEach(rows, id: \.id) { row in
+                        if let entry = row.entry {
+                            RaisedPanel {
+                                TransactionLine(entry: entry, model: model)
+                                if row.status == "new" {
+                                    Button("Edit") { editing = row }
+                                        .buttonStyle(SecondaryPillButtonStyle())
+                                } else {
+                                    Text("Already recorded").font(.caption.weight(.semibold)).foregroundStyle(Color.dmIncome)
                                 }
                             }
                         }
                     }
+                }
 
-                    let unrecognized = model.engine.unrecognizedMessages()
-                    if !unrecognized.isEmpty {
-                        SectionHeading(title: "Unrecognized messages", trailing: String(unrecognized.count))
-                        ForEach(unrecognized.suffix(10), id: \.id) { row in
-                            Button("View unrecognized message") { diagnosticMessage = row.rawText }
-                                .buttonStyle(.bordered)
-                        }
-                    }
-
-                    let receipts = ShortcutImportLog.recent()
-                    if !receipts.isEmpty {
-                        SectionHeading(title: "Shortcut activity")
-                        ForEach(receipts) { receipt in
-                            Text(receipt.title).font(.caption).foregroundStyle(Color.dmInkSoft)
-                        }
-                    }
-
-                    if !model.engine.reviewRows().isEmpty {
-                        Button("Reviewed, save to ledger") {
-                            error = model.mutate { $0.saveReview() }
-                            if error == nil { dismiss() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.dmInk)
-                        .frame(maxWidth: .infinity)
-                        .accessibilityIdentifier("saveReview")
-
-                        Button("Discard import", role: .destructive) { discard = true }
-                            .buttonStyle(.bordered)
-                            .frame(maxWidth: .infinity)
+                let unrecognized = model.engine.unrecognizedMessages()
+                if !unrecognized.isEmpty {
+                    SectionHeading(title: "Unrecognized messages", trailing: String(unrecognized.count))
+                    ForEach(unrecognized.suffix(10), id: \.id) { row in
+                        Button("View unrecognized message") { diagnosticMessage = row.rawText }
+                            .buttonStyle(SecondaryPillButtonStyle())
                     }
                 }
-                .padding(20)
+
+                let receipts = ShortcutImportLog.recent()
+                if !receipts.isEmpty {
+                    SectionHeading(title: "Shortcut activity")
+                    ForEach(receipts) { receipt in
+                        Text(receipt.title).font(.caption).foregroundStyle(Color.dmInkSoft)
+                    }
+                }
+
+                if !model.engine.reviewRows().isEmpty {
+                    Button("Reviewed, save to ledger") {
+                        error = model.mutate { $0.saveReview() }
+                        if error == nil { dismiss() }
+                    }
+                    .buttonStyle(PrimaryPillButtonStyle())
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("saveReview")
+
+                    Button("Discard import", role: .destructive) { discard = true }
+                        .buttonStyle(DestructivePillButtonStyle())
+                        .frame(maxWidth: .infinity)
+                }
             }
-            .background(Color.dmPaper)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
@@ -470,19 +472,32 @@ struct EntryEditSheet: View {
     @State private var delete = false
     var body: some View {
         NavigationStack {
-            Form {
-                TextField("Name", text: $name)
-                if reviewId != nil && entry.source != "manual" {
-                    LabeledContent("Original amount", value: "Rs " + model.engine.formatAmount(paise: entry.paise))
-                } else {
-                    TextField("Amount", text: $amount).keyboardType(.decimalPad)
+            ScreenSurface {
+                BrandHeader(title: "Edit transaction")
+                RaisedPanel {
+                    FieldLabel(text: "Name")
+                    PaperField(placeholder: "Name", text: $name)
+                    if reviewId != nil && entry.source != "manual" {
+                        detailLine("Original amount", "Rs " + model.engine.formatAmount(paise: entry.paise))
+                    } else {
+                        FieldLabel(text: "Amount")
+                        PaperField(placeholder: "Amount", text: $amount, keyboard: .decimalPad)
+                    }
+                    FieldLabel(text: entry.type == "income" ? "Credit kind" : "Category")
+                    Picker("Category", selection: $category) {
+                        ForEach(entry.type == "income" ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer", "Received"] : model.engine.categories(), id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(Color.dmFlow)
+                    if let error { Text(error).foregroundStyle(Color.dmSpend) }
+                    if reviewId == nil {
+                        Button("Delete", role: .destructive) { delete = true }
+                            .buttonStyle(DestructivePillButtonStyle())
+                    }
                 }
-                Picker("Category", selection: $category) {
-                    ForEach(entry.type == "income" ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer", "Received"] : model.engine.categories(), id: \.self) { Text($0).tag($0) }
-                }
-                if let error { Text(error).foregroundStyle(.red) }
-                if reviewId == nil { Button("Delete", role: .destructive) { delete = true } }
-            }.navigationTitle("Edit transaction").navigationBarTitleDisplayMode(.inline)
+            }
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) {
@@ -503,5 +518,14 @@ struct EntryEditSheet: View {
                     }
                 }
         }.presentationDetents([.medium, .large])
+    }
+
+    private func detailLine(_ title: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).foregroundStyle(Color.dmInkSoft)
+            Spacer()
+            Text(value).foregroundStyle(Color.dmInk).multilineTextAlignment(.trailing)
+        }
+        .font(.subheadline)
     }
 }

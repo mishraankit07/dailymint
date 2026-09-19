@@ -8,57 +8,53 @@ struct SMSOnboardingView: View {
     @State private var shortcutsUnavailable = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                BrandHeader(title: "Set up DailyMint")
-                Text("Connect incoming messages with Apple's Shortcuts app. DailyMint checks them on your iPhone and adds recognized transactions.")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.dmInkSoft)
+        ScreenSurface {
+            BrandHeader(title: "Set up DailyMint")
+            Text("Connect incoming messages with Apple's Shortcuts app. DailyMint checks them on your iPhone and adds recognized transactions.")
+                .font(.subheadline)
+                .foregroundStyle(Color.dmInkSoft)
 
-                step(1, "Choose a message trigger", "In Shortcuts, open Automation, tap +, then choose Message. Pick the senders or text that cover your bank alerts. For broad coverage, choose Any Sender and a single space in Message Contains if Shortcuts requires a filter. Messages without a space will not match that filter.")
-                step(2, "Run automatically", "Choose Run Immediately, then Create New Shortcut. If a Receive block appears at the top, set its input type to Messages.")
-                step(3, "Send the message to DailyMint", "Search for DailyMint and add Capture Incoming SMS. Set Message to Shortcut Input's Message or Content. Set Sender to Shortcut Input's Sender if available. Leave the variable connected; do not type a sample message into the field.")
-                step(4, "Save and check", "Tap Done in Shortcuts. After the next matching message arrives, return here to check whether DailyMint received it.")
+            step(1, "Choose a message trigger", "In Shortcuts, open Automation, tap +, then choose Message. Pick the senders or text that cover your bank alerts. For broad coverage, choose Any Sender and a single space in Message Contains if Shortcuts requires a filter. Messages without a space will not match that filter.")
+            step(2, "Run automatically", "Choose Run Immediately, then Create New Shortcut. If a Receive block appears at the top, set its input type to Messages.")
+            step(3, "Send the message to DailyMint", "Search for DailyMint and add Capture Incoming SMS. Set Message to Shortcut Input's Message or Content. Set Sender to Shortcut Input's Sender if available. Leave the variable connected; do not type a sample message into the field.")
+            step(4, "Save and check", "Tap Done in Shortcuts. After the next matching message arrives, return here to check whether DailyMint received it.")
 
-                RaisedPanel {
-                    SectionHeading(title: "Connection status")
-                    if let receipt = latestReceipt {
-                        Label(receipt.status.capitalized, systemImage: receipt.status == "transaction added" ? "checkmark.circle.fill" : "info.circle")
-                            .foregroundStyle(receipt.status == "transaction added" ? Color.dmIncome : Color.dmFlow)
-                            .accessibilityIdentifier("smsSetupStatus")
-                        Text(receipt.status == "empty input"
-                             ? "The automation ran, but its Message field did not contain the SMS body. Reopen the action and select the message variable."
-                             : "Last received \(receipt.timestamp). A message reached the DailyMint action.")
-                            .font(.caption)
-                            .foregroundStyle(Color.dmInkSoft)
-                    } else {
-                        Text("Waiting for the first message from Shortcuts")
-                            .foregroundStyle(Color.dmInkSoft)
-                            .accessibilityIdentifier("smsSetupStatus")
-                    }
-                    Button("Check again", action: refreshReceipt)
-                        .buttonStyle(.bordered)
-                        .accessibilityIdentifier("checkSMSSetup")
+            RaisedPanel {
+                SectionHeading(title: "Connection status")
+                if let receipt = latestReceipt {
+                    Label(receipt.status.capitalized, systemImage: receipt.status == "transaction added" ? "checkmark.circle.fill" : "info.circle")
+                        .foregroundStyle(receipt.status == "transaction added" ? Color.dmIncome : Color.dmFlow)
+                        .accessibilityIdentifier("smsSetupStatus")
+                    Text(receipt.status == "empty input"
+                         ? "The automation ran, but its Message field did not contain the SMS body. Reopen the action and select the message variable."
+                         : "Last received \(receipt.timestamp). A message reached the DailyMint action.")
+                        .font(.caption)
+                        .foregroundStyle(Color.dmInkSoft)
+                } else {
+                    Text("Waiting for the first message from Shortcuts")
+                        .foregroundStyle(Color.dmInkSoft)
+                        .accessibilityIdentifier("smsSetupStatus")
                 }
-
-                Text("Shortcuts controls which messages trigger the automation. DailyMint does not read your Messages inbox, and message processing stays on this device. You can revisit this guide in Settings.")
-                    .font(.caption)
-                    .foregroundStyle(Color.dmInkFaint)
+                Button("Check again", action: refreshReceipt)
+                    .buttonStyle(SecondaryPillButtonStyle())
+                    .accessibilityIdentifier("checkSMSSetup")
             }
-            .padding(20)
+
+            Text("Shortcuts controls which messages trigger the automation. DailyMint does not read your Messages inbox, and message processing stays on this device. You can revisit this guide in Settings.")
+                .font(.caption)
+                .foregroundStyle(Color.dmInkFaint)
         }
-        .background(Color.dmPaper)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 8) {
                 Button(action: launchShortcuts) {
                     Label("Open Shortcuts", systemImage: "arrow.up.right.square")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.dmNav)
+                .buttonStyle(PrimaryPillButtonStyle())
                 .accessibilityIdentifier("openShortcuts")
                 Button("Continue to DailyMint", action: onContinue)
                     .frame(maxWidth: .infinity)
+                    .buttonStyle(SecondaryPillButtonStyle())
                     .accessibilityIdentifier("continueWithoutSMS")
             }
             .padding(.horizontal, 20)
