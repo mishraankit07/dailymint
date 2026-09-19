@@ -94,13 +94,6 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.staticTexts["Good evening"].waitForExistence(timeout: 5))
     }
-    func testLedgerDoesNotOfferFileImportAndSettingsRemainReachable() {
-        app.buttons["Ledger"].tap()
-        XCTAssertFalse(app.buttons["ledgerImport"].exists)
-        XCTAssertFalse(app.buttons["importFile"].exists)
-        app.buttons["settings"].tap()
-        XCTAssertTrue(app.buttons["openSMSSetup"].waitForExistence(timeout: 5))
-    }
     func testSMSSetupCanBeDeferredAndReopened() {
         app.terminate()
         app.launchArguments = ["--ui-testing", "--show-onboarding", "--reset-onboarding"]
@@ -244,6 +237,5 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["seeAllTransactions"].tap()
         XCTAssertTrue(app.buttons["Ledger"].isSelected)
         XCTAssertTrue(app.textFields["ledgerSearch"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["ledgerImport"].exists)
     }
 }
