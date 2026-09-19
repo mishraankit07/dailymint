@@ -23,6 +23,10 @@ extension Color {
     static let dmInvest = adaptive(light: 0xC99A3D, dark: 0xE4B96A)
     static let dmNav = adaptive(light: 0xF8F9F3, dark: 0x17261F)
     static let dmNavSelected = adaptive(light: 0x1F6F78, dark: 0x81CDD0)
+    static let dmActionFill = adaptive(light: 0x17261F, dark: 0x81CDD0)
+    static let dmActionText = adaptive(light: 0xF8F9F3, dark: 0x111B18)
+    static let dmCenterActionFill = adaptive(light: 0x17261F, dark: 0xF0F4EB)
+    static let dmCenterActionIcon = adaptive(light: 0xF8F9F3, dark: 0x111B18)
     static let dmHeroText = Color(red: 0.973, green: 0.976, blue: 0.953)
     static let dmHeroMuted = Color(red: 0.725, green: 0.776, blue: 0.737)
     static let dmCategoryHome = adaptive(light: 0x5E7FA3, dark: 0x9BBDE0)
@@ -55,7 +59,7 @@ struct ScreenSurface<Content: View>: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
-            .padding(.top, 18)
+            .padding(.top, 6)
             .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.interactively)
@@ -67,10 +71,10 @@ struct PrimaryPillButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Color.dmHeroText)
+            .foregroundStyle(Color.dmActionText)
             .padding(.horizontal, 16)
-            .frame(minHeight: 44)
-            .background(Color.dmInk.opacity(configuration.isPressed ? 0.86 : 1))
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
+            .background(Color.dmActionFill.opacity(configuration.isPressed ? 0.86 : 1))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
@@ -102,6 +106,7 @@ struct DestructivePillButtonStyle: ButtonStyle {
 }
 
 struct DockedTabBar<Tab: Hashable>: View {
+    @Environment(\.colorScheme) private var colorScheme
     let tabs: [Tab]
     let selected: Tab
     let title: (Tab) -> String
@@ -119,12 +124,12 @@ struct DockedTabBar<Tab: Hashable>: View {
                         ZStack {
                             if isCenterAction(tab) {
                                 Circle()
-                                    .fill(Color.dmInk)
+                                    .fill(Color.dmCenterActionFill)
                                     .frame(width: 42, height: 42)
                             }
                             Image(systemName: icon(tab))
                                 .font(.system(size: isCenterAction(tab) ? 22 : 20, weight: .semibold))
-                                .foregroundStyle(isCenterAction(tab) ? Color.dmHeroText : (selected == tab ? Color.dmNavSelected : Color.dmInkSoft))
+                                .foregroundStyle(isCenterAction(tab) ? Color.dmCenterActionIcon : (selected == tab ? Color.dmNavSelected : Color.dmInkSoft))
                         }
                         .frame(height: 42)
                         Text(title(tab))
@@ -142,8 +147,9 @@ struct DockedTabBar<Tab: Hashable>: View {
         .padding(.horizontal, 8)
         .padding(.top, 8)
         .padding(.bottom, 6)
-        .background(Color.dmNav)
+        .background { Rectangle().fill(Color.dmNav).ignoresSafeArea(edges: .bottom) }
         .overlay(alignment: .top) { Rectangle().fill(Color.dmHairline).frame(height: 1) }
+        .id(colorScheme)
     }
 }
 

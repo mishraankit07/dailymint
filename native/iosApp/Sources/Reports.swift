@@ -299,16 +299,26 @@ struct SettingsAccess: ViewModifier {
     @ObservedObject var model: LedgerModel
     @State private var visible = false
     func body(content: Content) -> some View {
-        content.toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+        content
+            .toolbar(.hidden, for: .navigationBar)
+            .overlay(alignment: .topTrailing) {
                 Button { visible = true } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Color.dmFlow)
+                    ZStack {
+                        Circle()
+                            .fill(Color.dmPaperRaised)
+                            .overlay(Circle().stroke(Color.dmHairline, lineWidth: 1))
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color.dmFlow)
+                    }
+                    .frame(width: 44, height: 44)
                 }
+                .buttonStyle(.plain)
+                .padding(.top, 8)
+                .padding(.trailing, 20)
                 .accessibilityIdentifier("settings")
             }
-        }.sheet(isPresented: $visible) { SettingsView(model: model) }
+            .sheet(isPresented: $visible) { SettingsView(model: model) }
     }
 }
 extension View {
