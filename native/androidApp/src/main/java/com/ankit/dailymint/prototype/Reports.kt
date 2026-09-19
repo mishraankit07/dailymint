@@ -20,11 +20,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ankit.dailymint.core.*
+import java.time.LocalTime
+import java.time.ZoneId
 
 @Composable
 fun MonthContent(engine: LedgerEngine, revision: Int, onOpenLedger: () -> Unit, onDetail: (Entry) -> Unit) {
     val summary = remember(revision) { engine.monthSummary(engine.today()) }
-    BrandHeader("Home")
+    BrandHeader(homeGreeting())
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -61,6 +63,12 @@ fun MonthContent(engine: LedgerEngine, revision: Int, onOpenLedger: () -> Unit, 
         summary.topFive.forEach { TransactionRow(it, engine, onClick = { onDetail(it) }) }
     }
     OutlinedButton(onClick = onOpenLedger, modifier = Modifier.fillMaxWidth().testTag("seeAllTransactions")) { Text("See all transactions") }
+}
+
+internal fun homeGreeting(hour: Int = LocalTime.now(ZoneId.of("Asia/Kolkata")).hour): String = when (hour.coerceIn(0, 23)) {
+    in 5..11 -> "Good morning"
+    in 12..16 -> "Good afternoon"
+    else -> "Good evening"
 }
 
 @Composable

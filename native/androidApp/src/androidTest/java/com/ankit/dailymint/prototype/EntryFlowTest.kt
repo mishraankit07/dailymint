@@ -22,6 +22,16 @@ class EntryFlowTest {
     private val store = Store()
     private val engine = LedgerEngine(store)
     private fun launch() { compose.setContent { DailyMintTheme { DailyMint(engine) } } }
+    @Test fun homeGreetingFollowsTimeBands() {
+        assertEquals("Good evening", homeGreeting(0))
+        assertEquals("Good evening", homeGreeting(4))
+        assertEquals("Good morning", homeGreeting(5))
+        assertEquals("Good morning", homeGreeting(11))
+        assertEquals("Good afternoon", homeGreeting(12))
+        assertEquals("Good afternoon", homeGreeting(16))
+        assertEquals("Good evening", homeGreeting(17))
+        assertEquals("Good evening", homeGreeting(23))
+    }
     @Test fun smsOnboardingExplainsPermissionAndAllowsManualUse() {
         var continued = false
         compose.setContent {
