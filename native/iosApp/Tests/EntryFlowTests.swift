@@ -94,12 +94,10 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.staticTexts["Good evening"].waitForExistence(timeout: 5))
     }
-    func testLedgerOffersFileImportAndSettings() {
+    func testLedgerDoesNotOfferFileImportAndSettingsRemainReachable() {
         app.buttons["Ledger"].tap()
-        XCTAssertTrue(app.buttons["ledgerImport"].waitForExistence(timeout: 5))
-        app.buttons["ledgerImport"].tap()
-        XCTAssertTrue(app.buttons["importFile"].waitForExistence(timeout: 5))
-        app.buttons["closeImport"].tap()
+        XCTAssertFalse(app.buttons["ledgerImport"].exists)
+        XCTAssertFalse(app.buttons["importFile"].exists)
         app.buttons["settings"].tap()
         XCTAssertTrue(app.buttons["openSMSSetup"].waitForExistence(timeout: 5))
     }
@@ -242,10 +240,10 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["cancelCategory"].tap()
     }
 
-    func testHomeRoutesToLedgerAndImport() {
+    func testHomeRoutesToLedger() {
         app.buttons["seeAllTransactions"].tap()
         XCTAssertTrue(app.buttons["Ledger"].isSelected)
-        app.buttons["ledgerImport"].tap()
-        XCTAssertTrue(app.buttons["importFile"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["ledgerSearch"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["ledgerImport"].exists)
     }
 }

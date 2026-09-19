@@ -17,7 +17,6 @@ struct LedgerView: View {
     @State private var useDateRange = false
     @State private var startDate = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var endDate = Date()
-    @State private var showingImport = false
     @State private var detail: Entry?
 
     private var filterActive: Bool {
@@ -54,17 +53,9 @@ struct LedgerView: View {
                     } else {
                         RaisedPanel {
                             HStack {
-                                Button("Import") { showingImport = true }
-                                    .buttonStyle(PrimaryPillButtonStyle())
-                                    .accessibilityIdentifier("ledgerImport")
-                                if !model.engine.reviewRows().isEmpty {
-                                    Button("Review") { showingImport = true }
-                                        .buttonStyle(SecondaryPillButtonStyle())
-                                        .accessibilityIdentifier("reviewPendingImport")
-                                }
-                                Spacer()
                                 Text("\(model.engine.entries().count) transactions")
                                     .font(.caption).foregroundStyle(Color.dmInkFaint)
+                                Spacer()
                             }
                             PaperField(placeholder: "Search transactions", text: $query)
                                 .accessibilityIdentifier("ledgerSearch")
@@ -114,7 +105,6 @@ struct LedgerView: View {
             }
             .navigationTitle("")
             .withSettings(model: model)
-            .sheet(isPresented: $showingImport) { ImportView(model: model) }
             .sheet(item: $detail) { TransactionDetailView(model: model, entry: $0) }
         }
     }
