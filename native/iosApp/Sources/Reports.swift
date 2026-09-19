@@ -20,8 +20,7 @@ struct MonthView: View {
         switch hour {
         case 5..<12: return "Good morning"
         case 12..<17: return "Good afternoon"
-        case 17..<22: return "Good evening"
-        default: return "Good night"
+        default: return "Good evening"
         }
     }
 

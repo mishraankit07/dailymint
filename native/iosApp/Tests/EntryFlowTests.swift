@@ -92,7 +92,7 @@ final class EntryFlowTests: XCTestCase {
         app.terminate()
         app.launchArguments = ["--ui-testing", "--test-hour=23"]
         app.launch()
-        XCTAssertTrue(app.staticTexts["Good night"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Good evening"].waitForExistence(timeout: 5))
     }
     func testLedgerOffersFileImportAndSettings() {
         app.buttons["Ledger"].tap()
