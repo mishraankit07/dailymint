@@ -97,7 +97,7 @@ struct MonthHero: View {
                 .accessibilityIdentifier("spent")
             Text(cycleRange).font(.caption).foregroundStyle(Color.dmHeroMuted)
             HStack(alignment: .top) {
-                HeroStat(label: "Recorded in", value: "Rs " + model.engine.formatAmount(paise: summary.moneyIn), color: .dmIncome)
+                HeroStat(label: "Income", value: "Rs " + model.engine.formatAmount(paise: summary.moneyIn), color: .dmIncome)
                     .accessibilityIdentifier("moneyIn")
                 Spacer()
                 HeroStat(label: "Invested", value: "Rs " + model.engine.formatAmount(paise: summary.invested), color: .dmInvest)

@@ -144,7 +144,7 @@ final class EntryFlowTests: XCTestCase {
         save.tap()
         XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["moneyIn"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Recorded in: Rs 1234")
+        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Income: Rs 1234")
         XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Rs 0")
     }
 
@@ -160,7 +160,7 @@ final class EntryFlowTests: XCTestCase {
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
-        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Recorded in: Rs 0")
+        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Income: Rs 0")
         app.buttons["Ledger"].tap()
         XCTAssertTrue(app.staticTexts["Expense reimbursement"].waitForExistence(timeout: 5))
     }
