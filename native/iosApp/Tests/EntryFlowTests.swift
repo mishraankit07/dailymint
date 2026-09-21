@@ -233,9 +233,4 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["cancelCategory"].tap()
     }
 
-    func testHomeRoutesToLedger() {
-        app.buttons["seeAllTransactions"].tap()
-        XCTAssertTrue(app.buttons["Ledger"].isSelected)
-        XCTAssertTrue(app.textFields["ledgerSearch"].waitForExistence(timeout: 5))
-    }
 }

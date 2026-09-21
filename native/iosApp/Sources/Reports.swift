@@ -4,7 +4,6 @@ import DailyMintCore
 
 struct MonthView: View {
     @ObservedObject var model: LedgerModel
-    let onSeeAll: () -> Void
     @State private var detail: Entry?
     private var greeting: String {
         Self.greeting(for: Date(), arguments: ProcessInfo.processInfo.arguments)
@@ -61,10 +60,6 @@ struct MonthView: View {
                             }
                         }
                     }
-                    Button("See all transactions", action: onSeeAll)
-                        .buttonStyle(SecondaryPillButtonStyle())
-                        .frame(maxWidth: .infinity)
-                        .accessibilityIdentifier("seeAllTransactions")
                 }
             }
             .navigationTitle("")

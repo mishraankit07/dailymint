@@ -166,7 +166,7 @@ struct DailyMintApp: App {
                 } else {
                     Group {
                         switch selectedTab {
-                        case .home: MonthView(model: model, onSeeAll: { selectedTab = .ledger })
+                        case .home: MonthView(model: model)
                         case .growth: GrowthView(model: model)
                         case .add: EmptyView()
                         case .ledger: LedgerView(model: model)
