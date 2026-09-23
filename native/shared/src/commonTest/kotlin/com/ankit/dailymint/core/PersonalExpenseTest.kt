@@ -90,13 +90,13 @@ class PersonalExpenseTest {
         val store = MemoryStore().apply { value = Json.encodeToString(old) }
         val engine = LedgerEngine(store)
         assertNull(engine.loadError)
-        assertEquals(2, engine.snapshot.schemaVersion)
+        assertEquals(3, engine.snapshot.schemaVersion)
         assertEquals(20000, engine.totals().moneyIn)
         assertEquals(CreditKind.OTHER_INCOME, engine.entries().last().effectiveCreditKind())
         assertEquals(1234, engine.smsWatermark())
         assertEquals("Bank SMS", engine.entries().first().rawSms)
         assertTrue(engine.addCategory("Travel").success)
-        assertEquals(2, Json.decodeFromString<Snapshot>(store.value!!).schemaVersion)
+        assertEquals(3, Json.decodeFromString<Snapshot>(store.value!!).schemaVersion)
     }
 
     @Test fun correctionAndIgnorePreserveGrossAndDedupIdentity() {
@@ -133,5 +133,89 @@ class PersonalExpenseTest {
         val transientToggleBuckets = engine.trendBuckets("2026-09-15", true, 6)
         assertEquals(1, transientToggleBuckets.size)
         assertEquals(30000, transientToggleBuckets.single().spent)
+    }
+
+    @Test fun equalSplitUsesWholeRupeeCeilingAndSurvivesReload() {
+        val store = MemoryStore()
+        val engine = LedgerEngine(store)
+        assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(
+            imported("eight", 80000), imported("three", 30000), imported("small", 89)
+        ))).success)
+
+        assertEquals(26700, engine.equalShare("eight", 3))
+        assertEquals(10000, engine.equalShare("three", 3))
+        assertEquals(89, engine.equalShare("small", 2))
+        assertEquals(-1, engine.equalShare("eight", 1))
+        assertTrue(engine.updateImportedTransaction("eight", "Dinner", "Food", "", SplitMethod.EQUAL, 3, "").success)
+
+        val saved = LedgerEngine(store).entries().first { it.id == "eight" }
+        assertEquals(80000, saved.paise)
+        assertEquals(26700, saved.personalSpent)
+        assertEquals(SplitMethod.EQUAL, saved.splitMethod)
+        assertEquals(3, saved.splitPeopleCount)
+    }
+
+    @Test fun importedEditorCommitsAtomicallyAndPreservesEvidence() {
+        val store = MemoryStore()
+        val engine = LedgerEngine(store)
+        assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(imported("bank-1", 30000)))).success)
+
+        assertFalse(engine.updateImportedTransaction(
+            "bank-1", "Changed", "Groceries", "301", SplitMethod.CUSTOM, 0, ""
+        ).success)
+        var entry = engine.entries().single()
+        assertEquals("Original merchant", entry.name)
+        assertEquals("Food", entry.category)
+        assertEquals(30000, entry.personalSpent)
+
+        assertTrue(engine.updateImportedTransaction(
+            "bank-1", "Changed", "Groceries", "100", SplitMethod.CUSTOM, 0, ""
+        ).success)
+        entry = engine.entries().single()
+        assertEquals("Changed", entry.name)
+        assertEquals("Groceries", entry.category)
+        assertEquals(10000, entry.personalSpent)
+        assertEquals(30000, entry.paise)
+        assertEquals("Bank SMS", entry.rawSms)
+        assertEquals("BANK", entry.sender)
+        assertEquals("RRN-1", entry.referenceId)
+
+        store.fail = true
+        assertFalse(engine.updateImportedTransaction(
+            "bank-1", "Not saved", "Home", "50", SplitMethod.CUSTOM, 0, ""
+        ).success)
+        entry = engine.entries().single()
+        assertEquals("Changed", entry.name)
+        assertEquals("Groceries", entry.category)
+        assertEquals(10000, entry.personalSpent)
+    }
+
+    @Test fun schemaTwoReducedExpenseMigratesAsCustomSplit() {
+        val old = Snapshot(schemaVersion = 2, entries = listOf(imported("bank-1", 30000).copy(personalExpensePaise = 10000)))
+        val store = MemoryStore().apply { value = Json.encodeToString(old) }
+        val entry = LedgerEngine(store).entries().single()
+        assertEquals(SplitMethod.CUSTOM, entry.splitMethod)
+        assertNull(entry.splitPeopleCount)
+        assertEquals(10000, entry.personalSpent)
+    }
+
+    @Test fun manualExpenseSplitUsesSameSharedRules() {
+        val store = MemoryStore()
+        val engine = LedgerEngine(store)
+        assertTrue(engine.addEntryWithSplit(
+            "manual", "Dinner", "800", "Food", "2026-09-15", false, SplitMethod.EQUAL, 3, ""
+        ).success)
+        var entry = engine.entries().single()
+        assertEquals(80000, entry.paise)
+        assertEquals(26700, entry.personalSpent)
+        assertEquals(26700, engine.totals().spent)
+
+        assertFalse(engine.addEntryWithSplit(
+            "bad", "Dinner", "300", "Food", "2026-09-15", false, SplitMethod.CUSTOM, 0, "301"
+        ).success)
+        assertEquals(1, engine.entries().size)
+        entry = LedgerEngine(store).entries().single()
+        assertEquals(SplitMethod.EQUAL, entry.splitMethod)
+        assertEquals(3, entry.splitPeopleCount)
     }
 }

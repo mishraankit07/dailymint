@@ -19,11 +19,19 @@ data class Entry(val id: String, val name: String, val paise: Long, val category
     val source: String = "manual", val capturedAtMillis: Long = 0,
     val rawSms: String = "", val sender: String = "", val referenceId: String = "", val bank: String = "",
     val personalExpensePaise: Long? = null, val creditKind: String? = null, val ignored: Boolean = false,
-    val originalName: String = "", val originalCategory: String = "") {
+    val originalName: String = "", val originalCategory: String = "", val splitMethod: String = SplitMethod.NONE,
+    val splitPeopleCount: Int? = null) {
     val personalSpent: Long get() = if (type == "expense" && !ignored) personalExpensePaise ?: paise else 0
     val earnedIncome: Long get() = if (type == "income" && !ignored && effectiveCreditKind() in CreditKind.earned) paise else 0
     val neutralCredit: Long get() = if (type == "income" && !ignored && effectiveCreditKind() in CreditKind.neutral) paise else 0
     fun effectiveCreditKind(): String = creditKind ?: if (category == "Salary") CreditKind.SALARY else CreditKind.OTHER_INCOME
+}
+
+object SplitMethod {
+    const val NONE = "none"
+    const val EQUAL = "equal"
+    const val CUSTOM = "custom"
+    val all = setOf(NONE, EQUAL, CUSTOM)
 }
 
 object CreditKind {
@@ -59,7 +67,7 @@ data class IncomingSms(val id: String, val body: String, val sender: String, val
 
 @Serializable
 data class Snapshot(
-    val schemaVersion: Int = 2,
+    val schemaVersion: Int = 3,
     val categories: List<String> = listOf("Home", "Groceries", "Food", "Fun", "Gym", "Self", "Investments", "Miscellaneous"),
     val entries: List<Entry> = emptyList(),
     val learnedRules: Map<String, String> = emptyMap(),
@@ -97,6 +105,13 @@ object Money {
         return (if (paise < 0) "-" else "") + (absolute / 100) +
             (if (fraction == 0L) "" else "." + fraction.toString().padStart(2, '0'))
     }
+
+    fun equalShare(originalPaise: Long, people: Int): Long? {
+        if (originalPaise !in 1..MAX_PAISE || people < 2) return null
+        val exactShare = originalPaise / people + if (originalPaise % people == 0L) 0 else 1
+        val wholeRupeeShare = exactShare / 100 + if (exactShare % 100 == 0L) 0 else 1
+        return minOf(originalPaise, wholeRupeeShare * 100)
+    }
 }
 
 object ReminderCopy {
@@ -119,7 +134,7 @@ class LedgerEngine(private val store: LedgerStore) {
         try {
             store.load().snapshot?.let {
                 val loaded = Json.decodeFromString<Snapshot>(it)
-                require(loaded.schemaVersion in 1..2)
+                require(loaded.schemaVersion in 1..3)
                 require(loaded.categories.contains("Miscellaneous"))
                 require(loaded.categories.map(String::lowercase).distinct().size == loaded.categories.size)
                 require(loaded.entries.size <= 100_000)
@@ -128,14 +143,24 @@ class LedgerEngine(private val store: LedgerStore) {
                     entry.paise in 1..100_000_000_000L && validDate(entry.date) &&
                         entry.type in listOf("income", "expense", "investment") &&
                         (entry.personalExpensePaise == null || entry.personalExpensePaise in 0..entry.paise) &&
-                        (entry.creditKind == null || entry.creditKind in CreditKind.all)
+                        (entry.creditKind == null || entry.creditKind in CreditKind.all) &&
+                        entry.splitMethod in SplitMethod.all &&
+                        (entry.splitMethod != SplitMethod.EQUAL ||
+                            (entry.type == "expense" && entry.splitPeopleCount != null && entry.splitPeopleCount >= 2)) &&
+                        (entry.splitMethod != SplitMethod.CUSTOM ||
+                            (entry.type == "expense" && entry.splitPeopleCount == null)) &&
+                        (entry.splitMethod != SplitMethod.NONE || entry.splitPeopleCount == null)
                 })
-                snapshot = if (loaded.schemaVersion == 1) loaded.copy(schemaVersion = 2,
-                    entries = loaded.entries.map { entry ->
+                snapshot = loaded.copy(schemaVersion = 3, entries = loaded.entries.map { entry ->
+                    val migrated = if (loaded.schemaVersion == 1) {
                         entry.copy(creditKind = if (entry.type == "income") entry.effectiveCreditKind() else null,
                             originalName = if (entry.source != "manual") entry.name else "",
                             originalCategory = if (entry.source != "manual") entry.category else "")
-                    }) else loaded
+                    } else entry
+                    if (loaded.schemaVersion < 3 && migrated.type == "expense" && migrated.personalExpensePaise != null) {
+                        migrated.copy(splitMethod = SplitMethod.CUSTOM)
+                    } else migrated
+                })
             }
         } catch (_: Exception) {
             loadError = "Could not read your saved ledger. Your data has not been replaced."
@@ -235,8 +260,53 @@ class LedgerEngine(private val store: LedgerStore) {
         val value = Money.parseShare(amount) ?: return SaveResult(false, "Enter an amount with up to two decimal places.")
         if (value > entry.paise) return SaveResult(false, "Personal spending cannot exceed the bank amount.")
         return commit(snapshot.copy(entries = snapshot.entries.map {
-            if (it.id == id) it.copy(personalExpensePaise = value.takeIf { share -> share != entry.paise }) else it
+            if (it.id == id) it.copy(personalExpensePaise = value.takeIf { share -> share != entry.paise },
+                splitMethod = if (value == entry.paise) SplitMethod.NONE else SplitMethod.CUSTOM,
+                splitPeopleCount = null) else it
         }))
+    }
+
+    fun equalShare(id: String, people: Int): Long {
+        val entry = snapshot.entries.find { it.id == id && it.type == "expense" } ?: return -1
+        return Money.equalShare(entry.paise, people) ?: -1
+    }
+    fun equalShareForAmount(amount: String, people: Int): Long =
+        Money.parse(amount)?.let { Money.equalShare(it, people) } ?: -1
+    fun splitPeopleCount(id: String): Int = snapshot.entries.find { it.id == id }?.splitPeopleCount ?: 0
+
+    fun updateImportedTransaction(id: String, name: String, category: String, personalAmount: String,
+        splitMethod: String, splitPeopleCount: Int, creditKind: String): SaveResult {
+        val entry = snapshot.entries.find { it.id == id && it.source != "manual" }
+            ?: return SaveResult(false, "Choose an imported transaction.")
+        val cleanName = name.trim()
+        if (cleanName.isEmpty() || cleanName.length > 120) return SaveResult(false, "Enter a name between 1 and 120 characters.")
+
+        val updated = if (entry.type == "income") {
+            if (creditKind !in CreditKind.all) return SaveResult(false, "Choose a credit kind.")
+            entry.copy(name = cleanName, category = CreditKind.label(creditKind), creditKind = creditKind,
+                personalExpensePaise = null, splitMethod = SplitMethod.NONE, splitPeopleCount = null)
+        } else {
+            if (category !in snapshot.categories) return SaveResult(false, "Choose a valid category.")
+            val updatedType = if (category == "Investments") "investment" else "expense"
+            if (updatedType == "investment" && splitMethod != SplitMethod.NONE) {
+                return SaveResult(false, "Investments cannot be split as personal spending.")
+            }
+            val personal = when (splitMethod) {
+                SplitMethod.NONE -> entry.paise
+                SplitMethod.EQUAL -> Money.equalShare(entry.paise, splitPeopleCount)
+                    ?: return SaveResult(false, "Enter at least 2 people, including you.")
+                SplitMethod.CUSTOM -> Money.parseShare(personalAmount)
+                    ?: return SaveResult(false, "Enter an amount with up to two decimal places.")
+                else -> return SaveResult(false, "Choose a valid split method.")
+            }
+            if (personal > entry.paise) return SaveResult(false, "Personal spending cannot exceed the bank amount.")
+            entry.copy(name = cleanName, category = category, type = updatedType,
+                personalExpensePaise = personal.takeIf { updatedType == "expense" && it != entry.paise },
+                splitMethod = if (updatedType == "expense") splitMethod else SplitMethod.NONE,
+                splitPeopleCount = splitPeopleCount.takeIf { updatedType == "expense" && splitMethod == SplitMethod.EQUAL })
+        }
+        val rules = if (entry.type == "income") snapshot.learnedRules else learn(cleanName, category)
+        return commit(snapshot.copy(entries = snapshot.entries.map { if (it.id == id) updated else it }, learnedRules = rules))
     }
     fun classifyCredit(id: String, kind: String): SaveResult {
         if (kind !in CreditKind.all) return SaveResult(false, "Choose a credit kind.")
@@ -288,6 +358,10 @@ class LedgerEngine(private val store: LedgerStore) {
         return commit(snapshot.copy(categories = snapshot.categories + name))
     }
     fun addEntry(id: String, name: String, amount: String, category: String, date: String, income: Boolean): SaveResult {
+        return addEntryWithSplit(id, name, amount, category, date, income, SplitMethod.NONE, 0, "")
+    }
+    fun addEntryWithSplit(id: String, name: String, amount: String, category: String, date: String, income: Boolean,
+        splitMethod: String, splitPeopleCount: Int, personalAmount: String): SaveResult {
         val paise = Money.parse(amount) ?: return SaveResult(false, "Enter a positive amount with up to two decimal places.")
         if (id.isBlank() || snapshot.entries.any { it.id == id }) return SaveResult(false, "This record already exists.")
         if (name.trim().isEmpty() || name.trim().length > 120) return SaveResult(false, "Enter a name between 1 and 120 characters.")
@@ -296,9 +370,23 @@ class LedgerEngine(private val store: LedgerStore) {
         if (category !in allowed) return SaveResult(false, "Choose a valid category.")
         if (snapshot.entries.size >= 100_000) return SaveResult(false, "Ledger capacity reached.")
         val type = if (income) "income" else if (category == "Investments") "investment" else "expense"
+        if (type != "expense" && splitMethod != SplitMethod.NONE) return SaveResult(false, "Only expenses can be split.")
+        val personal = when (splitMethod) {
+            SplitMethod.NONE -> paise
+            SplitMethod.EQUAL -> Money.equalShare(paise, splitPeopleCount)
+                ?: return SaveResult(false, "Enter at least 2 people, including you.")
+            SplitMethod.CUSTOM -> Money.parseShare(personalAmount)
+                ?: return SaveResult(false, "Enter an amount with up to two decimal places.")
+            else -> return SaveResult(false, "Choose a valid split method.")
+        }
+        if (personal > paise) return SaveResult(false, "Personal spending cannot exceed the paid amount.")
         return commit(snapshot.copy(entries = snapshot.entries + Entry(id, name.trim(), paise, category, date, type,
             capturedAtMillis = Clock.System.now().toEpochMilliseconds(),
-            creditKind = if (income) CreditKind.fromLabel(category) else null), learnedRules = learn(name, category)))
+            personalExpensePaise = personal.takeIf { type == "expense" && it != paise },
+            creditKind = if (income) CreditKind.fromLabel(category) else null,
+            splitMethod = if (type == "expense") splitMethod else SplitMethod.NONE,
+            splitPeopleCount = splitPeopleCount.takeIf { type == "expense" && splitMethod == SplitMethod.EQUAL }),
+            learnedRules = learn(name, category)))
     }
     internal fun commit(next: Snapshot): SaveResult {
         loadError?.let { return SaveResult(false, it) }

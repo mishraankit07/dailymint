@@ -165,6 +165,28 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Expense reimbursement"].waitForExistence(timeout: 5))
     }
 
+    func testManualEqualSplitUsesPersonalShareInHome() {
+        app.buttons["Add"].tap()
+        app.textFields["entryName"].tap()
+        app.textFields["entryName"].typeText("Dinner")
+        app.textFields["entryAmount"].tap()
+        app.textFields["entryAmount"].typeText("800")
+        app.buttons["entryCategory"].tap()
+        app.buttons["Food"].tap()
+        let split = app.switches["manualSplit"]
+        if !split.isHittable { app.swipeUp() }
+        split.tap()
+        let people = app.textFields["manualSplitPeople"]
+        people.tap()
+        people.typeText(XCUIKeyboardKey.delete.rawValue + "3")
+        let save = app.buttons["saveEntry"]
+        if !save.isHittable { app.swipeUp() }
+        save.tap()
+        let spent = app.descendants(matching: .any)["spent"]
+        XCTAssertTrue(spent.waitForExistence(timeout: 5))
+        XCTAssertEqual(spent.label, "Rs 267")
+    }
+
     func testIncomingSMSUpdatesOpenMonthWithoutRelaunch() {
         app.terminate()
         app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]
@@ -189,15 +211,18 @@ final class EntryFlowTests: XCTestCase {
         let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "ledgerEntry-")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
-        let share = app.textFields["personalShare"]
+        let split = app.switches["splitTransaction"]
+        XCTAssertTrue(split.waitForExistence(timeout: 5))
+        split.tap()
+        app.buttons["Custom share"].tap()
+        let share = app.textFields["customShare"]
         XCTAssertTrue(share.waitForExistence(timeout: 5))
         share.tap()
         share.typeText(XCUIKeyboardKey.delete.rawValue + "2")
-        let save = app.buttons["savePersonalShare"]
+        let save = app.buttons["saveImportedTransaction"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
         XCTAssertFalse(app.staticTexts["transactionError"].exists)
-        app.buttons["Done"].tap()
         app.buttons["Home"].tap()
         XCTAssertEqual(spent.label, "Rs 2")
 

@@ -98,14 +98,17 @@ final class LedgerModel: ObservableObject {
     func addCategory(_ name: String) -> String? {
         mutate { $0.addCategory(rawName: name) }
     }
-    func addEntry(name: String, amount: String, category: String, date: Date, income: Bool) -> String? {
+    func addEntry(name: String, amount: String, category: String, date: Date, income: Bool,
+                  splitMethod: String = "none", splitPeopleCount: Int32 = 0, personalAmount: String = "") -> String? {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
         return mutate {
-            $0.addEntry(id: UUID().uuidString, name: name, amount: amount,
-                        category: category, date: formatter.string(from: date), income: income)
+            $0.addEntryWithSplit(id: UUID().uuidString, name: name, amount: amount,
+                                 category: category, date: formatter.string(from: date), income: income,
+                                 splitMethod: splitMethod, splitPeopleCount: splitPeopleCount,
+                                 personalAmount: personalAmount)
         }
     }
 }
@@ -248,6 +251,10 @@ struct ManualView: View {
     @State private var date = Date()
     @State private var error: String?
     @State private var showingCategory = false
+    @State private var splitEnabled = false
+    @State private var splitMethod = "equal"
+    @State private var splitPeople = "2"
+    @State private var personalAmount = ""
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case name, amount }
     var body: some View {
@@ -301,10 +308,43 @@ struct ManualView: View {
                     .accessibilityIdentifier("entryCategory")
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                         .foregroundStyle(Color.dmInk)
+
+                    if !income && category != "Investments" {
+                        Toggle("Split this bill with others", isOn: $splitEnabled)
+                            .tint(Color.dmFlow)
+                            .accessibilityIdentifier("manualSplit")
+                        if splitEnabled {
+                            HStack(spacing: 6) {
+                                PaperSegment(title: "Split equally", value: "equal", selection: $splitMethod)
+                                PaperSegment(title: "Custom share", value: "custom", selection: $splitMethod)
+                            }
+                            .padding(4)
+                            .background(Color.dmHairline.opacity(0.55))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            if splitMethod == "equal" {
+                                FieldLabel(text: "Among people, including you")
+                                PaperField(placeholder: "Number of people", text: $splitPeople, keyboard: .numberPad)
+                                    .accessibilityIdentifier("manualSplitPeople")
+                            } else {
+                                FieldLabel(text: "Your share")
+                                PaperField(placeholder: "Amount", text: $personalAmount, keyboard: .decimalPad)
+                                    .accessibilityIdentifier("manualPersonalShare")
+                            }
+                            if let preview = splitPreview {
+                                Text("Rs \(amount) paid - Rs \(model.engine.formatAmount(paise: preview)) counts as your spending")
+                                    .font(.caption).foregroundStyle(Color.dmInkSoft)
+                            }
+                        }
+                    }
                     if let error { Text(error).foregroundStyle(Color.dmSpend).accessibilityIdentifier("entryError") }
                     Button("Save") {
                         focusedField = nil
-                        error = model.addEntry(name: name, amount: amount, category: category, date: date, income: income)
+                        error = model.addEntry(
+                            name: name, amount: amount, category: category, date: date, income: income,
+                            splitMethod: splitEnabled && !income && category != "Investments" ? splitMethod : "none",
+                            splitPeopleCount: Int32(splitPeople) ?? 0,
+                            personalAmount: personalAmount
+                        )
                         if error == nil { onFinish() }
                     }
                     .buttonStyle(PrimaryPillButtonStyle())
@@ -323,6 +363,31 @@ struct ManualView: View {
             }
             .onDisappear { focusedField = nil }
         }
+    }
+
+    private var splitPreview: Int64? {
+        guard splitEnabled else { return nil }
+        if splitMethod == "equal" {
+            let value = model.engine.equalShareForAmount(amount: amount, people: Int32(splitPeople) ?? 0)
+            return value >= 0 ? value : nil
+        }
+        let normalized = personalAmount.replacingOccurrences(of: ",", with: "")
+        guard normalized.range(of: #"^[0-9]+(?:\.[0-9]{1,2})?$"#, options: .regularExpression) != nil else { return nil }
+        let parts = normalized.split(separator: ".", omittingEmptySubsequences: false)
+        guard let whole = Int64(parts[0]) else { return nil }
+        let rawFraction = parts.count == 2 ? String(parts[1]) : ""
+        let fraction = rawFraction.isEmpty ? "00" : (rawFraction.count == 1 ? rawFraction + "0" : rawFraction)
+        guard let paise = Int64(fraction) else { return nil }
+        let (base, multiplyOverflow) = whole.multipliedReportingOverflow(by: 100)
+        let (total, addOverflow) = base.addingReportingOverflow(paise)
+        guard !multiplyOverflow, !addOverflow else { return nil }
+        if splitMethod == "custom" {
+            let normalizedPaid = amount.replacingOccurrences(of: ",", with: "")
+            guard let paidDecimal = Decimal(string: normalizedPaid),
+                  paidDecimal >= 0,
+                  Decimal(total) / 100 <= paidDecimal else { return nil }
+        }
+        return total
     }
 }
 
