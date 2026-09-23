@@ -318,6 +318,78 @@ struct SectionHeading: View {
     }
 }
 
+struct CategorySelectionSheet: View {
+    let title: String
+    let options: [String]
+    @Binding var selection: String
+    var optionIdentifierPrefix: String?
+    var addActionTitle: String?
+    var addActionIdentifier: String?
+    var onSelection: ((String) -> Void)?
+    var onAdd: (() -> Void)?
+    var optionLabel: (String) -> String = { $0 == "All" ? "All categories" : $0 }
+    @Environment(\.dismiss) private var dismiss
+
+    private var uniqueOptions: [String] {
+        options.reduce(into: []) { result, option in
+            if !result.contains(option) { result.append(option) }
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(uniqueOptions, id: \.self) { option in
+                    Button {
+                        selection = option
+                        onSelection?(option)
+                        dismiss()
+                    } label: {
+                        HStack {
+                            CategoryDot(name: option, size: 10)
+                            Text(optionLabel(option))
+                                .foregroundStyle(Color.dmInk)
+                            Spacer()
+                            if option == selection {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.dmFlow)
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier(optionIdentifier(option))
+                }
+
+                if let addActionTitle, let onAdd {
+                    Button {
+                        onAdd()
+                        dismiss()
+                    } label: {
+                        Label(addActionTitle, systemImage: "plus.circle.fill")
+                            .foregroundStyle(Color.dmFlow)
+                    }
+                    .accessibilityIdentifier(addActionIdentifier ?? "")
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.dmPaper)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func optionIdentifier(_ option: String) -> String {
+        guard let optionIdentifierPrefix else { return "" }
+        return "\(optionIdentifierPrefix)-\(option)"
+    }
+}
+
 func categoryColor(_ name: String) -> Color {
     switch name.lowercased() {
     case "home", "house": return .dmCategoryHome

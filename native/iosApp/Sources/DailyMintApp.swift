@@ -256,6 +256,8 @@ struct ManualView: View {
     @State private var date = Date()
     @State private var error: String?
     @State private var showingCategory = false
+    @State private var showingCategoryPicker = false
+    @State private var addCategoryAfterPicker = false
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case name, amount }
     var body: some View {
@@ -283,18 +285,7 @@ struct ManualView: View {
                         .accessibilityIdentifier("entryAmount")
                         .focused($focusedField, equals: .amount)
                     FieldLabel(text: income ? "Credit kind" : "Category")
-                    Menu {
-                        ForEach(income ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"] : model.engine.categories(), id: \.self) { option in
-                            Button(option) { category = option }
-                        }
-                        if !income {
-                            Divider()
-                            Button { showingCategory = true } label: {
-                                Label("Add category", systemImage: "plus")
-                            }
-                                .accessibilityIdentifier("addCategoryFromEntry")
-                        }
-                    } label: {
+                    Button { showingCategoryPicker = true } label: {
                         HStack {
                             Text(category).foregroundStyle(Color.dmFlow)
                             Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Color.dmFlow)
@@ -325,6 +316,24 @@ struct ManualView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showingCategory) { CategorySheet(model: model) }
+            .sheet(isPresented: $showingCategoryPicker, onDismiss: {
+                if addCategoryAfterPicker {
+                    addCategoryAfterPicker = false
+                    showingCategory = true
+                }
+            }) {
+                CategorySelectionSheet(
+                    title: income ? "Choose credit kind" : "Choose category",
+                    options: income
+                        ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"]
+                        : model.engine.categories(),
+                    selection: $category,
+                    optionIdentifierPrefix: "entryCategoryOption",
+                    addActionTitle: income ? nil : "Add category",
+                    addActionIdentifier: income ? nil : "addCategoryFromEntry",
+                    onAdd: income ? nil : { addCategoryAfterPicker = true }
+                )
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onFinish).accessibilityIdentifier("cancelEntry")

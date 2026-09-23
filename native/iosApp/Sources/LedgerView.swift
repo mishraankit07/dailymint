@@ -15,6 +15,7 @@ struct LedgerView: View {
     @State private var typeFilter = "All"
     @State private var categoryFilter = "All"
     @State private var detail: Entry?
+    @State private var showingCategoryFilter = false
 
     private var filterActive: Bool {
         !query.isEmpty || typeFilter != "All" || categoryFilter != "All"
@@ -100,6 +101,14 @@ struct LedgerView: View {
             .navigationTitle("")
             .withSettings(model: model)
             .sheet(item: $detail) { TransactionDetailView(model: model, entry: $0) }
+            .sheet(isPresented: $showingCategoryFilter) {
+                CategorySelectionSheet(
+                    title: "Filter by category",
+                    options: ["All"] + model.engine.categories() + ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"],
+                    selection: $categoryFilter,
+                    optionIdentifierPrefix: "ledgerCategoryFilterOption"
+                )
+            }
         }
     }
 
@@ -114,15 +123,11 @@ struct LedgerView: View {
                     Label(typeLabel(typeFilter), systemImage: "line.3.horizontal.decrease")
                         .frame(minHeight: 44)
                 }
-                Menu {
-                    Button("All categories") { categoryFilter = "All" }
-                    ForEach(model.engine.categories() + ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"], id: \.self) { value in
-                        Button(value) { categoryFilter = value }
-                    }
-                } label: {
+                Button { showingCategoryFilter = true } label: {
                     Label(categoryFilter == "All" ? "Category" : categoryFilter, systemImage: "tag")
                         .frame(minHeight: 44)
                 }
+                .accessibilityIdentifier("ledgerCategoryFilter")
             }
             .buttonStyle(SecondaryPillButtonStyle())
         }
@@ -161,6 +166,7 @@ struct TransactionDetailView: View {
     @State private var error: String?
     @State private var showingManualEdit = false
     @State private var showingCategoryPicker = false
+    @State private var showingCreditKindPicker = false
     @State private var confirmingDelete = false
     @State private var confirmingDiscard = false
 
@@ -240,12 +246,24 @@ struct TransactionDetailView: View {
             }
             .sheet(isPresented: $showingManualEdit) { EntryEditSheet(model: model, entry: current, reviewId: nil) }
             .sheet(isPresented: $showingCategoryPicker) {
-                TransactionCategoryPicker(
-                    categories: model.engine.categories(),
-                    selection: $category
-                ) {
-                    splitEnabled = false
-                }
+                CategorySelectionSheet(
+                    title: "Choose category",
+                    options: model.engine.categories(),
+                    selection: $category,
+                    optionIdentifierPrefix: "transactionCategoryOption",
+                    onSelection: { option in
+                        if option == "Investments" { splitEnabled = false }
+                    }
+                )
+            }
+            .sheet(isPresented: $showingCreditKindPicker) {
+                CategorySelectionSheet(
+                    title: "Choose credit kind",
+                    options: ["salary", "other_income", "reimbursement", "refund", "own_transfer"],
+                    selection: $creditKind,
+                    optionIdentifierPrefix: "transactionCreditKindOption",
+                    optionLabel: creditLabel
+                )
             }
             .confirmationDialog("Delete this transaction?", isPresented: $confirmingDelete) {
                 Button("Delete transaction", role: .destructive) {
@@ -280,13 +298,16 @@ struct TransactionDetailView: View {
 
                 if current.type == "income" {
                     FieldLabel(text: "Credit kind")
-                    Picker("Credit kind", selection: $creditKind) {
-                        ForEach(["salary", "other_income", "reimbursement", "refund", "own_transfer"], id: \.self) { kind in
-                            Text(creditLabel(kind)).tag(kind)
+                    Button { showingCreditKindPicker = true } label: {
+                        HStack {
+                            Label(creditLabel(creditKind), systemImage: "tag")
+                            Spacer()
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption)
                         }
                     }
-                    .pickerStyle(.menu)
-                    .tint(Color.dmFlow)
+                    .buttonStyle(SecondaryPillButtonStyle())
+                    .accessibilityIdentifier("transactionCreditKind")
                 } else {
                     FieldLabel(text: "Category")
                     Button { showingCategoryPicker = true } label: {
@@ -413,47 +434,5 @@ struct TransactionDetailView: View {
         formatter.timeZone = .current
         formatter.dateFormat = "d MMM yyyy, h:mm a"
         return formatter.string(from: Date(timeIntervalSince1970: Double(current.capturedAtMillis) / 1000))
-    }
-}
-
-private struct TransactionCategoryPicker: View {
-    let categories: [String]
-    @Binding var selection: String
-    let onInvestmentSelected: () -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List(categories, id: \.self) { option in
-                Button {
-                    selection = option
-                    if option == "Investments" { onInvestmentSelected() }
-                    dismiss()
-                } label: {
-                    HStack {
-                        CategoryDot(name: option, size: 10)
-                        Text(option)
-                            .foregroundStyle(Color.dmInk)
-                        Spacer()
-                        if option == selection {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(Color.dmFlow)
-                        }
-                    }
-                }
-                .accessibilityIdentifier("transactionCategoryOption-\(option)")
-            }
-            .scrollContentBackground(.hidden)
-            .background(Color.dmPaper)
-            .navigationTitle("Choose category")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 }

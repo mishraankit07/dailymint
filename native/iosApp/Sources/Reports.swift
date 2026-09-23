@@ -396,6 +396,7 @@ struct EntryEditSheet: View {
     @State private var category = ""
     @State private var error: String?
     @State private var delete = false
+    @State private var showingCategoryPicker = false
     var body: some View {
         NavigationStack {
             ScreenSurface {
@@ -410,11 +411,16 @@ struct EntryEditSheet: View {
                         PaperField(placeholder: "Amount", text: $amount, keyboard: .decimalPad)
                     }
                     FieldLabel(text: entry.type == "income" ? "Credit kind" : "Category")
-                    Picker("Category", selection: $category) {
-                        ForEach(entry.type == "income" ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer", "Received"] : model.engine.categories(), id: \.self) { Text($0).tag($0) }
+                    Button { showingCategoryPicker = true } label: {
+                        HStack {
+                            Label(category, systemImage: "tag")
+                            Spacer()
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption)
+                        }
                     }
-                    .pickerStyle(.menu)
-                    .tint(Color.dmFlow)
+                    .buttonStyle(SecondaryPillButtonStyle())
+                    .accessibilityIdentifier("editEntryCategory")
                     if let error { Text(error).foregroundStyle(Color.dmSpend) }
                     if reviewId == nil {
                         Button("Delete", role: .destructive) { delete = true }
@@ -437,6 +443,16 @@ struct EntryEditSheet: View {
                     }
                 }
                 .onAppear { name = entry.name; amount = model.engine.formatAmount(paise: entry.paise); category = entry.category }
+                .sheet(isPresented: $showingCategoryPicker) {
+                    CategorySelectionSheet(
+                        title: entry.type == "income" ? "Choose credit kind" : "Choose category",
+                        options: entry.type == "income"
+                            ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer", "Received"]
+                            : model.engine.categories(),
+                        selection: $category,
+                        optionIdentifierPrefix: "editEntryCategoryOption"
+                    )
+                }
                 .confirmationDialog("Delete transaction?", isPresented: $delete) {
                     Button("Delete", role: .destructive) {
                         error = model.mutate { $0.deleteEntry(id: entry.id, platform: "ios", nowMillis: Int64(Date().timeIntervalSince1970 * 1000)) }

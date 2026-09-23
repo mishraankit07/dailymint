@@ -59,6 +59,27 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["entryCategory"].tap()
         XCTAssertTrue(app.buttons["Travel"].waitForExistence(timeout: 5))
     }
+    func testCategorySelectorsDismissBeforeTheirScreensScroll() {
+        app.buttons["Add"].tap()
+        app.buttons["entryCategory"].tap()
+        let food = app.buttons["entryCategoryOption-Food"]
+        XCTAssertTrue(food.waitForExistence(timeout: 5))
+        food.tap()
+        XCTAssertTrue(app.buttons["entryCategory"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars["Choose category"].exists)
+        app.swipeUp()
+        XCTAssertTrue(app.buttons["entryCategory"].label.contains("Food"))
+
+        app.buttons["cancelEntry"].tap()
+        app.buttons["Ledger"].tap()
+        app.buttons["ledgerCategoryFilter"].tap()
+        let miscellaneous = app.buttons["ledgerCategoryFilterOption-Miscellaneous"]
+        XCTAssertTrue(miscellaneous.waitForExistence(timeout: 5))
+        miscellaneous.tap()
+        XCTAssertFalse(app.navigationBars["Filter by category"].exists)
+        app.swipeUp()
+        XCTAssertTrue(app.buttons["ledgerCategoryFilter"].label.contains("Miscellaneous"))
+    }
     func testEveryTabOpens() {
         for tab in ["Home", "Growth", "Ledger", "Plan"] {
             let button = app.buttons[tab]
