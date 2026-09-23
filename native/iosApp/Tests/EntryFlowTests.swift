@@ -187,6 +187,17 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(spent.label, "Rs 267")
     }
 
+    func testLedgerSearchSurvivesTabRoundTrip() {
+        app.buttons["Ledger"].tap()
+        let search = app.textFields["ledgerSearch"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("coffee")
+        app.buttons["Growth"].tap()
+        app.buttons["Ledger"].tap()
+        XCTAssertEqual(app.textFields["ledgerSearch"].value as? String, "coffee")
+    }
+
     func testIncomingSMSUpdatesOpenMonthWithoutRelaunch() {
         app.terminate()
         app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]

@@ -167,14 +167,11 @@ struct DailyMintApp: App {
                 if !onboardingSeen && (!ProcessInfo.processInfo.arguments.contains("--ui-testing") || ProcessInfo.processInfo.arguments.contains("--show-onboarding")) {
                     SMSOnboardingView { onboardingSeen = true }
                 } else {
-                    Group {
-                        switch selectedTab {
-                        case .home: MonthView(model: model)
-                        case .growth: GrowthView(model: model)
-                        case .add: EmptyView()
-                        case .ledger: LedgerView(model: model)
-                        case .plan: PlanView(model: model)
-                        }
+                    ZStack {
+                        persistentDestination(.home) { MonthView(model: model) }
+                        persistentDestination(.growth) { GrowthView(model: model) }
+                        persistentDestination(.ledger) { LedgerView(model: model) }
+                        persistentDestination(.plan) { PlanView(model: model) }
                     }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         DockedTabBar(
@@ -217,6 +214,14 @@ struct DailyMintApp: App {
             }
             #endif
         }
+    }
+
+    private func persistentDestination<Content: View>(_ tab: AppTab, @ViewBuilder content: () -> Content) -> some View {
+        content()
+            .opacity(selectedTab == tab ? 1 : 0)
+            .allowsHitTesting(selectedTab == tab)
+            .accessibilityHidden(selectedTab != tab)
+            .zIndex(selectedTab == tab ? 1 : 0)
     }
 }
 

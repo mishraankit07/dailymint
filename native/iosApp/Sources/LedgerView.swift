@@ -18,12 +18,13 @@ struct LedgerView: View {
     @State private var startDate = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var endDate = Date()
     @State private var detail: Entry?
+    @State private var visibleDayCount = 30
 
     private var filterActive: Bool {
         !query.isEmpty || typeFilter != "All" || categoryFilter != "All" || useDateRange
     }
 
-    private var groups: [LedgerDateGroup] {
+    private var allGroups: [LedgerDateGroup] {
         let start = Self.dateKey(startDate)
         let end = Self.dateKey(endDate)
         return model.engine.ledgerDays().compactMap { day in
@@ -38,6 +39,8 @@ struct LedgerView: View {
                                                             grossIn: day.moneyIn, grossOut: day.moneyOut)
         }
     }
+
+    private var groups: [LedgerDateGroup] { Array(allGroups.prefix(visibleDayCount)) }
 
     var body: some View {
         NavigationStack {
@@ -59,6 +62,7 @@ struct LedgerView: View {
                             }
                             PaperField(placeholder: "Search transactions", text: $query)
                                 .accessibilityIdentifier("ledgerSearch")
+                                .onChange(of: query) { _ in visibleDayCount = 30 }
                             filterControls
                         }
 
@@ -100,6 +104,12 @@ struct LedgerView: View {
                                 }
                             }
                         }
+                        if groups.count < allGroups.count {
+                            Button("Load more transactions") { visibleDayCount += 30 }
+                                .buttonStyle(SecondaryPillButtonStyle())
+                                .frame(maxWidth: .infinity)
+                                .accessibilityIdentifier("loadMoreLedger")
+                        }
                     }
                 }
             }
@@ -114,16 +124,16 @@ struct LedgerView: View {
             HStack(spacing: 8) {
                 Menu {
                     ForEach(["All", "expense", "investment", "income", "neutral"], id: \.self) { value in
-                        Button(typeLabel(value)) { typeFilter = value }
+                        Button(typeLabel(value)) { typeFilter = value; visibleDayCount = 30 }
                     }
                 } label: {
                     Label(typeLabel(typeFilter), systemImage: "line.3.horizontal.decrease")
                         .frame(minHeight: 44)
                 }
                 Menu {
-                    Button("All categories") { categoryFilter = "All" }
+                    Button("All categories") { categoryFilter = "All"; visibleDayCount = 30 }
                     ForEach(model.engine.categories() + ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"], id: \.self) { value in
-                        Button(value) { categoryFilter = value }
+                        Button(value) { categoryFilter = value; visibleDayCount = 30 }
                     }
                 } label: {
                     Label(categoryFilter == "All" ? "Category" : categoryFilter, systemImage: "tag")
@@ -133,9 +143,12 @@ struct LedgerView: View {
             .buttonStyle(SecondaryPillButtonStyle())
             Toggle("Date range", isOn: $useDateRange)
                 .tint(Color.dmFlow)
+                .onChange(of: useDateRange) { _ in visibleDayCount = 30 }
             if useDateRange {
                 DatePicker("From", selection: $startDate, displayedComponents: .date)
+                    .onChange(of: startDate) { _ in visibleDayCount = 30 }
                 DatePicker("To", selection: $endDate, in: startDate..., displayedComponents: .date)
+                    .onChange(of: endDate) { _ in visibleDayCount = 30 }
             }
         }
         .foregroundStyle(Color.dmInk)
@@ -146,6 +159,7 @@ struct LedgerView: View {
         typeFilter = "All"
         categoryFilter = "All"
         useDateRange = false
+        visibleDayCount = 30
     }
 
     private func typeLabel(_ value: String) -> String {
