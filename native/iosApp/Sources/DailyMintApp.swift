@@ -487,7 +487,7 @@ struct SettingsView: View {
                 SectionHeading(title: "Shortcut imports", trailing: String(receipts.count))
                 ForEach(receipts) { receipt in
                     Button(receipt.title) {
-                        shortcutReceiptText = "Status: \(receipt.status)\nSender: \(receipt.sender)\n\n\(receipt.preview)"
+                        shortcutReceiptText = "Status: \(receipt.status)\nReceived: \(receipt.timestamp)"
                     }
                     .buttonStyle(SecondaryPillButtonStyle())
                 }
@@ -503,7 +503,7 @@ struct SettingsView: View {
                 SectionHeading(title: "Unrecognized messages", trailing: String(messages.count))
                 ForEach(Array(messages.suffix(10).enumerated()), id: \.element.id) { index, row in
                     Button(unrecognizedTitle(index: index, reason: row.reason)) {
-                        unrecognizedText = row.rawText
+                        unrecognizedText = row.reason.isEmpty ? "This message could not be parsed." : "Reason: \(row.reason)"
                     }
                     .buttonStyle(SecondaryPillButtonStyle())
                 }

@@ -177,7 +177,6 @@ struct TransactionDetailView: View {
     @State private var category = ""
     @State private var creditKind = "other_income"
     @State private var error: String?
-    @State private var showingOriginal = false
     @State private var showingManualEdit = false
     @State private var confirmingIgnore = false
 
@@ -277,10 +276,6 @@ struct TransactionDetailView: View {
                             .buttonStyle(DestructivePillButtonStyle())
                         }
                     }
-                    if !current.rawSms.isEmpty {
-                        Button("View original message") { showingOriginal = true }
-                            .buttonStyle(SecondaryPillButtonStyle())
-                    }
                     if let error {
                         Text(error).foregroundStyle(Color.dmSpend)
                             .accessibilityIdentifier("transactionError")
@@ -298,24 +293,6 @@ struct TransactionDetailView: View {
                 creditKind = current.effectiveCreditKind()
             }
             .sheet(isPresented: $showingManualEdit) { EntryEditSheet(model: model, entry: current, reviewId: nil) }
-            .sheet(isPresented: $showingOriginal) {
-                NavigationStack {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("From: " + (current.sender.isEmpty ? "Unknown" : current.sender))
-                                .font(.subheadline).foregroundStyle(Color.dmInkSoft)
-                            Text(current.rawSms).textSelection(.enabled).foregroundStyle(Color.dmInk)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(20)
-                    }
-                    .background(Color.dmPaper)
-                    .navigationTitle("Original message")
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) { Button("Done") { showingOriginal = false } }
-                    }
-                }
-            }
             .confirmationDialog(current.ignored ? "Restore this transaction?" : "Ignore this transaction in totals?", isPresented: $confirmingIgnore) {
                 Button(current.ignored ? "Restore" : "Ignore", role: current.ignored ? nil : .destructive) {
                     error = model.mutate { $0.setIgnored(id: current.id, ignored: !current.ignored) }
