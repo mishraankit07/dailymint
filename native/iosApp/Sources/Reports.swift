@@ -289,30 +289,47 @@ struct GrowthView: View {
     }
 }
 
+private struct DestinationIsActiveKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    var destinationIsActive: Bool {
+        get { self[DestinationIsActiveKey.self] }
+        set { self[DestinationIsActiveKey.self] = newValue }
+    }
+}
+
 struct SettingsAccess: ViewModifier {
     @ObservedObject var model: LedgerModel
+    @Environment(\.destinationIsActive) private var destinationIsActive
     @State private var visible = false
     func body(content: Content) -> some View {
         content
             .toolbar(.hidden, for: .navigationBar)
             .overlay(alignment: .topTrailing) {
-                Button { visible = true } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color.dmPaperRaised)
-                            .overlay(Circle().stroke(Color.dmHairline, lineWidth: 1))
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(Color.dmFlow)
+                if destinationIsActive {
+                    Button { visible = true } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color.dmPaperRaised)
+                                .overlay(Circle().stroke(Color.dmHairline, lineWidth: 1))
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(Color.dmFlow)
+                        }
+                        .frame(width: 44, height: 44)
                     }
-                    .frame(width: 44, height: 44)
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
+                    .padding(.trailing, 20)
+                    .accessibilityIdentifier("settings")
                 }
-                .buttonStyle(.plain)
-                .padding(.top, 8)
-                .padding(.trailing, 20)
-                .accessibilityIdentifier("settings")
             }
             .sheet(isPresented: $visible) { SettingsView(model: model) }
+            .onChange(of: destinationIsActive) { isActive in
+                if !isActive { visible = false }
+            }
     }
 }
 extension View {

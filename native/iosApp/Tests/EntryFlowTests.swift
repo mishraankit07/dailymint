@@ -102,6 +102,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["smsSetupStatus"].exists)
         app.buttons["continueWithoutSMS"].tap()
         XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons.matching(identifier: "settings").count, 1)
         app.buttons["settings"].tap()
         let setup = app.buttons["openSMSSetup"]
         if !setup.isHittable { app.swipeUp() }

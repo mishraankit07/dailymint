@@ -218,6 +218,7 @@ struct DailyMintApp: App {
 
     private func persistentDestination<Content: View>(_ tab: AppTab, @ViewBuilder content: () -> Content) -> some View {
         content()
+            .environment(\.destinationIsActive, selectedTab == tab)
             .opacity(selectedTab == tab ? 1 : 0)
             .allowsHitTesting(selectedTab == tab)
             .accessibilityHidden(selectedTab != tab)
