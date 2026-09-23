@@ -185,7 +185,7 @@ fun TransactionDetail(
                             label = { Text(CreditKind.label(kind)) },
                             modifier = Modifier.testTag("creditKind-$kind"))
                     }
-                    Text("Reimbursements, refunds, and own-account transfers do not change spending or earned income.",
+                    Text("Settlements and own-account transfers do not change spending or earned income.",
                         color = InkSoft, style = MaterialTheme.typography.bodySmall)
                 }
                 if (entry.source != "manual" && entry.type != "income") {

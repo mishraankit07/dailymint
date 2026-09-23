@@ -48,35 +48,35 @@ final class EntryFlowTests: XCTestCase {
     }
     func testExpenseCategoryCanBeCreatedFromAdd() {
         app.buttons["Add"].tap()
-        app.buttons["entryCategory"].tap()
         let addCategory = app.buttons["addCategoryFromEntry"]
         XCTAssertTrue(addCategory.waitForExistence(timeout: 5))
+        if !addCategory.isHittable { app.swipeUp() }
         addCategory.tap()
         XCTAssertTrue(app.textFields["categoryName"].waitForExistence(timeout: 5))
         app.textFields["categoryName"].typeText("Travel")
         app.buttons["saveCategory"].tap()
         XCTAssertTrue(app.textFields["categoryName"].waitForNonExistence(timeout: 5))
-        app.buttons["entryCategory"].tap()
-        XCTAssertTrue(app.buttons["Travel"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["entryCategoryOption-Travel"].waitForExistence(timeout: 5))
     }
-    func testCategorySelectorsDismissBeforeTheirScreensScroll() {
+    func testAddCategoriesStayInlineAndLedgerFilterIsContextual() {
         app.buttons["Add"].tap()
-        app.buttons["entryCategory"].tap()
         let food = app.buttons["entryCategoryOption-Food"]
         XCTAssertTrue(food.waitForExistence(timeout: 5))
         food.tap()
-        XCTAssertTrue(app.buttons["entryCategory"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.navigationBars["Choose category"].exists)
+        XCTAssertTrue(food.isSelected)
         app.swipeUp()
-        XCTAssertTrue(app.buttons["entryCategory"].label.contains("Food"))
+        XCTAssertTrue(food.exists)
 
         app.buttons["cancelEntry"].tap()
         app.buttons["Ledger"].tap()
+        XCTAssertFalse(app.buttons["ledgerCategoryFilter"].exists)
+        app.buttons["Type"].tap()
+        app.buttons["Expense"].tap()
         app.buttons["ledgerCategoryFilter"].tap()
         let miscellaneous = app.buttons["ledgerCategoryFilterOption-Miscellaneous"]
         XCTAssertTrue(miscellaneous.waitForExistence(timeout: 5))
         miscellaneous.tap()
-        XCTAssertFalse(app.navigationBars["Filter by category"].exists)
+        XCTAssertFalse(app.navigationBars["Filter expenses"].exists)
         app.swipeUp()
         XCTAssertTrue(app.buttons["ledgerCategoryFilter"].label.contains("Miscellaneous"))
     }
@@ -156,7 +156,7 @@ final class EntryFlowTests: XCTestCase {
     }
     func testIncomeEntryUpdatesMoneyInOnly() {
         app.buttons["Add"].tap()
-        app.buttons["Income"].tap()
+        app.buttons["Credit"].tap()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Salary")
         app.textFields["entryAmount"].tap()
@@ -170,15 +170,16 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Spent: Rs 0")
     }
 
-    func testReimbursementIsVisibleButNotEarnedIncome() {
+    func testSettlementIsVisibleButNotEarnedIncome() {
         app.buttons["Add"].tap()
-        app.buttons["Income"].tap()
+        app.buttons["Credit"].tap()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Expense reimbursement")
         app.textFields["entryAmount"].tap()
         app.textFields["entryAmount"].typeText("200")
-        app.buttons["entryCategory"].tap()
-        app.buttons["Reimbursement"].tap()
+        let settlement = app.buttons["entryCategoryOption-Settlement"]
+        if !settlement.isHittable { app.swipeUp() }
+        settlement.tap()
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
@@ -193,8 +194,9 @@ final class EntryFlowTests: XCTestCase {
         app.textFields["entryName"].typeText("Dinner")
         app.textFields["entryAmount"].tap()
         app.textFields["entryAmount"].typeText("800")
-        app.buttons["entryCategory"].tap()
-        app.buttons["Food"].tap()
+        let food = app.buttons["entryCategoryOption-Food"]
+        if !food.isHittable { app.swipeUp() }
+        food.tap()
         XCTAssertFalse(app.switches["manualSplit"].exists)
         XCTAssertFalse(app.textFields["manualSplitPeople"].exists)
         XCTAssertFalse(app.textFields["manualPersonalShare"].exists)

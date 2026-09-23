@@ -7,7 +7,7 @@ class LedgerParityTest {
         Entry(id, id, amount, category, date, type)
     @Test fun salaryCycleClampsAndChangesWithoutChangingRecords() {
         val entries = listOf(entry("before", "2026-08-26", 10, "expense"),
-            entry("pay", "2026-08-27", 10000, "income", "Salary"),
+            entry("pay", "2026-08-27", 10000, "income", "Income"),
             entry("out", "2026-09-13", 1000, "expense"), entry("end", "2026-09-27", 20, "expense"))
         val cycle = LedgerAnalytics.month(entries, "2026-09-13", 27)
         assertEquals("2026-08-27", cycle.start)
@@ -18,7 +18,7 @@ class LedgerParityTest {
         assertEquals("2026-02-28", LedgerAnalytics.month(entries, "2026-03-01", 31).start)
     }
     @Test fun reportIncludesCreditsButTopFiveDoesNotAndPercentsAddUp() {
-        val entries = listOf(entry("pay", "2026-09-01", 10000, "income", "Salary"),
+        val entries = listOf(entry("pay", "2026-09-01", 10000, "income", "Income"),
             entry("food", "2026-09-13", 1000, "expense"), entry("sip", "2026-09-13", 2000, "investment", "Investments"),
             entry("misc", "2026-09-13", 3000, "expense", "Miscellaneous"))
         val summary = LedgerAnalytics.month(entries, "2026-09-13", 1)

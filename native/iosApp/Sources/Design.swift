@@ -245,6 +245,39 @@ struct CategoryChip: View {
     }
 }
 
+struct SelectableCategoryChip: View {
+    let name: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                CategoryDot(name: name, size: 9)
+                Text(name)
+                    .font(.caption.weight(.semibold))
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+                if selected {
+                    Image(systemName: "checkmark")
+                        .font(.caption2.weight(.bold))
+                }
+            }
+            .foregroundStyle(selected ? Color.dmPaperRaised : categoryColor(name))
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+            .background(selected ? categoryColor(name) : Color.dmPaperRaised)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(categoryColor(name), lineWidth: selected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
 struct PaperField: View {
     let placeholder: String
     @Binding var text: String

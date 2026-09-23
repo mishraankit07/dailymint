@@ -89,8 +89,14 @@ object MerchantTagger {
     fun learningKey(value: String): String = normalize(cleanName(value).substringBefore('.'))
     fun category(name: String, income: Boolean, learned: Map<String, String>, available: List<String>): String {
         val normalized = normalize(cleanName(name))
-        // Credits must remain income even if a merchant matches an expense keyword.
-        if (income) return if (listOf("salary", "payroll", "paypay", "employer").any { normalized.contains(it) }) "Salary" else "Received"
+        // Credits must remain credits even if a merchant matches an expense keyword.
+        if (income) {
+            if (listOf("refund", "reimbursement", "repaid", "repayment", "settlement", "reversal")
+                    .any { normalized.contains(it) }) return "Settlement"
+            if (listOf("own account", "own a c", "self transfer")
+                    .any { normalized.contains(it) }) return "Own account transfer"
+            return "Income"
+        }
         val static = ParserData.tags.firstOrNull { (category, words) ->
             category in available && words.any {
                 val key = normalize(it)
@@ -104,4 +110,3 @@ object MerchantTagger {
         }?.value ?: "Miscellaneous"
     }
 }
-

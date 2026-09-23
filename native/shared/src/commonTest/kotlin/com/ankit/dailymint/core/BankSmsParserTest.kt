@@ -21,8 +21,9 @@ class BankSmsParserTest {
     }
     @Test fun taggingPreservesCreditDirection() {
         val categories = Snapshot().categories
-        assertEquals("Received", MerchantTagger.category("Zomato refund", true, emptyMap(), categories))
-        assertEquals("Salary", MerchantTagger.category("Employer payroll", true, emptyMap(), categories))
+        assertEquals("Settlement", MerchantTagger.category("Zomato refund", true, emptyMap(), categories))
+        assertEquals("Income", MerchantTagger.category("Employer payroll", true, emptyMap(), categories))
+        assertEquals("Own account transfer", MerchantTagger.category("Own account transfer", true, emptyMap(), categories))
         assertEquals("Groceries", MerchantTagger.category("cf.zepto12@bank", false, emptyMap(), categories))
         assertEquals("Self", MerchantTagger.category("yesmadam", false, emptyMap(), categories))
         assertEquals("Home", MerchantTagger.category("urban company", false, emptyMap(), categories))
@@ -31,4 +32,3 @@ class BankSmsParserTest {
         assertEquals("merchant", MerchantTagger.learningKey("merchant.123@bank"))
     }
 }
-

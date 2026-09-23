@@ -24,7 +24,7 @@ data class Entry(val id: String, val name: String, val paise: Long, val category
     val personalSpent: Long get() = if (type == "expense") personalExpensePaise ?: paise else 0
     val earnedIncome: Long get() = if (type == "income" && effectiveCreditKind() in CreditKind.earned) paise else 0
     val neutralCredit: Long get() = if (type == "income" && effectiveCreditKind() in CreditKind.neutral) paise else 0
-    fun effectiveCreditKind(): String = creditKind ?: if (category == "Salary") CreditKind.SALARY else CreditKind.OTHER_INCOME
+    fun effectiveCreditKind(): String = CreditKind.migrate(creditKind, category)
 }
 
 object SplitMethod {
@@ -35,28 +35,30 @@ object SplitMethod {
 }
 
 object CreditKind {
-    const val SALARY = "salary"
-    const val OTHER_INCOME = "other_income"
-    const val REIMBURSEMENT = "reimbursement"
-    const val REFUND = "refund"
+    const val INCOME = "income"
     const val OWN_TRANSFER = "own_transfer"
-    val earned = setOf(SALARY, OTHER_INCOME)
-    val neutral = setOf(REIMBURSEMENT, REFUND, OWN_TRANSFER)
+    const val SETTLEMENT = "settlement"
+    val earned = setOf(INCOME)
+    val neutral = setOf(SETTLEMENT, OWN_TRANSFER)
     val all = earned + neutral
     fun label(kind: String): String = when (kind) {
-        SALARY -> "Salary"
-        REIMBURSEMENT -> "Reimbursement"
-        REFUND -> "Refund"
-        OWN_TRANSFER -> "Own-account transfer"
-        else -> "Other income"
+        OWN_TRANSFER -> "Own account transfer"
+        SETTLEMENT -> "Settlement"
+        else -> "Income"
     }
     fun fromLabel(label: String): String = when (label) {
-        "Salary" -> SALARY
-        "Reimbursement" -> REIMBURSEMENT
-        "Refund" -> REFUND
-        "Own-account transfer" -> OWN_TRANSFER
-        else -> OTHER_INCOME
+        "Own account transfer", "Own-account transfer" -> OWN_TRANSFER
+        "Settlement", "Reimbursement", "Refund" -> SETTLEMENT
+        else -> INCOME
     }
+    fun migrate(kind: String?, category: String): String = when (kind) {
+        OWN_TRANSFER -> OWN_TRANSFER
+        SETTLEMENT, "reimbursement", "refund" -> SETTLEMENT
+        INCOME, "salary", "other_income" -> INCOME
+        else -> fromLabel(category)
+    }
+    fun validForSchema(kind: String, schemaVersion: Int): Boolean = kind in all ||
+        (schemaVersion <= 4 && kind in setOf("salary", "other_income", "reimbursement", "refund"))
 }
 
 @Serializable
@@ -67,7 +69,7 @@ data class IncomingSms(val id: String, val body: String, val sender: String, val
 
 @Serializable
 data class Snapshot(
-    val schemaVersion: Int = 4,
+    val schemaVersion: Int = 5,
     val categories: List<String> = listOf("Home", "Groceries", "Food", "Fun", "Gym", "Self", "Investments", "Miscellaneous"),
     val entries: List<Entry> = emptyList(),
     val learnedRules: Map<String, String> = emptyMap(),
@@ -154,7 +156,7 @@ class LedgerEngine(private val store: LedgerStore) {
         try {
             store.load().snapshot?.let {
                 val loaded = Json.decodeFromString<Snapshot>(it)
-                require(loaded.schemaVersion in 1..4)
+                require(loaded.schemaVersion in 1..5)
                 require(loaded.categories.contains("Miscellaneous"))
                 require(loaded.categories.map(String::lowercase).distinct().size == loaded.categories.size)
                 require(loaded.entries.size <= 100_000)
@@ -163,7 +165,7 @@ class LedgerEngine(private val store: LedgerStore) {
                     entry.paise in 1..100_000_000_000L && validDate(entry.date) &&
                         entry.type in listOf("income", "expense", "investment") &&
                         (entry.personalExpensePaise == null || entry.personalExpensePaise in 0..entry.paise) &&
-                        (entry.creditKind == null || entry.creditKind in CreditKind.all) &&
+                        (entry.creditKind == null || CreditKind.validForSchema(entry.creditKind, loaded.schemaVersion)) &&
                         entry.splitMethod in SplitMethod.all &&
                         (entry.splitMethod != SplitMethod.EQUAL ||
                             (entry.type == "expense" && entry.splitPeopleCount != null && entry.splitPeopleCount >= 2)) &&
@@ -171,13 +173,17 @@ class LedgerEngine(private val store: LedgerStore) {
                             (entry.type == "expense" && entry.splitPeopleCount == null)) &&
                         (entry.splitMethod != SplitMethod.NONE || entry.splitPeopleCount == null)
                 })
-                if (loaded.schemaVersion == 4) require(loaded.entries.none { entry -> entry.ignored })
-                snapshot = loaded.copy(schemaVersion = 4, entries = loaded.entries
+                if (loaded.schemaVersion >= 4) require(loaded.entries.none { entry -> entry.ignored })
+                snapshot = loaded.copy(schemaVersion = 5, entries = loaded.entries
                     .filterNot { entry -> loaded.schemaVersion <= 3 && entry.ignored }
                     .map { entry ->
+                    val migratedCreditKind = if (entry.type == "income") {
+                        CreditKind.migrate(entry.creditKind, entry.category)
+                    } else null
                     val migrated = entry.copy(
                         ignored = false,
-                        creditKind = if (loaded.schemaVersion == 1 && entry.type == "income") entry.effectiveCreditKind() else entry.creditKind,
+                        category = if (migratedCreditKind != null) CreditKind.label(migratedCreditKind) else entry.category,
+                        creditKind = migratedCreditKind,
                         originalName = if (entry.source != "manual" && entry.originalName.isBlank()) entry.name else entry.originalName,
                         originalCategory = if (entry.source != "manual" && entry.originalCategory.isBlank()) entry.category else entry.originalCategory
                     )
@@ -272,7 +278,9 @@ class LedgerEngine(private val store: LedgerStore) {
         val old = snapshot.entries.first { it.id == id }
         val error = validateEntry(name, amount, category, date, old.type == "income")
         if (error != null) return SaveResult(false, error)
-        val updated = old.copy(name = name.trim(), paise = Money.parse(amount)!!, category = category, date = date, type = entryType(old.type == "income", category))
+        val updated = old.copy(name = name.trim(), paise = Money.parse(amount)!!, category = category, date = date,
+            type = entryType(old.type == "income", category),
+            creditKind = if (old.type == "income") CreditKind.fromLabel(category) else null)
         return commit(snapshot.copy(entries = snapshot.entries.map { if (it.id == id) updated else it }, learnedRules = learn(name, category)))
     }
     fun deleteEntry(id: String, platform: String, nowMillis: Long): SaveResult {
@@ -367,7 +375,7 @@ class LedgerEngine(private val store: LedgerStore) {
         if (Money.parse(amount) == null) return "Enter a positive amount with up to two decimal places."
         if (name.trim().isEmpty() || name.trim().length > 120) return "Enter a name between 1 and 120 characters."
         if (!validDate(date)) return "Choose a valid transaction date."
-        if (category !in (if (income) CreditKind.all.map(CreditKind::label) + "Received" else snapshot.categories)) return "Choose a valid category."
+        if (category !in (if (income) CreditKind.all.map(CreditKind::label) else snapshot.categories)) return "Choose a valid category."
         return null
     }
     fun formatAmount(paise: Long): String = Money.display(paise)
@@ -380,7 +388,7 @@ class LedgerEngine(private val store: LedgerStore) {
     fun addCategory(rawName: String): SaveResult {
         val name = rawName.trim().replace(Regex("\\s+"), " ")
         if (name.isBlank() || name.length > 40) return SaveResult(false, "Enter a category name between 1 and 40 characters.")
-        if ((snapshot.categories + CreditKind.all.map(CreditKind::label) + "Received").any { it.equals(name, true) })
+        if ((snapshot.categories + CreditKind.all.map(CreditKind::label) + listOf("Salary", "Other income", "Reimbursement", "Refund", "Received")).any { it.equals(name, true) })
             return SaveResult(false, "This category already exists.")
         return commit(snapshot.copy(categories = snapshot.categories + name))
     }
@@ -393,7 +401,7 @@ class LedgerEngine(private val store: LedgerStore) {
         if (id.isBlank() || snapshot.entries.any { it.id == id }) return SaveResult(false, "This record already exists.")
         if (name.trim().isEmpty() || name.trim().length > 120) return SaveResult(false, "Enter a name between 1 and 120 characters.")
         if (!validDate(date)) return SaveResult(false, "Choose a valid transaction date.")
-        val allowed = if (income) CreditKind.all.map(CreditKind::label) + "Received" else snapshot.categories
+        val allowed = if (income) CreditKind.all.map(CreditKind::label) else snapshot.categories
         if (category !in allowed) return SaveResult(false, "Choose a valid category.")
         if (snapshot.entries.size >= 100_000) return SaveResult(false, "Ledger capacity reached.")
         val type = if (income) "income" else if (category == "Investments") "investment" else "expense"

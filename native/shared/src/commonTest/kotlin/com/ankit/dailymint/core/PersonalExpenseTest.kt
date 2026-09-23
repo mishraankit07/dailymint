@@ -49,7 +49,7 @@ class PersonalExpenseTest {
     @Test fun ledgerDaysUseCurrentCycleAndKeepGrossAmounts() {
         val engine = LedgerEngine(MemoryStore())
         val expense = imported("expense", 30000)
-        val olderCredit = imported("credit", 20000, type = "income", category = "Received", date = "2026-08-20")
+        val olderCredit = imported("credit", 20000, type = "income", category = "Income", date = "2026-08-20")
         assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(expense, olderCredit))).success)
         assertTrue(engine.setPersonalExpense("expense", "100").success)
         val days = engine.ledgerDays("2026-09-15")
@@ -62,20 +62,16 @@ class PersonalExpenseTest {
         val engine = LedgerEngine(MemoryStore())
         assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(
             imported("expense", 30000),
-            imported("credit", 20000, "income", "Received", "2026-09-12")
+            imported("credit", 20000, "income", "Income", "2026-09-12")
         ))).success)
-        assertTrue(engine.classifyCredit("credit", CreditKind.REIMBURSEMENT).success)
+        assertTrue(engine.classifyCredit("credit", CreditKind.SETTLEMENT).success)
         assertEquals(0, engine.totals().moneyIn)
         assertEquals(20000, engine.totals().neutralCredits)
         assertEquals(30000, engine.totals().spent)
         assertEquals(20000, engine.monthSummary("2026-09-15").days.sumOf { it.moneyIn })
-        assertTrue(engine.classifyCredit("credit", CreditKind.REFUND).success)
-        assertEquals(0, engine.totals().moneyIn)
         assertTrue(engine.classifyCredit("credit", CreditKind.OWN_TRANSFER).success)
         assertEquals(0, engine.totals().moneyIn)
-        assertTrue(engine.classifyCredit("credit", CreditKind.OTHER_INCOME).success)
-        assertEquals(20000, engine.totals().moneyIn)
-        assertTrue(engine.classifyCredit("credit", CreditKind.SALARY).success)
+        assertTrue(engine.classifyCredit("credit", CreditKind.INCOME).success)
         assertEquals(20000, engine.totals().moneyIn)
     }
 
@@ -86,13 +82,14 @@ class PersonalExpenseTest {
         val store = MemoryStore().apply { value = Json.encodeToString(old) }
         val engine = LedgerEngine(store)
         assertNull(engine.loadError)
-        assertEquals(4, engine.snapshot.schemaVersion)
+        assertEquals(5, engine.snapshot.schemaVersion)
         assertEquals(20000, engine.totals().moneyIn)
-        assertEquals(CreditKind.OTHER_INCOME, engine.entries().last().effectiveCreditKind())
+        assertEquals(CreditKind.INCOME, engine.entries().last().effectiveCreditKind())
+        assertEquals("Income", engine.entries().last().category)
         assertEquals(1234, engine.smsWatermark())
         assertEquals("Bank SMS", engine.entries().first().rawSms)
         assertTrue(engine.addCategory("Travel").success)
-        assertEquals(4, Json.decodeFromString<Snapshot>(store.value!!).schemaVersion)
+        assertEquals(5, Json.decodeFromString<Snapshot>(store.value!!).schemaVersion)
     }
 
     @Test fun correctionAndDeletionPreserveIdentityContract() {
@@ -194,6 +191,26 @@ class PersonalExpenseTest {
         assertEquals(10000, entry.personalSpent)
     }
 
+    @Test fun schemaFourCreditsMigrateToSimplifiedKindsWithoutChangingIdentityOrAmount() {
+        val old = Snapshot(schemaVersion = 4, entries = listOf(
+            imported("salary", 10000, "income", "Salary").copy(creditKind = "salary"),
+            imported("other", 20000, "income", "Other income").copy(creditKind = "other_income"),
+            imported("refund", 30000, "income", "Refund").copy(creditKind = "refund"),
+            imported("reimbursement", 40000, "income", "Reimbursement").copy(creditKind = "reimbursement"),
+            imported("transfer", 50000, "income", "Own-account transfer").copy(creditKind = "own_transfer")
+        ))
+        val engine = LedgerEngine(MemoryStore().apply { value = Json.encodeToString(old) })
+
+        assertNull(engine.loadError)
+        assertEquals(5, engine.snapshot.schemaVersion)
+        assertEquals(listOf("salary", "other", "refund", "reimbursement", "transfer"), engine.entries().map { it.id })
+        assertEquals(listOf(10000L, 20000L, 30000L, 40000L, 50000L), engine.entries().map { it.paise })
+        assertEquals(listOf("Income", "Income", "Settlement", "Settlement", "Own account transfer"),
+            engine.entries().map { it.category })
+        assertEquals(30000, engine.totals().moneyIn)
+        assertEquals(120000, engine.totals().neutralCredits)
+    }
+
     @Test fun manualExpenseCountsEnteredAmountWithoutSplitMetadata() {
         val store = MemoryStore()
         val engine = LedgerEngine(store)
@@ -217,7 +234,7 @@ class PersonalExpenseTest {
         val store = MemoryStore().apply { value = Json.encodeToString(old) }
         val engine = LedgerEngine(store)
         assertNull(engine.loadError)
-        assertEquals(4, engine.snapshot.schemaVersion)
+        assertEquals(5, engine.snapshot.schemaVersion)
         assertEquals(listOf("kept"), engine.entries().map { it.id })
         assertEquals(10000, engine.totals().spent)
     }
@@ -236,7 +253,7 @@ class PersonalExpenseTest {
     @Test fun homeBreakdownAndAllocationIncludeInvestments() {
         val engine = LedgerEngine(MemoryStore())
         assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(
-            imported("salary", 100000, "income", "Salary").copy(creditKind = CreditKind.SALARY),
+            imported("salary", 100000, "income", "Income").copy(creditKind = CreditKind.INCOME),
             imported("food", 30000),
             imported("fund", 20000, "investment", "Investments")
         ))).success)
@@ -257,7 +274,7 @@ class PersonalExpenseTest {
 
         val overIncome = LedgerEngine(MemoryStore())
         assertTrue(overIncome.commit(overIncome.snapshot.copy(entries = listOf(
-            imported("salary", 10000, "income", "Salary").copy(creditKind = CreditKind.SALARY),
+            imported("salary", 10000, "income", "Income").copy(creditKind = CreditKind.INCOME),
             imported("food", 15000)
         ))).success)
         val overSummary = overIncome.monthSummary("2026-09-15")
@@ -270,7 +287,7 @@ class PersonalExpenseTest {
         val store = MemoryStore()
         val engine = LedgerEngine(store)
         assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(
-            imported("salary", 100000, "income", "Salary").copy(creditKind = CreditKind.SALARY),
+            imported("salary", 100000, "income", "Income").copy(creditKind = CreditKind.INCOME),
             imported("food", 30000),
             imported("fund", 20000, "investment", "Investments")
         ))).success)

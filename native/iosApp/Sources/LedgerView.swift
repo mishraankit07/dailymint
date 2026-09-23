@@ -25,9 +25,7 @@ struct LedgerView: View {
         return model.engine.ledgerDays().compactMap { day in
             let entries = day.entries.filter { entry in
                 (query.isEmpty || entry.name.localizedCaseInsensitiveContains(query)) &&
-                (typeFilter == "All" || entry.type == typeFilter || (typeFilter == "neutral" && entry.neutralCredit > 0)) &&
-                (categoryFilter == "All" || entry.category == categoryFilter ||
-                    (categoryFilter == "Other income" && entry.category == "Received"))
+                matchesType(entry) && matchesClassification(entry)
             }
             return entries.isEmpty ? nil : LedgerDateGroup(date: day.date, entries: entries,
                                                             grossIn: day.moneyIn, grossOut: day.moneyOut)
@@ -103,8 +101,10 @@ struct LedgerView: View {
             .sheet(item: $detail) { TransactionDetailView(model: model, entry: $0) }
             .sheet(isPresented: $showingCategoryFilter) {
                 CategorySelectionSheet(
-                    title: "Filter by category",
-                    options: ["All"] + model.engine.categories() + ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"],
+                    title: typeFilter == "income" ? "Filter credits" : "Filter expenses",
+                    options: typeFilter == "income"
+                        ? ["All", "Income", "Own account transfer", "Settlement"]
+                        : ["All"] + model.engine.categories(),
                     selection: $categoryFilter,
                     optionIdentifierPrefix: "ledgerCategoryFilterOption"
                 )
@@ -116,18 +116,23 @@ struct LedgerView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Menu {
-                    ForEach(["All", "expense", "investment", "income", "neutral"], id: \.self) { value in
-                        Button(typeLabel(value)) { typeFilter = value }
+                    ForEach(["All", "expense", "income"], id: \.self) { value in
+                        Button(typeLabel(value)) {
+                            typeFilter = value
+                            categoryFilter = "All"
+                        }
                     }
                 } label: {
                     Label(typeLabel(typeFilter), systemImage: "line.3.horizontal.decrease")
                         .frame(minHeight: 44)
                 }
-                Button { showingCategoryFilter = true } label: {
-                    Label(categoryFilter == "All" ? "Category" : categoryFilter, systemImage: "tag")
-                        .frame(minHeight: 44)
+                if typeFilter != "All" {
+                    Button { showingCategoryFilter = true } label: {
+                        Label(classificationFilterLabel, systemImage: "tag")
+                            .frame(minHeight: 44)
+                    }
+                    .accessibilityIdentifier("ledgerCategoryFilter")
                 }
-                .accessibilityIdentifier("ledgerCategoryFilter")
             }
             .buttonStyle(SecondaryPillButtonStyle())
         }
@@ -143,10 +148,37 @@ struct LedgerView: View {
     private func typeLabel(_ value: String) -> String {
         switch value {
         case "expense": return "Expense"
-        case "investment": return "Investment"
         case "income": return "Credit"
-        case "neutral": return "Neutral credit"
         default: return "Type"
+        }
+    }
+
+    private var classificationFilterLabel: String {
+        if categoryFilter != "All" { return categoryFilter }
+        return typeFilter == "income" ? "All credits" : "All categories"
+    }
+
+    private func matchesType(_ entry: Entry) -> Bool {
+        switch typeFilter {
+        case "expense": return entry.type != "income"
+        case "income": return entry.type == "income"
+        default: return true
+        }
+    }
+
+    private func matchesClassification(_ entry: Entry) -> Bool {
+        guard categoryFilter != "All" else { return true }
+        if entry.type == "income" {
+            return ledgerCreditLabel(entry.effectiveCreditKind()) == categoryFilter
+        }
+        return entry.category == categoryFilter
+    }
+
+    private func ledgerCreditLabel(_ kind: String) -> String {
+        switch kind {
+        case "own_transfer": return "Own account transfer"
+        case "settlement": return "Settlement"
+        default: return "Income"
         }
     }
 
@@ -158,7 +190,7 @@ struct TransactionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var category = ""
-    @State private var creditKind = "other_income"
+    @State private var creditKind = "income"
     @State private var splitEnabled = false
     @State private var splitMethod = "equal"
     @State private var people = "2"
@@ -259,7 +291,7 @@ struct TransactionDetailView: View {
             .sheet(isPresented: $showingCreditKindPicker) {
                 CategorySelectionSheet(
                     title: "Choose credit kind",
-                    options: ["salary", "other_income", "reimbursement", "refund", "own_transfer"],
+                    options: ["income", "own_transfer", "settlement"],
                     selection: $creditKind,
                     optionIdentifierPrefix: "transactionCreditKindOption",
                     optionLabel: creditLabel
@@ -419,11 +451,9 @@ struct TransactionDetailView: View {
 
     private func creditLabel(_ kind: String) -> String {
         switch kind {
-        case "salary": return "Salary"
-        case "reimbursement": return "Reimbursement"
-        case "refund": return "Refund"
-        case "own_transfer": return "Own-account transfer"
-        default: return "Other income"
+        case "own_transfer": return "Own account transfer"
+        case "settlement": return "Settlement"
+        default: return "Income"
         }
     }
 

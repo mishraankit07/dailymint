@@ -201,7 +201,7 @@ struct TransactionLine: View {
             IconBubble(category: entry.category)
             VStack(alignment: .leading) {
                 Text(entry.name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.dmInk).lineLimit(1)
-                Text((entry.category == "Received" ? "Other income" : entry.category) + " · " + model.engine.transactionDay(date: entry.date))
+                Text(entry.category + " · " + model.engine.transactionDay(date: entry.date))
                     .font(.caption).foregroundStyle(Color.dmInkFaint)
             }
             Spacer()
@@ -447,7 +447,7 @@ struct EntryEditSheet: View {
                     CategorySelectionSheet(
                         title: entry.type == "income" ? "Choose credit kind" : "Choose category",
                         options: entry.type == "income"
-                            ? ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer", "Received"]
+                            ? ["Income", "Own account transfer", "Settlement"]
                             : model.engine.categories(),
                         selection: $category,
                         optionIdentifierPrefix: "editEntryCategoryOption"

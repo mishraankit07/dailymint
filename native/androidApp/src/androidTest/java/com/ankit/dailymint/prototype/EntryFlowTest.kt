@@ -149,17 +149,17 @@ class EntryFlowTest {
         assertEquals(10000L, engine.totals().spent)
         compose.onNodeWithTag("personalAmount").assertTextContains("Rs 100", substring = true)
     }
-    @Test fun reimbursementCreditStaysInLedgerButNotMoneyIn() {
-        assertTrue(engine.addEntry("credit-1", "Roommate paid back", "200", "Other income", "2026-09-14", true).success)
+    @Test fun settlementCreditStaysInLedgerButNotMoneyIn() {
+        assertTrue(engine.addEntry("credit-1", "Roommate paid back", "200", "Income", "2026-09-14", true).success)
         launch()
         compose.onNodeWithTag("moneyIn").assertTextContains("Rs 200", substring = true)
         compose.onNodeWithTag("navLedger").performClick()
         compose.onNodeWithTag("ledgerRow-credit-1").performScrollTo().performClick()
-        compose.onNodeWithTag("creditKind-${CreditKind.REIMBURSEMENT}").performScrollTo().performClick()
+        compose.onNodeWithTag("creditKind-${CreditKind.SETTLEMENT}").performScrollTo().performClick()
         assertEquals(0L, engine.totals().moneyIn)
         assertEquals(20000L, engine.totals().neutralCredits)
         compose.onNodeWithTag("personalAmount").assertDoesNotExist()
-        compose.onNodeWithText("Reimbursement").assertExists()
+        compose.onNodeWithText("Settlement").assertExists()
         compose.onNodeWithText("Close").performClick()
         compose.onNodeWithTag("navHome").performClick()
         compose.onNodeWithTag("moneyIn").assertDoesNotExist()

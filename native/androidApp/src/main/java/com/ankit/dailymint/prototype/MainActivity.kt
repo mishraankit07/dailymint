@@ -279,13 +279,13 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                                 listOf("Expense", "Income").forEachIndexed { index, label ->
                                     SegmentedButton(selected = income == (index == 1),
-                                        onClick = { income = index == 1; category = if (income) "Other income" else "Miscellaneous" },
+                                        onClick = { income = index == 1; category = if (income) "Income" else "Miscellaneous" },
                                         shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(label) }
                                 }
                             }
                             Spacer(Modifier.height(12.dp))
                             OutlinedTextField(name, { name = it; category = engine.suggestCategory(it, income).let { suggestion ->
-                                if (suggestion == "Received") "Other income" else suggestion
+                                suggestion
                             } }, label = { Text("Name") }, singleLine = true,
                                 modifier = Modifier.fillMaxWidth().testTag("entryName"))
                             OutlinedTextField(amount, { amount = it }, label = { Text("Amount") }, singleLine = true,
@@ -309,7 +309,7 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                                 val result = engine.addEntry(UUID.randomUUID().toString(), name, amount, category, date, income)
                                 entryError = result.message
                                 if (result.success) {
-                                    revision++; name = ""; amount = ""; category = if (income) "Other income" else "Miscellaneous"
+                                    revision++; name = ""; amount = ""; category = if (income) "Income" else "Miscellaneous"
                                     tab = addReturnTab
                                 }
                             }, enabled = engine.loadError == null, modifier = Modifier.fillMaxWidth().testTag("saveEntry")) { Text("Save") }
