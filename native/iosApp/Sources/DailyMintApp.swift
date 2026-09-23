@@ -337,7 +337,9 @@ struct ManualView: View {
 }
 
 struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var model: LedgerModel
+    @AppStorage("smsOnboardingSeenV1") private var onboardingSeen = true
     @State private var showCategory = false
     @State private var deletion: String?
     @State private var error: String?
@@ -356,6 +358,7 @@ struct SettingsView: View {
                     Text(error).font(.caption).foregroundStyle(Color.dmSpend)
                 }
                 categoriesSection
+                shortcutSetupSection
                 unrecognizedSection
             }
             .navigationTitle("")
@@ -466,6 +469,23 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+    }
+
+    private var shortcutSetupSection: some View {
+        RaisedPanel {
+            SectionHeading(title: "Automatic SMS capture")
+            Text("Set up or review the Message automation in Shortcuts.")
+                .font(.subheadline)
+                .foregroundStyle(Color.dmInkSoft)
+            Button {
+                onboardingSeen = false
+                dismiss()
+            } label: {
+                Label("Open setup guide", systemImage: "arrow.right")
+            }
+            .buttonStyle(SecondaryPillButtonStyle())
+            .accessibilityIdentifier("openSMSSetup")
         }
     }
 

@@ -94,7 +94,7 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.staticTexts["Good evening"].waitForExistence(timeout: 5))
     }
-    func testSMSSetupCanBeDeferred() {
+    func testSMSSetupCanBeDeferredAndReopened() {
         app.terminate()
         app.launchArguments = ["--ui-testing", "--show-onboarding", "--reset-onboarding"]
         app.launch()
@@ -103,6 +103,11 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["continueWithoutSMS"].tap()
         XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.buttons.matching(identifier: "settings").count, 1)
+        app.buttons["settings"].tap()
+        let setupGuide = app.buttons["openSMSSetup"]
+        if !setupGuide.isHittable { app.swipeUp() }
+        setupGuide.tap()
+        XCTAssertTrue(app.buttons["openShortcuts"].waitForExistence(timeout: 5))
     }
     func testDecimalExpenseUpdatesLedger() {
         app.buttons["Add"].tap()
