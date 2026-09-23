@@ -46,20 +46,16 @@ class PersonalExpenseTest {
         assertTrue(engine.monthSummary("2026-09-15").topFive.isEmpty())
     }
 
-    @Test fun ledgerDaysKeepGrossTotalsAcrossMonthsAndExcludeIgnoredFromTotals() {
+    @Test fun ledgerDaysUseCurrentCycleAndKeepGrossAmounts() {
         val engine = LedgerEngine(MemoryStore())
         val expense = imported("expense", 30000)
         val olderCredit = imported("credit", 20000, type = "income", category = "Received", date = "2026-08-20")
         assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(expense, olderCredit))).success)
         assertTrue(engine.setPersonalExpense("expense", "100").success)
-        val days = engine.ledgerDays()
-        assertEquals(listOf("2026-09-10", "2026-08-20"), days.map { it.date })
+        val days = engine.ledgerDays("2026-09-15")
+        assertEquals(listOf("2026-09-10"), days.map { it.date })
         assertEquals(30000, days.first().moneyOut)
         assertEquals(10000, days.first().entries.single().personalSpent)
-        assertEquals(20000, days.last().moneyIn)
-        assertTrue(engine.setIgnored("expense", true).success)
-        assertEquals(0, engine.ledgerDays().first().moneyOut)
-        assertEquals(1, engine.ledgerDays().first().entries.size)
     }
 
     @Test fun neutralCreditsRemainGrossHistoryWithoutEarnedIncome() {
@@ -90,16 +86,16 @@ class PersonalExpenseTest {
         val store = MemoryStore().apply { value = Json.encodeToString(old) }
         val engine = LedgerEngine(store)
         assertNull(engine.loadError)
-        assertEquals(3, engine.snapshot.schemaVersion)
+        assertEquals(4, engine.snapshot.schemaVersion)
         assertEquals(20000, engine.totals().moneyIn)
         assertEquals(CreditKind.OTHER_INCOME, engine.entries().last().effectiveCreditKind())
         assertEquals(1234, engine.smsWatermark())
         assertEquals("Bank SMS", engine.entries().first().rawSms)
         assertTrue(engine.addCategory("Travel").success)
-        assertEquals(3, Json.decodeFromString<Snapshot>(store.value!!).schemaVersion)
+        assertEquals(4, Json.decodeFromString<Snapshot>(store.value!!).schemaVersion)
     }
 
-    @Test fun correctionAndIgnorePreserveGrossAndDedupIdentity() {
+    @Test fun correctionAndDeletionPreserveIdentityContract() {
         val engine = LedgerEngine(MemoryStore())
         assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(imported("bank-1", 30000)))).success)
         assertTrue(engine.correctImported("bank-1", "Corrected", "Groceries").success)
@@ -111,13 +107,12 @@ class PersonalExpenseTest {
         assertEquals("Original merchant", corrected.originalName)
         assertEquals("Food", corrected.originalCategory)
         assertFalse(engine.canEdit("bank-1", "android", 1))
-        assertTrue(engine.setIgnored("bank-1", true).success)
-        assertEquals(0, engine.totals().spent)
-        assertTrue(engine.setIgnored("bank-1", false).success)
-        assertEquals(10000, engine.totals().spent)
         assertTrue(engine.deleteCategory("Groceries").success)
         assertEquals("Miscellaneous", engine.entries().single().category)
         assertEquals(10000, engine.totals().spent)
+        assertTrue(engine.deleteEntry("bank-1").success)
+        assertTrue(engine.entries().isEmpty())
+        assertEquals(0, engine.totals().spent)
     }
 
     @Test fun trackingCycleAndCalendarTrendUseDifferentWindows() {
@@ -199,23 +194,95 @@ class PersonalExpenseTest {
         assertEquals(10000, entry.personalSpent)
     }
 
-    @Test fun manualExpenseSplitUsesSameSharedRules() {
+    @Test fun manualExpenseCountsEnteredAmountWithoutSplitMetadata() {
         val store = MemoryStore()
         val engine = LedgerEngine(store)
-        assertTrue(engine.addEntryWithSplit(
-            "manual", "Dinner", "800", "Food", "2026-09-15", false, SplitMethod.EQUAL, 3, ""
-        ).success)
-        var entry = engine.entries().single()
-        assertEquals(80000, entry.paise)
-        assertEquals(26700, entry.personalSpent)
-        assertEquals(26700, engine.totals().spent)
-
+        assertTrue(engine.addEntry("manual", "My share", "1000", "Food", "2026-09-15", false).success)
+        val entry = LedgerEngine(store).entries().single()
+        assertEquals(100000, entry.paise)
+        assertEquals(100000, entry.personalSpent)
+        assertNull(entry.personalExpensePaise)
+        assertEquals(SplitMethod.NONE, entry.splitMethod)
+        assertNull(entry.splitPeopleCount)
         assertFalse(engine.addEntryWithSplit(
-            "bad", "Dinner", "300", "Food", "2026-09-15", false, SplitMethod.CUSTOM, 0, "301"
+            "split-manual", "Full bill", "2400", "Food", "2026-09-15", false,
+            SplitMethod.CUSTOM, 0, "1000"
         ).success)
-        assertEquals(1, engine.entries().size)
-        entry = LedgerEngine(store).entries().single()
-        assertEquals(SplitMethod.EQUAL, entry.splitMethod)
-        assertEquals(3, entry.splitPeopleCount)
+    }
+
+    @Test fun schemaThreeDropsPreviouslyIgnoredEntriesWithoutChangingKeptIds() {
+        val old = Snapshot(schemaVersion = 3, entries = listOf(
+            imported("kept", 10000), imported("ignored", 20000).copy(ignored = true)
+        ))
+        val store = MemoryStore().apply { value = Json.encodeToString(old) }
+        val engine = LedgerEngine(store)
+        assertNull(engine.loadError)
+        assertEquals(4, engine.snapshot.schemaVersion)
+        assertEquals(listOf("kept"), engine.entries().map { it.id })
+        assertEquals(10000, engine.totals().spent)
+    }
+
+    @Test fun deletionFailurePublishesNoStateOrAnalyticsChange() {
+        val store = MemoryStore()
+        val engine = LedgerEngine(store)
+        assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(imported("bank-1", 30000)))).success)
+        val before = engine.monthSummary("2026-09-15")
+        store.fail = true
+        assertFalse(engine.deleteEntry("bank-1").success)
+        assertEquals(listOf("bank-1"), engine.entries().map { it.id })
+        assertEquals(before.spent, engine.monthSummary("2026-09-15").spent)
+    }
+
+    @Test fun homeBreakdownAndAllocationIncludeInvestments() {
+        val engine = LedgerEngine(MemoryStore())
+        assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(
+            imported("salary", 100000, "income", "Salary").copy(creditKind = CreditKind.SALARY),
+            imported("food", 30000),
+            imported("fund", 20000, "investment", "Investments")
+        ))).success)
+        val summary = engine.monthSummary("2026-09-15")
+        assertEquals(100000, summary.moneyIn)
+        assertEquals(30000, summary.spent)
+        assertEquals(20000, summary.invested)
+        assertEquals(20, summary.allocationInvestedPercent)
+        assertEquals(30, summary.allocationSpentPercent)
+        assertEquals(50, summary.allocationLeftPercent)
+        assertEquals(listOf("Food", "Investments"), summary.categories.map { it.name }.sorted())
+        assertEquals(60.0, summary.categories.first { it.name == "Food" }.percent)
+        assertEquals(40.0, summary.categories.first { it.name == "Investments" }.percent)
+
+        val noIncome = LedgerEngine(MemoryStore())
+        assertTrue(noIncome.commit(noIncome.snapshot.copy(entries = listOf(imported("food", 30000)))).success)
+        assertEquals(-1, noIncome.monthSummary("2026-09-15").allocationSpentPercent)
+
+        val overIncome = LedgerEngine(MemoryStore())
+        assertTrue(overIncome.commit(overIncome.snapshot.copy(entries = listOf(
+            imported("salary", 10000, "income", "Salary").copy(creditKind = CreditKind.SALARY),
+            imported("food", 15000)
+        ))).success)
+        val overSummary = overIncome.monthSummary("2026-09-15")
+        assertTrue(overSummary.allocationExceedsIncome)
+        assertEquals(150, overSummary.allocationSpentPercent)
+        assertEquals(0, overSummary.allocationLeftPercent)
+    }
+
+    @Test fun deletingOneRecordRemovesItFromEveryCalculationAndSurvivesReload() {
+        val store = MemoryStore()
+        val engine = LedgerEngine(store)
+        assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(
+            imported("salary", 100000, "income", "Salary").copy(creditKind = CreditKind.SALARY),
+            imported("food", 30000),
+            imported("fund", 20000, "investment", "Investments")
+        ))).success)
+
+        assertTrue(engine.deleteEntry("food").success)
+        assertEquals(0, engine.totals().spent)
+        assertEquals(100000, engine.totals().moneyIn)
+        assertEquals(20000, engine.totals().invested)
+        assertTrue(engine.monthSummary("2026-09-15").topFive.isEmpty())
+        assertFalse(engine.monthSummary("2026-09-15").categories.any { it.name == "Food" })
+        assertEquals(0, engine.trendBuckets("2026-09-15", false, 3).last().spent)
+        assertFalse(engine.ledgerDays("2026-09-15").flatMap { it.entries }.any { it.id == "food" })
+        assertEquals(listOf("salary", "fund"), LedgerEngine(store).entries().map { it.id })
     }
 }

@@ -94,7 +94,7 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.staticTexts["Good evening"].waitForExistence(timeout: 5))
     }
-    func testSMSSetupCanBeDeferredAndReopened() {
+    func testSMSSetupCanBeDeferred() {
         app.terminate()
         app.launchArguments = ["--ui-testing", "--show-onboarding", "--reset-onboarding"]
         app.launch()
@@ -103,11 +103,6 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["continueWithoutSMS"].tap()
         XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.buttons.matching(identifier: "settings").count, 1)
-        app.buttons["settings"].tap()
-        let setup = app.buttons["openSMSSetup"]
-        if !setup.isHittable { app.swipeUp() }
-        setup.tap()
-        XCTAssertTrue(app.buttons["openShortcuts"].waitForExistence(timeout: 5))
     }
     func testDecimalExpenseUpdatesLedger() {
         app.buttons["Add"].tap()
@@ -126,12 +121,12 @@ final class EntryFlowTests: XCTestCase {
         waitForExpectations(timeout: 5)
         let spent = app.descendants(matching: .any)["spent"]
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        XCTAssertEqual(spent.label, "Rs 62.88")
+        XCTAssertEqual(spent.label, "Spent: Rs 62.88")
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        XCTAssertEqual(spent.label, "Rs 62.88")
+        XCTAssertEqual(spent.label, "Spent: Rs 62.88")
     }
     func testIncomeEntryUpdatesMoneyInOnly() {
         app.buttons["Add"].tap()
@@ -145,8 +140,8 @@ final class EntryFlowTests: XCTestCase {
         save.tap()
         XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["moneyIn"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Income: Rs 1234")
-        XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Rs 0")
+        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Money in: Rs 1,234")
+        XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Spent: Rs 0")
     }
 
     func testReimbursementIsVisibleButNotEarnedIncome() {
@@ -161,12 +156,12 @@ final class EntryFlowTests: XCTestCase {
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
-        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Income: Rs 0")
+        XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Money in: Rs 0")
         app.buttons["Ledger"].tap()
         XCTAssertTrue(app.staticTexts["Expense reimbursement"].waitForExistence(timeout: 5))
     }
 
-    func testManualEqualSplitUsesPersonalShareInHome() {
+    func testManualExpenseUsesEnteredPersonalAmountWithoutSplitControls() {
         app.buttons["Add"].tap()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Dinner")
@@ -174,18 +169,15 @@ final class EntryFlowTests: XCTestCase {
         app.textFields["entryAmount"].typeText("800")
         app.buttons["entryCategory"].tap()
         app.buttons["Food"].tap()
-        let split = app.switches["manualSplit"]
-        if !split.isHittable { app.swipeUp() }
-        split.tap()
-        let people = app.textFields["manualSplitPeople"]
-        people.tap()
-        people.typeText(XCUIKeyboardKey.delete.rawValue + "3")
+        XCTAssertFalse(app.switches["manualSplit"].exists)
+        XCTAssertFalse(app.textFields["manualSplitPeople"].exists)
+        XCTAssertFalse(app.textFields["manualPersonalShare"].exists)
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
         let spent = app.descendants(matching: .any)["spent"]
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        XCTAssertEqual(spent.label, "Rs 267")
+        XCTAssertEqual(spent.label, "Spent: Rs 800")
     }
 
     func testLedgerSearchSurvivesTabRoundTrip() {
@@ -205,7 +197,7 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         let spent = app.descendants(matching: .any)["spent"]
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        let updated = NSPredicate(format: "label == %@", "Rs 5")
+        let updated = NSPredicate(format: "label == %@", "Spent: Rs 5")
         expectation(for: updated, evaluatedWith: spent)
         waitForExpectations(timeout: 10)
     }
@@ -216,7 +208,7 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         let spent = app.descendants(matching: .any)["spent"]
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        expectation(for: NSPredicate(format: "label == %@", "Rs 5"), evaluatedWith: spent)
+        expectation(for: NSPredicate(format: "label == %@", "Spent: Rs 5"), evaluatedWith: spent)
         waitForExpectations(timeout: 10)
 
         app.buttons["Ledger"].tap()
@@ -245,13 +237,40 @@ final class EntryFlowTests: XCTestCase {
         save.tap()
         XCTAssertFalse(app.staticTexts["transactionError"].exists)
         app.buttons["Home"].tap()
-        XCTAssertEqual(spent.label, "Rs 2")
+        XCTAssertEqual(spent.label, "Spent: Rs 2")
 
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        XCTAssertEqual(spent.label, "Rs 2")
+        XCTAssertEqual(spent.label, "Spent: Rs 2")
+    }
+
+    func testImportedTransactionCanBeDeletedAfterConfirmation() {
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]
+        app.launch()
+        app.buttons["Ledger"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "ledgerEntry-")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        XCTAssertTrue(app.staticTexts["Captured at"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Source"].exists)
+
+        app.buttons["deleteImportedTransaction"].tap()
+        XCTAssertTrue(app.buttons["cancelDeleteImportedTransaction"].waitForExistence(timeout: 5))
+        app.buttons["cancelDeleteImportedTransaction"].tap()
+        XCTAssertTrue(app.buttons["deleteImportedTransaction"].exists)
+
+        app.buttons["deleteImportedTransaction"].tap()
+        app.buttons["confirmDeleteImportedTransaction"].tap()
+        XCTAssertTrue(app.staticTexts["No transactions this cycle"].waitForExistence(timeout: 5))
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        app.buttons["Ledger"].tap()
+        XCTAssertTrue(app.staticTexts["No transactions this cycle"].waitForExistence(timeout: 5))
     }
 
     func testDarkModeScreensAndSettingsRemainUsable() {

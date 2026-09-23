@@ -3,6 +3,7 @@ import Combine
 import DailyMintCore
 import UserNotifications
 import Darwin
+import UIKit
 
 final class FileStore: NSObject, LedgerStore {
     let url: URL
@@ -98,8 +99,7 @@ final class LedgerModel: ObservableObject {
     func addCategory(_ name: String) -> String? {
         mutate { $0.addCategory(rawName: name) }
     }
-    func addEntry(name: String, amount: String, category: String, date: Date, income: Bool,
-                  splitMethod: String = "none", splitPeopleCount: Int32 = 0, personalAmount: String = "") -> String? {
+    func addEntry(name: String, amount: String, category: String, date: Date, income: Bool) -> String? {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -107,8 +107,7 @@ final class LedgerModel: ObservableObject {
         return mutate {
             $0.addEntryWithSplit(id: UUID().uuidString, name: name, amount: amount,
                                  category: category, date: formatter.string(from: date), income: income,
-                                 splitMethod: splitMethod, splitPeopleCount: splitPeopleCount,
-                                 personalAmount: personalAmount)
+                                 splitMethod: "none", splitPeopleCount: 0, personalAmount: "")
         }
     }
 }
@@ -257,10 +256,6 @@ struct ManualView: View {
     @State private var date = Date()
     @State private var error: String?
     @State private var showingCategory = false
-    @State private var splitEnabled = false
-    @State private var splitMethod = "equal"
-    @State private var splitPeople = "2"
-    @State private var personalAmount = ""
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case name, amount }
     var body: some View {
@@ -315,42 +310,10 @@ struct ManualView: View {
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                         .foregroundStyle(Color.dmInk)
 
-                    if !income && category != "Investments" {
-                        Toggle("Split this bill with others", isOn: $splitEnabled)
-                            .tint(Color.dmFlow)
-                            .accessibilityIdentifier("manualSplit")
-                        if splitEnabled {
-                            HStack(spacing: 6) {
-                                PaperSegment(title: "Split equally", value: "equal", selection: $splitMethod)
-                                PaperSegment(title: "Custom share", value: "custom", selection: $splitMethod)
-                            }
-                            .padding(4)
-                            .background(Color.dmHairline.opacity(0.55))
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            if splitMethod == "equal" {
-                                FieldLabel(text: "Among people, including you")
-                                PaperField(placeholder: "Number of people", text: $splitPeople, keyboard: .numberPad)
-                                    .accessibilityIdentifier("manualSplitPeople")
-                            } else {
-                                FieldLabel(text: "Your share")
-                                PaperField(placeholder: "Amount", text: $personalAmount, keyboard: .decimalPad)
-                                    .accessibilityIdentifier("manualPersonalShare")
-                            }
-                            if let preview = splitPreview {
-                                Text("Rs \(amount) paid - Rs \(model.engine.formatAmount(paise: preview)) counts as your spending")
-                                    .font(.caption).foregroundStyle(Color.dmInkSoft)
-                            }
-                        }
-                    }
                     if let error { Text(error).foregroundStyle(Color.dmSpend).accessibilityIdentifier("entryError") }
                     Button("Save") {
                         focusedField = nil
-                        error = model.addEntry(
-                            name: name, amount: amount, category: category, date: date, income: income,
-                            splitMethod: splitEnabled && !income && category != "Investments" ? splitMethod : "none",
-                            splitPeopleCount: Int32(splitPeople) ?? 0,
-                            personalAmount: personalAmount
-                        )
+                        error = model.addEntry(name: name, amount: amount, category: category, date: date, income: income)
                         if error == nil { onFinish() }
                     }
                     .buttonStyle(PrimaryPillButtonStyle())
@@ -371,44 +334,18 @@ struct ManualView: View {
         }
     }
 
-    private var splitPreview: Int64? {
-        guard splitEnabled else { return nil }
-        if splitMethod == "equal" {
-            let value = model.engine.equalShareForAmount(amount: amount, people: Int32(splitPeople) ?? 0)
-            return value >= 0 ? value : nil
-        }
-        let normalized = personalAmount.replacingOccurrences(of: ",", with: "")
-        guard normalized.range(of: #"^[0-9]+(?:\.[0-9]{1,2})?$"#, options: .regularExpression) != nil else { return nil }
-        let parts = normalized.split(separator: ".", omittingEmptySubsequences: false)
-        guard let whole = Int64(parts[0]) else { return nil }
-        let rawFraction = parts.count == 2 ? String(parts[1]) : ""
-        let fraction = rawFraction.isEmpty ? "00" : (rawFraction.count == 1 ? rawFraction + "0" : rawFraction)
-        guard let paise = Int64(fraction) else { return nil }
-        let (base, multiplyOverflow) = whole.multipliedReportingOverflow(by: 100)
-        let (total, addOverflow) = base.addingReportingOverflow(paise)
-        guard !multiplyOverflow, !addOverflow else { return nil }
-        if splitMethod == "custom" {
-            let normalizedPaid = amount.replacingOccurrences(of: ",", with: "")
-            guard let paidDecimal = Decimal(string: normalizedPaid),
-                  paidDecimal >= 0,
-                  Decimal(total) / 100 <= paidDecimal else { return nil }
-        }
-        return total
-    }
 }
 
 struct SettingsView: View {
     @ObservedObject var model: LedgerModel
-    @AppStorage("smsOnboardingSeenV1") private var onboardingSeen = true
     @State private var showCategory = false
     @State private var deletion: String?
     @State private var error: String?
     @State private var reminderEnabled = false
     @State private var reminderTime = "21:30"
     @State private var unrecognizedText: String?
-    @State private var shortcutReceiptText: String?
     @State private var reminderDigits = ReminderDigits.from24Hour("21:30")
-    @FocusState private var focusedReminderDigit: ReminderDigit?
+    @State private var focusedReminderDigit: ReminderDigit?
     var body: some View {
         NavigationStack {
             ScreenSurface {
@@ -419,8 +356,6 @@ struct SettingsView: View {
                     Text(error).font(.caption).foregroundStyle(Color.dmSpend)
                 }
                 categoriesSection
-                shortcutSetupSection
-                shortcutReceiptsSection
                 unrecognizedSection
             }
             .navigationTitle("")
@@ -439,27 +374,6 @@ struct SettingsView: View {
                 } message: {
                     Text(unrecognizedText ?? "")
                 }
-                .alert("Shortcut import", isPresented: Binding(get: { shortcutReceiptText != nil }, set: { if !$0 { shortcutReceiptText = nil } })) {
-                    Button("Close") { shortcutReceiptText = nil }
-                } message: {
-                    Text(shortcutReceiptText ?? "")
-                }
-        }
-    }
-
-    private var shortcutSetupSection: some View {
-        RaisedPanel {
-            SectionHeading(title: "Automatic SMS capture")
-            Text("Set up or review the Message automation in Shortcuts.")
-                .font(.subheadline)
-                .foregroundStyle(Color.dmInkSoft)
-            Button {
-                onboardingSeen = false
-            } label: {
-                Label("Open setup guide", systemImage: "arrow.right")
-            }
-            .buttonStyle(SecondaryPillButtonStyle())
-            .accessibilityIdentifier("openSMSSetup")
         }
     }
 
@@ -483,29 +397,31 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("reminderToggle")
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Reminder time").foregroundStyle(Color.dmInk)
-                HStack(spacing: 8) {
-                    reminderDigitField(.h1)
-                    reminderDigitField(.h2)
-                    Text(":").font(.headline).foregroundStyle(Color.dmInkFaint)
-                    reminderDigitField(.m1)
-                    reminderDigitField(.m2)
-                    Picker("Period", selection: periodBinding) {
-                        Text("AM").tag("AM")
-                        Text("PM").tag("PM")
+            if reminderEnabled {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Reminder time").foregroundStyle(Color.dmInk)
+                    HStack(spacing: 8) {
+                        reminderDigitField(.h1)
+                        reminderDigitField(.h2)
+                        Text(":").font(.headline).foregroundStyle(Color.dmInkFaint)
+                        reminderDigitField(.m1)
+                        reminderDigitField(.m2)
+                        Picker("Period", selection: periodBinding) {
+                            Text("AM").tag("AM")
+                            Text("PM").tag("PM")
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 112)
                     }
-                    .pickerStyle(.segmented)
-                    .frame(width: 112)
+                    if let validation = reminderDigits.validationMessage {
+                        Text(validation)
+                            .font(.caption)
+                            .foregroundStyle(Color.dmSpend)
+                            .accessibilityIdentifier("reminderTimeError")
+                    }
                 }
-                if let validation = reminderDigits.validationMessage {
-                    Text(validation)
-                        .font(.caption)
-                        .foregroundStyle(Color.dmSpend)
-                        .accessibilityIdentifier("reminderTimeError")
-                }
+                .accessibilityIdentifier("reminderTime")
             }
-            .accessibilityIdentifier("reminderTime")
         }
     }
 
@@ -525,6 +441,9 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 8)
             }
+            Text("For shorter months, the cycle starts on the last day of the month.")
+                .font(.caption)
+                .foregroundStyle(Color.dmInkFaint)
         }
     }
 
@@ -545,22 +464,6 @@ struct SettingsView: View {
                     CategoryChip(name: item, removable: item != "Miscellaneous") {
                         deletion = item
                     }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var shortcutReceiptsSection: some View {
-        let receipts = ShortcutImportLog.recent()
-        if !receipts.isEmpty {
-            RaisedPanel {
-                SectionHeading(title: "Shortcut imports", trailing: String(receipts.count))
-                ForEach(receipts) { receipt in
-                    Button(receipt.title) {
-                        shortcutReceiptText = "Status: \(receipt.status)\nReceived: \(receipt.timestamp)"
-                    }
-                    .buttonStyle(SecondaryPillButtonStyle())
                 }
             }
         }
@@ -612,17 +515,30 @@ struct SettingsView: View {
     }
 
     private func toggleReminder() {
-        reminderEnabled.toggle()
-        updateReminder(time: reminderTime)
+        let next = !reminderEnabled
+        let result = model.mutate { $0.setReminder(enabled: next, time: reminderTime) }
+        error = result
+        if result == nil {
+            reminderEnabled = next
+            ReminderScheduler.apply(engine: model.engine)
+        }
     }
 
     private func reminderDigitField(_ digit: ReminderDigit) -> some View {
         let invalid = reminderDigits.invalidDigits.contains(digit)
-        return TextField("", text: reminderDigitBinding(digit))
-            .keyboardType(.numberPad)
-            .foregroundStyle(Color.dmInk)
-            .multilineTextAlignment(.center)
-            .font(.headline.monospacedDigit())
+        return ReminderDigitTextField(
+            text: reminderDigitBinding(digit),
+            isFocused: Binding(
+                get: { focusedReminderDigit == digit },
+                set: { if $0 { focusedReminderDigit = digit } else if focusedReminderDigit == digit { focusedReminderDigit = nil } }
+            ),
+            onEmptyBackspace: {
+                guard let previous = digit.previous else { return }
+                reminderDigits.set("", for: previous)
+                focusedReminderDigit = previous
+            },
+            accessibilityIdentifier: "reminder\(digit.rawValue)"
+        )
             .frame(width: 38, height: 42)
             .background(invalid ? Color.dmSpend.opacity(0.12) : Color.dmPaperRaised)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -630,8 +546,6 @@ struct SettingsView: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .stroke(invalid ? Color.dmSpend : Color.dmHairline, lineWidth: 1)
             )
-            .focused($focusedReminderDigit, equals: digit)
-            .accessibilityIdentifier("reminder\(digit.rawValue)")
     }
 
     private func reminderDigitBinding(_ digit: ReminderDigit) -> Binding<String> {
@@ -679,6 +593,71 @@ private enum ReminderDigit: String, Hashable {
         case .m2: return nil
         }
     }
+
+    var previous: ReminderDigit? {
+        switch self {
+        case .h1: return nil
+        case .h2: return .h1
+        case .m1: return .h2
+        case .m2: return .m1
+        }
+    }
+}
+
+private struct ReminderDigitTextField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+    let onEmptyBackspace: () -> Void
+    let accessibilityIdentifier: String
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> DigitField {
+        let field = DigitField()
+        field.keyboardType = .numberPad
+        field.textAlignment = .center
+        field.font = .monospacedDigitSystemFont(ofSize: 17, weight: .semibold)
+        field.textColor = UIColor(Color.dmInk)
+        field.delegate = context.coordinator
+        field.accessibilityIdentifier = accessibilityIdentifier
+        field.addTarget(context.coordinator, action: #selector(Coordinator.changed), for: .editingChanged)
+        field.onEmptyBackspace = onEmptyBackspace
+        return field
+    }
+
+    func updateUIView(_ field: DigitField, context: Context) {
+        context.coordinator.parent = self
+        field.onEmptyBackspace = onEmptyBackspace
+        field.textColor = UIColor(Color.dmInk)
+        if field.text != text { field.text = text }
+        if isFocused && !field.isFirstResponder {
+            DispatchQueue.main.async { field.becomeFirstResponder() }
+        } else if !isFocused && field.isFirstResponder {
+            field.resignFirstResponder()
+        }
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: ReminderDigitTextField
+        init(_ parent: ReminderDigitTextField) { self.parent = parent }
+
+        @objc func changed(_ field: UITextField) {
+            let digit = String((field.text ?? "").filter(\.isNumber).prefix(1))
+            if field.text != digit { field.text = digit }
+            parent.text = digit
+        }
+
+        func textFieldDidBeginEditing(_ textField: UITextField) { parent.isFocused = true }
+        func textFieldDidEndEditing(_ textField: UITextField) { parent.isFocused = false }
+    }
+
+    final class DigitField: UITextField {
+        var onEmptyBackspace: (() -> Void)?
+        override func deleteBackward() {
+            if text?.isEmpty != false { onEmptyBackspace?() }
+            super.deleteBackward()
+        }
+    }
 }
 
 private struct ReminderDigits {
@@ -716,10 +695,10 @@ private struct ReminderDigits {
 
     var validationMessage: String? {
         if hourText.count == 2, let hour = Int(hourText), !(1...12).contains(hour) {
-            return "Hour must be between 01 and 12."
+            return "Enter a valid hour from 01 to 12."
         }
         if minuteText.count == 2, let minute = Int(minuteText), !(0...59).contains(minute) {
-            return "Minutes must be between 00 and 59."
+            return "Enter minutes from 00 to 59."
         }
         return nil
     }

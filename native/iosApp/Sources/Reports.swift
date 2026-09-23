@@ -39,24 +39,27 @@ struct MonthView: View {
                         RaisedPanel {
                             Text("No transactions in this cycle yet")
                                 .font(.headline).foregroundStyle(Color.dmInk)
-                            Text("Add an entry or import bank messages to start tracking.")
+                            Text("Add an entry or use automatic transaction capture to start tracking.")
                                 .font(.subheadline).foregroundStyle(Color.dmInkSoft)
                         }
                     }
-                    if summary.spent > 0 {
+                    CycleAllocation(summary: summary)
+                    if summary.spent > 0 || summary.invested > 0 {
                         SectionHeading(title: "Where it went")
                         RaisedPanel {
                             ForEach(summary.categories, id: \.name) { item in
                                 CategoryLine(name: item.name, percent: item.percent, amount: "Rs " + model.engine.formatAmount(paise: item.paise))
                             }
                         }
-                        SectionHeading(title: "Biggest spends")
-                        RaisedPanel {
-                            ForEach(summary.topFive, id: \.id) { entry in
-                                Button { detail = entry } label: {
-                                    TransactionLine(entry: entry, model: model)
+                        if !summary.topFive.isEmpty {
+                            SectionHeading(title: "Biggest spends")
+                            RaisedPanel {
+                                ForEach(summary.topFive, id: \.id) { entry in
+                                    Button { detail = entry } label: {
+                                        TransactionLine(entry: entry, model: model)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -66,6 +69,54 @@ struct MonthView: View {
             .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
             .sheet(item: $detail) { TransactionDetailView(model: model, entry: $0) }
+        }
+    }
+}
+
+struct CycleAllocation: View {
+    let summary: MonthSummary
+
+    var body: some View {
+        RaisedPanel {
+            SectionHeading(title: "Cycle allocation")
+            if summary.allocationInvestedPercent < 0 {
+                Text("Add income to see how this cycle is allocated.")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.dmInkSoft)
+            } else {
+                GeometryReader { proxy in
+                    let invested = max(0, Double(summary.allocationInvestedPercent))
+                    let spent = max(0, Double(summary.allocationSpentPercent))
+                    let left = max(0, Double(summary.allocationLeftPercent))
+                    let scale = max(100, invested + spent + left)
+                    HStack(spacing: 0) {
+                        Color.dmInvest.frame(width: proxy.size.width * invested / scale)
+                        Color.dmSpend.frame(width: proxy.size.width * spent / scale)
+                        Color.dmInkFaint.opacity(0.35).frame(width: proxy.size.width * left / scale)
+                    }
+                    .clipShape(Capsule())
+                }
+                .frame(height: 12)
+                HStack(spacing: 12) {
+                    allocationLegend("Invested", summary.allocationInvestedPercent, .dmInvest)
+                    allocationLegend("Spent", summary.allocationSpentPercent, .dmSpend)
+                    allocationLegend("Left", summary.allocationLeftPercent, .dmInkFaint)
+                }
+                if summary.allocationExceedsIncome {
+                    Text("Outflows exceed earned income; Left is zero.")
+                        .font(.caption)
+                        .foregroundStyle(Color.dmSpend)
+                }
+            }
+        }
+    }
+
+    private func allocationLegend(_ title: String, _ percent: Int32, _ color: Color) -> some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text("\(title) · \(percent)%")
+                .font(.caption2)
+                .foregroundStyle(Color.dmInkSoft)
         }
     }
 }
@@ -89,16 +140,14 @@ struct MonthHero: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Spent this cycle").font(.caption.weight(.semibold)).foregroundStyle(Color.dmHeroMuted)
-            Text("Rs " + model.engine.formatAmount(paise: summary.spent))
-                .font(.system(size: 38, weight: .semibold, design: .serif))
-                .foregroundStyle(Color.dmHeroText)
-                .minimumScaleFactor(0.65)
-                .accessibilityIdentifier("spent")
+            Text("This cycle").font(.caption.weight(.semibold)).foregroundStyle(Color.dmHeroMuted)
             Text(cycleRange).font(.caption).foregroundStyle(Color.dmHeroMuted)
-            HStack(alignment: .top) {
-                HeroStat(label: "Income", value: "Rs " + model.engine.formatAmount(paise: summary.moneyIn), color: .dmIncome)
+            HStack(alignment: .top, spacing: 12) {
+                HeroStat(label: "Money in", value: "Rs " + model.engine.formatAmount(paise: summary.moneyIn), color: .dmIncome)
                     .accessibilityIdentifier("moneyIn")
+                Spacer()
+                HeroStat(label: "Spent", value: "Rs " + model.engine.formatAmount(paise: summary.spent), color: .dmSpend)
+                    .accessibilityIdentifier("spent")
                 Spacer()
                 HeroStat(label: "Invested", value: "Rs " + model.engine.formatAmount(paise: summary.invested), color: .dmInvest)
             }
@@ -163,9 +212,6 @@ struct TransactionLine: View {
                 if entry.type == "expense" && displayAmount != entry.paise {
                     Text("Bank: Rs " + model.engine.formatAmount(paise: entry.paise))
                         .font(.caption2).foregroundStyle(Color.dmInkFaint)
-                }
-                if entry.ignored {
-                    Text("Ignored").font(.caption2).foregroundStyle(Color.dmInkFaint)
                 }
             }
         }
@@ -248,12 +294,16 @@ struct GrowthView: View {
                             }
                         }
                         .chartYAxis {
-                            AxisMarks(position: .trailing) { _ in
+                            AxisMarks(position: .trailing) { value in
                                 AxisGridLine().foregroundStyle(Color.dmHairline.opacity(0.65))
                                 AxisTick().foregroundStyle(Color.dmInkFaint)
-                                AxisValueLabel()
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.dmInkSoft)
+                                AxisValueLabel {
+                                    if let rupees = value.as(Double.self) {
+                                        Text(model.engine.formatAmount(paise: Int64(rupees * 100)))
+                                            .font(.caption2)
+                                            .foregroundStyle(Color.dmInkSoft)
+                                    }
+                                }
                             }
                         }
                         .frame(height: 240)

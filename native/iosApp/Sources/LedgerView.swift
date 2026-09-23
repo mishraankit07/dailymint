@@ -14,21 +14,14 @@ struct LedgerView: View {
     @State private var query = ""
     @State private var typeFilter = "All"
     @State private var categoryFilter = "All"
-    @State private var useDateRange = false
-    @State private var startDate = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
-    @State private var endDate = Date()
     @State private var detail: Entry?
-    @State private var visibleDayCount = 30
 
     private var filterActive: Bool {
-        !query.isEmpty || typeFilter != "All" || categoryFilter != "All" || useDateRange
+        !query.isEmpty || typeFilter != "All" || categoryFilter != "All"
     }
 
     private var allGroups: [LedgerDateGroup] {
-        let start = Self.dateKey(startDate)
-        let end = Self.dateKey(endDate)
         return model.engine.ledgerDays().compactMap { day in
-            guard !useDateRange || (day.date >= start && day.date <= end) else { return nil }
             let entries = day.entries.filter { entry in
                 (query.isEmpty || entry.name.localizedCaseInsensitiveContains(query)) &&
                 (typeFilter == "All" || entry.type == typeFilter || (typeFilter == "neutral" && entry.neutralCredit > 0)) &&
@@ -39,8 +32,6 @@ struct LedgerView: View {
                                                             grossIn: day.moneyIn, grossOut: day.moneyOut)
         }
     }
-
-    private var groups: [LedgerDateGroup] { Array(allGroups.prefix(visibleDayCount)) }
 
     var body: some View {
         NavigationStack {
@@ -56,32 +47,31 @@ struct LedgerView: View {
                     } else {
                         RaisedPanel {
                             HStack {
-                                Text("\(model.engine.entries().count) transactions")
+                                Text("\(model.engine.ledgerDays().reduce(0) { $0 + $1.entries.count }) transactions this cycle")
                                     .font(.caption).foregroundStyle(Color.dmInkFaint)
                                 Spacer()
                             }
                             PaperField(placeholder: "Search transactions", text: $query)
                                 .accessibilityIdentifier("ledgerSearch")
-                                .onChange(of: query) { _ in visibleDayCount = 30 }
                             filterControls
                         }
 
-                        if groups.isEmpty {
+                        if allGroups.isEmpty {
                             RaisedPanel {
-                                Text(model.engine.entries().isEmpty ? "No transactions yet" : "No matching transactions")
+                                Text(filterActive ? "No matching transactions" : "No transactions this cycle")
                                     .font(.headline).foregroundStyle(Color.dmInk)
-                                Text(model.engine.entries().isEmpty
-                                     ? "Add an entry or set up SMS automation in Settings."
+                                Text(!filterActive
+                                     ? "Add an entry or use automatic transaction capture."
                                      : "Try a different search or clear the filters.")
                                     .font(.subheadline).foregroundStyle(Color.dmInkSoft)
-                                if !model.engine.entries().isEmpty {
+                                if filterActive {
                                     Button("Clear filters", action: clearFilters)
                                         .accessibilityIdentifier("clearLedgerFilters")
                                 }
                             }
                         }
 
-                        ForEach(groups) { group in
+                        ForEach(allGroups) { group in
                             RaisedPanel {
                                 VStack(alignment: .leading, spacing: 3) {
                                     HStack {
@@ -104,12 +94,6 @@ struct LedgerView: View {
                                 }
                             }
                         }
-                        if groups.count < allGroups.count {
-                            Button("Load more transactions") { visibleDayCount += 30 }
-                                .buttonStyle(SecondaryPillButtonStyle())
-                                .frame(maxWidth: .infinity)
-                                .accessibilityIdentifier("loadMoreLedger")
-                        }
                     }
                 }
             }
@@ -124,16 +108,16 @@ struct LedgerView: View {
             HStack(spacing: 8) {
                 Menu {
                     ForEach(["All", "expense", "investment", "income", "neutral"], id: \.self) { value in
-                        Button(typeLabel(value)) { typeFilter = value; visibleDayCount = 30 }
+                        Button(typeLabel(value)) { typeFilter = value }
                     }
                 } label: {
                     Label(typeLabel(typeFilter), systemImage: "line.3.horizontal.decrease")
                         .frame(minHeight: 44)
                 }
                 Menu {
-                    Button("All categories") { categoryFilter = "All"; visibleDayCount = 30 }
+                    Button("All categories") { categoryFilter = "All" }
                     ForEach(model.engine.categories() + ["Salary", "Other income", "Reimbursement", "Refund", "Own-account transfer"], id: \.self) { value in
-                        Button(value) { categoryFilter = value; visibleDayCount = 30 }
+                        Button(value) { categoryFilter = value }
                     }
                 } label: {
                     Label(categoryFilter == "All" ? "Category" : categoryFilter, systemImage: "tag")
@@ -141,15 +125,6 @@ struct LedgerView: View {
                 }
             }
             .buttonStyle(SecondaryPillButtonStyle())
-            Toggle("Date range", isOn: $useDateRange)
-                .tint(Color.dmFlow)
-                .onChange(of: useDateRange) { _ in visibleDayCount = 30 }
-            if useDateRange {
-                DatePicker("From", selection: $startDate, displayedComponents: .date)
-                    .onChange(of: startDate) { _ in visibleDayCount = 30 }
-                DatePicker("To", selection: $endDate, in: startDate..., displayedComponents: .date)
-                    .onChange(of: endDate) { _ in visibleDayCount = 30 }
-            }
         }
         .foregroundStyle(Color.dmInk)
     }
@@ -158,8 +133,6 @@ struct LedgerView: View {
         query = ""
         typeFilter = "All"
         categoryFilter = "All"
-        useDateRange = false
-        visibleDayCount = 30
     }
 
     private func typeLabel(_ value: String) -> String {
@@ -172,14 +145,6 @@ struct LedgerView: View {
         }
     }
 
-    private static func dateKey(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Asia/Kolkata")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
-    }
 }
 
 struct TransactionDetailView: View {
@@ -196,7 +161,7 @@ struct TransactionDetailView: View {
     @State private var error: String?
     @State private var showingManualEdit = false
     @State private var showingCategoryPicker = false
-    @State private var confirmingIgnore = false
+    @State private var confirmingDelete = false
     @State private var confirmingDiscard = false
 
     private var current: Entry {
@@ -237,11 +202,6 @@ struct TransactionDetailView: View {
                     Text("Original amount")
                         .font(.caption).foregroundStyle(Color.dmInkFaint)
                     detailLine("Date", model.engine.transactionDay(date: current.date))
-                    detailLine("Source", sourceLabel(current.source))
-                    if current.ignored {
-                        Label("Ignored in totals", systemImage: "eye.slash")
-                            .foregroundStyle(Color.dmSpend)
-                    }
                 }
 
                 if imported {
@@ -250,9 +210,6 @@ struct TransactionDetailView: View {
                     RaisedPanel {
                         detailLine("Name", current.name)
                         detailLine("Category", current.type == "income" ? creditLabel(current.effectiveCreditKind()) : current.category)
-                        if current.type == "expense" {
-                            detailLine("Personal spending", "Rs " + model.engine.formatAmount(paise: current.personalSpent))
-                        }
                     }
                     if model.engine.canEdit(id: current.id, platform: "ios", nowMillis: Int64(Date().timeIntervalSince1970 * 1000)) {
                         Button("Edit manual entry") { showingManualEdit = true }
@@ -290,18 +247,18 @@ struct TransactionDetailView: View {
                     splitEnabled = false
                 }
             }
-            .confirmationDialog(current.ignored ? "Restore this transaction?" : "Ignore this transaction?", isPresented: $confirmingIgnore) {
-                Button(current.ignored ? "Restore" : "Ignore", role: current.ignored ? nil : .destructive) {
-                    error = model.mutate { $0.setIgnored(id: current.id, ignored: !current.ignored) }
+            .confirmationDialog("Delete this transaction?", isPresented: $confirmingDelete) {
+                Button("Delete transaction", role: .destructive) {
+                    error = model.mutate { $0.deleteEntry(id: current.id) }
                     if error == nil { dismiss() }
                 }
+                .accessibilityIdentifier("confirmDeleteImportedTransaction")
                 Button("Cancel", role: .cancel) {}
+                    .accessibilityIdentifier("cancelDeleteImportedTransaction")
             } message: {
-                Text(current.ignored
-                     ? "This transaction will return to analytics."
-                     : (hasUnsavedChanges
-                        ? "This transaction will be excluded from analytics and retained in local diagnostic history. Your unsaved edits will not be applied."
-                        : "This transaction will be excluded from analytics and retained in local diagnostic history."))
+                Text(hasUnsavedChanges
+                     ? "This transaction will be removed from the Ledger and from all calculations. Your unsaved changes will not be applied."
+                     : "This transaction will be removed from the Ledger and from all calculations.")
             }
             .confirmationDialog("Discard changes?", isPresented: $confirmingDiscard) {
                 Button("Discard", role: .destructive) { dismiss() }
@@ -316,6 +273,7 @@ struct TransactionDetailView: View {
     private var importedEditor: some View {
         Group {
             RaisedPanel {
+                detailLine("Captured at", capturedAtText)
                 FieldLabel(text: "Merchant")
                 PaperField(placeholder: "Merchant name", text: $name)
                     .accessibilityIdentifier("transactionName")
@@ -380,13 +338,9 @@ struct TransactionDetailView: View {
                 }
             }
 
-            if current.ignored {
-                Button("Restore transaction") { confirmingIgnore = true }
-                    .buttonStyle(SecondaryPillButtonStyle())
-            } else {
-                Button("Ignore this transaction") { confirmingIgnore = true }
-                    .buttonStyle(DestructivePillButtonStyle())
-            }
+            Button("Delete transaction") { confirmingDelete = true }
+                .buttonStyle(DestructivePillButtonStyle())
+                .accessibilityIdentifier("deleteImportedTransaction")
         }
     }
 
@@ -452,14 +406,13 @@ struct TransactionDetailView: View {
         }
     }
 
-    private func sourceLabel(_ source: String) -> String {
-        switch source {
-        case "manual": return "Manual"
-        case "bank-sms": return "Bank SMS via Shortcut"
-        case "bank-file": return "Imported file"
-        case "bank-wal": return "Legacy bank import"
-        default: return "Imported"
-        }
+    private var capturedAtText: String {
+        guard current.capturedAtMillis > 0 else { return "Unavailable" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_IN")
+        formatter.timeZone = .current
+        formatter.dateFormat = "d MMM yyyy, h:mm a"
+        return formatter.string(from: Date(timeIntervalSince1970: Double(current.capturedAtMillis) / 1000))
     }
 }
 

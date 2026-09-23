@@ -21,9 +21,9 @@ data class Entry(val id: String, val name: String, val paise: Long, val category
     val personalExpensePaise: Long? = null, val creditKind: String? = null, val ignored: Boolean = false,
     val originalName: String = "", val originalCategory: String = "", val splitMethod: String = SplitMethod.NONE,
     val splitPeopleCount: Int? = null) {
-    val personalSpent: Long get() = if (type == "expense" && !ignored) personalExpensePaise ?: paise else 0
-    val earnedIncome: Long get() = if (type == "income" && !ignored && effectiveCreditKind() in CreditKind.earned) paise else 0
-    val neutralCredit: Long get() = if (type == "income" && !ignored && effectiveCreditKind() in CreditKind.neutral) paise else 0
+    val personalSpent: Long get() = if (type == "expense") personalExpensePaise ?: paise else 0
+    val earnedIncome: Long get() = if (type == "income" && effectiveCreditKind() in CreditKind.earned) paise else 0
+    val neutralCredit: Long get() = if (type == "income" && effectiveCreditKind() in CreditKind.neutral) paise else 0
     fun effectiveCreditKind(): String = creditKind ?: if (category == "Salary") CreditKind.SALARY else CreditKind.OTHER_INCOME
 }
 
@@ -67,7 +67,7 @@ data class IncomingSms(val id: String, val body: String, val sender: String, val
 
 @Serializable
 data class Snapshot(
-    val schemaVersion: Int = 3,
+    val schemaVersion: Int = 4,
     val categories: List<String> = listOf("Home", "Groceries", "Food", "Fun", "Gym", "Self", "Investments", "Miscellaneous"),
     val entries: List<Entry> = emptyList(),
     val learnedRules: Map<String, String> = emptyMap(),
@@ -102,8 +102,28 @@ object Money {
     fun display(paise: Long): String {
         val absolute = if (paise < 0) -paise else paise
         val fraction = absolute % 100
-        return (if (paise < 0) "-" else "") + (absolute / 100) +
+        return (if (paise < 0) "-" else "") + indianGrouping(absolute / 100) +
             (if (fraction == 0L) "" else "." + fraction.toString().padStart(2, '0'))
+    }
+
+    private fun indianGrouping(value: Long): String {
+        val digits = value.toString()
+        if (digits.length <= 3) return digits
+        val suffix = digits.takeLast(3)
+        val prefix = digits.dropLast(3)
+        val firstGroup = prefix.length % 2
+        val groups = buildList {
+            var index = 0
+            if (firstGroup == 1) {
+                add(prefix.take(1))
+                index = 1
+            }
+            while (index < prefix.length) {
+                add(prefix.substring(index, index + 2))
+                index += 2
+            }
+        }
+        return groups.joinToString(",") + "," + suffix
     }
 
     fun equalShare(originalPaise: Long, people: Int): Long? {
@@ -134,7 +154,7 @@ class LedgerEngine(private val store: LedgerStore) {
         try {
             store.load().snapshot?.let {
                 val loaded = Json.decodeFromString<Snapshot>(it)
-                require(loaded.schemaVersion in 1..3)
+                require(loaded.schemaVersion in 1..4)
                 require(loaded.categories.contains("Miscellaneous"))
                 require(loaded.categories.map(String::lowercase).distinct().size == loaded.categories.size)
                 require(loaded.entries.size <= 100_000)
@@ -151,12 +171,16 @@ class LedgerEngine(private val store: LedgerStore) {
                             (entry.type == "expense" && entry.splitPeopleCount == null)) &&
                         (entry.splitMethod != SplitMethod.NONE || entry.splitPeopleCount == null)
                 })
-                snapshot = loaded.copy(schemaVersion = 3, entries = loaded.entries.map { entry ->
-                    val migrated = if (loaded.schemaVersion == 1) {
-                        entry.copy(creditKind = if (entry.type == "income") entry.effectiveCreditKind() else null,
-                            originalName = if (entry.source != "manual") entry.name else "",
-                            originalCategory = if (entry.source != "manual") entry.category else "")
-                    } else entry
+                if (loaded.schemaVersion == 4) require(loaded.entries.none { entry -> entry.ignored })
+                snapshot = loaded.copy(schemaVersion = 4, entries = loaded.entries
+                    .filterNot { entry -> loaded.schemaVersion <= 3 && entry.ignored }
+                    .map { entry ->
+                    val migrated = entry.copy(
+                        ignored = false,
+                        creditKind = if (loaded.schemaVersion == 1 && entry.type == "income") entry.effectiveCreditKind() else entry.creditKind,
+                        originalName = if (entry.source != "manual" && entry.originalName.isBlank()) entry.name else entry.originalName,
+                        originalCategory = if (entry.source != "manual" && entry.originalCategory.isBlank()) entry.category else entry.originalCategory
+                    )
                     if (loaded.schemaVersion < 3 && migrated.type == "expense" && migrated.personalExpensePaise != null) {
                         migrated.copy(splitMethod = SplitMethod.CUSTOM)
                     } else migrated
@@ -223,7 +247,8 @@ class LedgerEngine(private val store: LedgerStore) {
     fun transactionDay(date: String): String = LedgerDates.date(date).toString()
     fun suggestCategory(name: String, income: Boolean): String = MerchantTagger.category(name, income, snapshot.learnedRules, snapshot.categories)
     fun monthSummary(today: String): MonthSummary = LedgerAnalytics.month(snapshot.entries, today, snapshot.monthStartDay)
-    fun ledgerDays(): List<DayGroup> = LedgerAnalytics.ledgerDays(snapshot.entries)
+    fun ledgerDays(): List<DayGroup> = ledgerDays(today())
+    fun ledgerDays(today: String): List<DayGroup> = LedgerAnalytics.ledgerDays(snapshot.entries, today, snapshot.monthStartDay)
     fun trendBuckets(today: String, years: Boolean, count: Int): List<TrendBucket> = LedgerAnalytics.trends(snapshot.entries, today, years, count)
     fun canEdit(id: String, platform: String, nowMillis: Long): Boolean {
         val entry = snapshot.entries.find { it.id == id } ?: return false
@@ -252,6 +277,10 @@ class LedgerEngine(private val store: LedgerStore) {
     }
     fun deleteEntry(id: String, platform: String, nowMillis: Long): SaveResult {
         if (!canEdit(id, platform, nowMillis)) return SaveResult(false, "This transaction is no longer editable.")
+        return commit(snapshot.copy(entries = snapshot.entries.filter { it.id != id }))
+    }
+    fun deleteEntry(id: String): SaveResult {
+        if (snapshot.entries.none { it.id == id }) return SaveResult(false, "This transaction no longer exists.")
         return commit(snapshot.copy(entries = snapshot.entries.filter { it.id != id }))
     }
     fun setPersonalExpense(id: String, amount: String): SaveResult {
@@ -326,11 +355,9 @@ class LedgerEngine(private val store: LedgerStore) {
                 type = if (category == "Investments") "investment" else "expense") else it
         }, learnedRules = learn(name, category)))
     }
-    fun setIgnored(id: String, ignored: Boolean): SaveResult {
-        val entry = snapshot.entries.find { it.id == id && it.source != "manual" }
-            ?: return SaveResult(false, "Choose an imported transaction.")
-        return commit(snapshot.copy(entries = snapshot.entries.map { if (it.id == id) entry.copy(ignored = ignored) else it }))
-    }
+    @Deprecated("Ignore/restore is no longer a product behavior; delete the selected record instead.")
+    fun setIgnored(id: String, ignored: Boolean): SaveResult =
+        if (ignored) deleteEntry(id) else SaveResult(false, "Deleted transactions cannot be restored.")
     private fun learn(name: String, category: String): Map<String, String> {
         val key = MerchantTagger.learningKey(name)
         return if (key.isNotEmpty() && category in snapshot.categories && category != "Miscellaneous") snapshot.learnedRules + (key to category) else snapshot.learnedRules
@@ -347,7 +374,7 @@ class LedgerEngine(private val store: LedgerStore) {
     fun totals(): Totals = Totals(
         snapshot.entries.sumOf { it.earnedIncome },
         snapshot.entries.sumOf { it.personalSpent },
-        snapshot.entries.filter { it.type == "investment" && !it.ignored }.sumOf { it.paise },
+        snapshot.entries.filter { it.type == "investment" }.sumOf { it.paise },
         snapshot.entries.sumOf { it.neutralCredit }
     )
     fun addCategory(rawName: String): SaveResult {
@@ -370,22 +397,15 @@ class LedgerEngine(private val store: LedgerStore) {
         if (category !in allowed) return SaveResult(false, "Choose a valid category.")
         if (snapshot.entries.size >= 100_000) return SaveResult(false, "Ledger capacity reached.")
         val type = if (income) "income" else if (category == "Investments") "investment" else "expense"
-        if (type != "expense" && splitMethod != SplitMethod.NONE) return SaveResult(false, "Only expenses can be split.")
-        val personal = when (splitMethod) {
-            SplitMethod.NONE -> paise
-            SplitMethod.EQUAL -> Money.equalShare(paise, splitPeopleCount)
-                ?: return SaveResult(false, "Enter at least 2 people, including you.")
-            SplitMethod.CUSTOM -> Money.parseShare(personalAmount)
-                ?: return SaveResult(false, "Enter an amount with up to two decimal places.")
-            else -> return SaveResult(false, "Choose a valid split method.")
+        if (splitMethod != SplitMethod.NONE || splitPeopleCount != 0 || personalAmount.isNotBlank()) {
+            return SaveResult(false, "Manual entries record the amount that counts as your personal spending.")
         }
-        if (personal > paise) return SaveResult(false, "Personal spending cannot exceed the paid amount.")
         return commit(snapshot.copy(entries = snapshot.entries + Entry(id, name.trim(), paise, category, date, type,
             capturedAtMillis = Clock.System.now().toEpochMilliseconds(),
-            personalExpensePaise = personal.takeIf { type == "expense" && it != paise },
+            personalExpensePaise = null,
             creditKind = if (income) CreditKind.fromLabel(category) else null,
-            splitMethod = if (type == "expense") splitMethod else SplitMethod.NONE,
-            splitPeopleCount = splitPeopleCount.takeIf { type == "expense" && splitMethod == SplitMethod.EQUAL }),
+            splitMethod = SplitMethod.NONE,
+            splitPeopleCount = null),
             learnedRules = learn(name, category)))
     }
     internal fun commit(next: Snapshot): SaveResult {

@@ -41,6 +41,9 @@ class LedgerEngineTest {
         assertEquals(32015600L, Money.parse("3,20,156.00"))
         assertEquals("62", Money.display(6200))
         assertEquals("62.88", Money.display(6288))
+        assertEquals("1,000", Money.display(100000))
+        assertEquals("1,00,000", Money.display(10000000))
+        assertEquals("12,50,000.50", Money.display(125000050))
         listOf("62,88", "1.234", "-1", "0", "", "NaN", "9999999999999999999").forEach { assertNull(Money.parse(it), it) }
     }
     @Test fun categoryValidationAndPersistence() {
@@ -138,6 +141,17 @@ class LedgerEngineTest {
         assertEquals("2026-09-25", summary.endExclusive)
         assertEquals(2000L, summary.spent)
         assertEquals(10000L, summary.moneyIn)
+        assertEquals(listOf("2026-09-01", "2026-08-25"), engine.ledgerDays("2026-09-15").map { it.date })
+    }
+    @Test fun cycleStartDayClampsWithoutChangingPreference() {
+        val engine = LedgerEngine(MemoryStore())
+        assertTrue(engine.setMonthStartDay(31).success)
+        assertEquals("2027-01-31", engine.monthSummary("2027-01-31").start)
+        assertEquals("2027-02-28", engine.monthSummary("2027-02-28").start)
+        assertEquals(31, engine.monthStartDay())
+        assertEquals("2027-03-31", engine.monthSummary("2027-03-31").start)
+        assertEquals("2028-02-29", engine.monthSummary("2028-02-29").start)
+        assertEquals(31, engine.monthStartDay())
     }
     @Test fun reminderSettingsValidateAndPersist() {
         val store = MemoryStore()

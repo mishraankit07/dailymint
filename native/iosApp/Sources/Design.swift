@@ -63,7 +63,14 @@ struct ScreenSurface<Content: View>: View {
             .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(Color.dmPaper.ignoresSafeArea())
+        .background(
+            Color.dmPaper
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+        )
     }
 }
 
