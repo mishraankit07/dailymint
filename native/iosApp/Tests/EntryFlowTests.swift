@@ -223,6 +223,15 @@ final class EntryFlowTests: XCTestCase {
         let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "ledgerEntry-")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
+        let category = app.buttons["transactionCategory"]
+        XCTAssertTrue(category.waitForExistence(timeout: 5))
+        category.tap()
+        let food = app.buttons["transactionCategoryOption-Food"]
+        XCTAssertTrue(food.waitForExistence(timeout: 5))
+        food.tap()
+        XCTAssertTrue(category.waitForExistence(timeout: 5))
+        XCTAssertTrue(category.label.contains("Food"))
+        app.swipeUp()
         let split = app.switches["splitTransaction"]
         XCTAssertTrue(split.waitForExistence(timeout: 5))
         split.tap()

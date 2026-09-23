@@ -195,6 +195,7 @@ struct TransactionDetailView: View {
     @State private var customShare = ""
     @State private var error: String?
     @State private var showingManualEdit = false
+    @State private var showingCategoryPicker = false
     @State private var confirmingIgnore = false
     @State private var confirmingDiscard = false
 
@@ -281,6 +282,14 @@ struct TransactionDetailView: View {
                 loadEditorState()
             }
             .sheet(isPresented: $showingManualEdit) { EntryEditSheet(model: model, entry: current, reviewId: nil) }
+            .sheet(isPresented: $showingCategoryPicker) {
+                TransactionCategoryPicker(
+                    categories: model.engine.categories(),
+                    selection: $category
+                ) {
+                    splitEnabled = false
+                }
+            }
             .confirmationDialog(current.ignored ? "Restore this transaction?" : "Ignore this transaction?", isPresented: $confirmingIgnore) {
                 Button(current.ignored ? "Restore" : "Ignore", role: current.ignored ? nil : .destructive) {
                     error = model.mutate { $0.setIgnored(id: current.id, ignored: !current.ignored) }
@@ -322,17 +331,16 @@ struct TransactionDetailView: View {
                     .tint(Color.dmFlow)
                 } else {
                     FieldLabel(text: "Category")
-                    Menu {
-                        ForEach(model.engine.categories(), id: \.self) { option in
-                            Button(option) {
-                                category = option
-                                if option == "Investments" { splitEnabled = false }
-                            }
+                    Button { showingCategoryPicker = true } label: {
+                        HStack {
+                            Label(category, systemImage: "tag")
+                            Spacer()
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption)
                         }
-                    } label: {
-                        Label(category, systemImage: "tag")
                     }
                     .buttonStyle(SecondaryPillButtonStyle())
+                    .accessibilityIdentifier("transactionCategory")
                 }
             }
 
@@ -452,5 +460,47 @@ struct TransactionDetailView: View {
         case "bank-wal": return "Legacy bank import"
         default: return "Imported"
         }
+    }
+}
+
+private struct TransactionCategoryPicker: View {
+    let categories: [String]
+    @Binding var selection: String
+    let onInvestmentSelected: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List(categories, id: \.self) { option in
+                Button {
+                    selection = option
+                    if option == "Investments" { onInvestmentSelected() }
+                    dismiss()
+                } label: {
+                    HStack {
+                        CategoryDot(name: option, size: 10)
+                        Text(option)
+                            .foregroundStyle(Color.dmInk)
+                        Spacer()
+                        if option == selection {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color.dmFlow)
+                        }
+                    }
+                }
+                .accessibilityIdentifier("transactionCategoryOption-\(option)")
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.dmPaper)
+            .navigationTitle("Choose category")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
