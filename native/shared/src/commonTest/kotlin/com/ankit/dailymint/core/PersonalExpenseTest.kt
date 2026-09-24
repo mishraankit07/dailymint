@@ -211,6 +211,34 @@ class PersonalExpenseTest {
         assertEquals(120000, engine.totals().neutralCredits)
     }
 
+    @Test fun schemaFiveLegacyCreditKindIsNormalizedBeforeValidation() {
+        val saved = Snapshot(schemaVersion = 5, entries = listOf(
+            imported("salary", 10000, "income", "Salary").copy(creditKind = "salary")
+        ))
+        val engine = LedgerEngine(MemoryStore().apply { value = Json.encodeToString(saved) })
+
+        assertNull(engine.loadError)
+        assertEquals("salary", engine.entries().single().id)
+        assertEquals(CreditKind.INCOME, engine.entries().single().creditKind)
+        assertEquals("Income", engine.entries().single().category)
+    }
+
+    @Test fun pendingLegacyCreditIsMigratedBeforeItCanBeSavedIntoSchemaFive() {
+        val pending = imported("refund", 30000, "income", "Refund").copy(creditKind = "refund")
+        val store = MemoryStore().apply {
+            value = Json.encodeToString(Snapshot(schemaVersion = 4,
+                review = listOf(ReviewRow("row-refund", pending, "new"))))
+        }
+        val engine = LedgerEngine(store)
+
+        assertNull(engine.loadError)
+        assertTrue(engine.saveReview().success)
+        val reloaded = LedgerEngine(store)
+        assertNull(reloaded.loadError)
+        assertEquals(CreditKind.SETTLEMENT, reloaded.entries().single().creditKind)
+        assertEquals("Settlement", reloaded.entries().single().category)
+    }
+
     @Test fun manualExpenseCountsEnteredAmountWithoutSplitMetadata() {
         val store = MemoryStore()
         val engine = LedgerEngine(store)

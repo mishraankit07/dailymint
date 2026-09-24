@@ -57,8 +57,6 @@ object CreditKind {
         INCOME, "salary", "other_income" -> INCOME
         else -> fromLabel(category)
     }
-    fun validForSchema(kind: String, schemaVersion: Int): Boolean = kind in all ||
-        (schemaVersion <= 4 && kind in setOf("salary", "other_income", "reimbursement", "refund"))
 }
 
 @Serializable
@@ -163,13 +161,27 @@ class LedgerEngine(private val store: LedgerStore) {
                 require(loaded.schemaVersion in 1..5)
                 require(loaded.categories.contains("Miscellaneous"))
                 require(loaded.categories.map(String::lowercase).distinct().size == loaded.categories.size)
-                require(loaded.entries.size <= 100_000)
-                require(loaded.entries.map { entry -> entry.id }.distinct().size == loaded.entries.size)
-                require(loaded.entries.all { entry ->
+                if (loaded.schemaVersion >= 4) require(loaded.entries.none { entry -> entry.ignored })
+                val migratedEntries = loaded.entries
+                    .filterNot { entry -> loaded.schemaVersion <= 3 && entry.ignored }
+                    .map { entry -> migrateEntry(entry, loaded.schemaVersion) }
+                val migrated = loaded.copy(
+                    schemaVersion = 5,
+                    entries = migratedEntries,
+                    review = loaded.review.map { row ->
+                        row.copy(entry = row.entry?.let { entry -> migrateEntry(entry, loaded.schemaVersion) })
+                    },
+                    unrecognized = loaded.unrecognized.map { row ->
+                        row.copy(entry = row.entry?.let { entry -> migrateEntry(entry, loaded.schemaVersion) })
+                    }
+                )
+                require(migrated.entries.size <= 100_000)
+                require(migrated.entries.map { entry -> entry.id }.distinct().size == migrated.entries.size)
+                require(migrated.entries.all { entry ->
                     entry.paise in 1..100_000_000_000L && validDate(entry.date) &&
                         entry.type in listOf("income", "expense", "investment") &&
                         (entry.personalExpensePaise == null || entry.personalExpensePaise in 0..entry.paise) &&
-                        (entry.creditKind == null || CreditKind.validForSchema(entry.creditKind, loaded.schemaVersion)) &&
+                        (entry.creditKind == null || entry.creditKind in CreditKind.all) &&
                         entry.splitMethod in SplitMethod.all &&
                         (entry.splitMethod != SplitMethod.EQUAL ||
                             (entry.type == "expense" && entry.splitPeopleCount != null && entry.splitPeopleCount >= 2)) &&
@@ -177,24 +189,7 @@ class LedgerEngine(private val store: LedgerStore) {
                             (entry.type == "expense" && entry.splitPeopleCount == null)) &&
                         (entry.splitMethod != SplitMethod.NONE || entry.splitPeopleCount == null)
                 })
-                if (loaded.schemaVersion >= 4) require(loaded.entries.none { entry -> entry.ignored })
-                snapshot = loaded.copy(schemaVersion = 5, entries = loaded.entries
-                    .filterNot { entry -> loaded.schemaVersion <= 3 && entry.ignored }
-                    .map { entry ->
-                    val migratedCreditKind = if (entry.type == "income") {
-                        CreditKind.migrate(entry.creditKind, entry.category)
-                    } else null
-                    val migrated = entry.copy(
-                        ignored = false,
-                        category = if (migratedCreditKind != null) CreditKind.label(migratedCreditKind) else entry.category,
-                        creditKind = migratedCreditKind,
-                        originalName = if (entry.source != "manual" && entry.originalName.isBlank()) entry.name else entry.originalName,
-                        originalCategory = if (entry.source != "manual" && entry.originalCategory.isBlank()) entry.category else entry.originalCategory
-                    )
-                    if (loaded.schemaVersion < 3 && migrated.type == "expense" && migrated.personalExpensePaise != null) {
-                        migrated.copy(splitMethod = SplitMethod.CUSTOM)
-                    } else migrated
-                })
+                snapshot = migrated
             }
         } catch (_: Exception) {
             loadError = "Could not read your saved ledger. Your data has not been replaced."
@@ -440,6 +435,22 @@ class LedgerEngine(private val store: LedgerStore) {
             SaveResult(false, "Could not save. Please try again.")
         }
     }
+}
+
+private fun migrateEntry(entry: Entry, schemaVersion: Int): Entry {
+    val migratedCreditKind = if (entry.type == "income") {
+        CreditKind.migrate(entry.creditKind, entry.category)
+    } else null
+    val migrated = entry.copy(
+        ignored = false,
+        category = if (migratedCreditKind != null) CreditKind.label(migratedCreditKind) else entry.category,
+        creditKind = migratedCreditKind,
+        originalName = if (entry.source != "manual" && entry.originalName.isBlank()) entry.name else entry.originalName,
+        originalCategory = if (entry.source != "manual" && entry.originalCategory.isBlank()) entry.category else entry.originalCategory
+    )
+    return if (schemaVersion < 3 && migrated.type == "expense" && migrated.personalExpensePaise != null) {
+        migrated.copy(splitMethod = SplitMethod.CUSTOM)
+    } else migrated
 }
 
 private fun validDate(value: String): Boolean {
