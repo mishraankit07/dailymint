@@ -24,7 +24,7 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: DailyMint
         INFOPLIST_KEY_CFBundleName: DailyMint
         INFOPLIST_KEY_UIUserInterfaceStyle: Automatic
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
         FRAMEWORK_SEARCH_PATHS: "$(inherited) $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
         OTHER_LDFLAGS: "$(inherited) -framework DailyMintCore"
         ENABLE_USER_SCRIPT_SANDBOXING: NO
