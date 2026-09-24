@@ -376,7 +376,9 @@ struct CategorySelectionSheet: View {
                     Button {
                         selection = option
                         onSelection?(option)
-                        isPresented = false
+                        DispatchQueue.main.async {
+                            isPresented = false
+                        }
                     } label: {
                         HStack {
                             CategoryDot(name: option, size: 10)
@@ -395,7 +397,9 @@ struct CategorySelectionSheet: View {
                 if let addActionTitle, let onAdd {
                     Button {
                         onAdd()
-                        isPresented = false
+                        DispatchQueue.main.async {
+                            isPresented = false
+                        }
                     } label: {
                         Label(addActionTitle, systemImage: "plus.circle.fill")
                             .foregroundStyle(Color.dmFlow)
