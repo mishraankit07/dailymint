@@ -76,7 +76,7 @@ final class EntryFlowTests: XCTestCase {
         let miscellaneous = app.buttons["ledgerCategoryFilterOption-Miscellaneous"]
         XCTAssertTrue(miscellaneous.waitForExistence(timeout: 5))
         miscellaneous.tap()
-        XCTAssertFalse(app.navigationBars["Filter expenses"].exists)
+        XCTAssertTrue(app.navigationBars["Filter expenses"].waitForNonExistence(timeout: 5))
         app.swipeUp()
         XCTAssertTrue(app.buttons["ledgerCategoryFilter"].label.contains("Miscellaneous"))
     }
