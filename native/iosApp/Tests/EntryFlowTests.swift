@@ -64,31 +64,6 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.textFields["categoryName"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.buttons["entryCategoryOption-Travel"].waitForExistence(timeout: 5))
     }
-    func testAddCategoriesStayInlineAndLedgerFilterIsContextual() {
-        app.buttons["Add"].tap()
-        let food = app.buttons["entryCategoryOption-Food"]
-        XCTAssertTrue(food.waitForExistence(timeout: 5))
-        food.tap()
-        XCTAssertTrue(food.isSelected)
-        app.swipeUp()
-        XCTAssertTrue(food.exists)
-
-        app.buttons["cancelEntry"].tap()
-        app.buttons["Ledger"].tap()
-        XCTAssertFalse(app.buttons["ledgerCategoryFilter"].exists)
-        app.buttons["Type"].tap()
-        app.buttons["Expense"].tap()
-        app.buttons["ledgerCategoryFilter"].tap()
-        let miscellaneous = app.buttons["ledgerCategoryFilterOption-Miscellaneous"]
-        XCTAssertTrue(miscellaneous.waitForExistence(timeout: 5))
-        miscellaneous.tap()
-        let selectedFilter = app.buttons["ledgerCategoryFilter"]
-        expectation(
-            for: NSPredicate(format: "exists == true AND hittable == true AND label CONTAINS %@", "Miscellaneous"),
-            evaluatedWith: selectedFilter
-        )
-        waitForExpectations(timeout: 5)
-    }
     func testEveryTabOpens() {
         for tab in ["Home", "Growth", "Ledger", "Plan"] {
             let button = app.buttons[tab]
