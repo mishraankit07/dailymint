@@ -197,8 +197,6 @@ struct TransactionDetailView: View {
     @State private var customShare = ""
     @State private var error: String?
     @State private var showingManualEdit = false
-    @State private var showingCategoryPicker = false
-    @State private var showingCreditKindPicker = false
     @State private var confirmingDelete = false
     @State private var confirmingDiscard = false
 
@@ -208,13 +206,40 @@ struct TransactionDetailView: View {
     private var imported: Bool { current.source != "manual" }
     private var isExpense: Bool { category != "Investments" && current.type != "income" }
     private var stagedMethod: String { splitEnabled && isExpense ? splitMethod : "none" }
+    private var maximumPeople: Int { Int(model.engine.maximumSplitPeople(id: current.id)) }
+    private var parsedPeople: Int? {
+        guard people.range(of: #"^[0-9]+$"#, options: .regularExpression) != nil,
+              let value = Int(people) else { return nil }
+        return value
+    }
+    private var validPeople: Int? {
+        guard let value = parsedPeople, value >= 2, value <= maximumPeople else { return nil }
+        return value
+    }
+    private var participantError: String? {
+        guard splitEnabled && isExpense && splitMethod == "equal" else { return nil }
+        guard !people.isEmpty else { return nil }
+        guard let value = parsedPeople, value >= 2 else { return "Enter at least 2 people, including you." }
+        if value > maximumPeople { return "Each person's share must be at least Rs 1." }
+        return nil
+    }
     private var equalSharePaise: Int64 {
-        model.engine.equalShare(id: current.id, people: Int32(people) ?? 0)
+        guard let validPeople else { return -1 }
+        return model.engine.equalShare(id: current.id, people: Int32(validPeople))
     }
     private var previewPaise: Int64? {
         guard splitEnabled && isExpense else { return current.paise }
         if splitMethod == "equal" { return equalSharePaise >= 0 ? equalSharePaise : nil }
         return parseDisplayAmount(customShare)
+    }
+    private var importedSaveDisabled: Bool {
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
+        if splitEnabled && isExpense && splitMethod == "equal" { return validPeople == nil }
+        if splitEnabled && isExpense && splitMethod == "custom" {
+            guard let value = parseDisplayAmount(customShare) else { return true }
+            return value > current.paise
+        }
+        return false
     }
     private var hasUnsavedChanges: Bool {
         guard imported else { return false }
@@ -232,14 +257,14 @@ struct TransactionDetailView: View {
     var body: some View {
         NavigationStack {
             ScreenSurface {
-                RaisedPanel {
-                    Text("Rs " + model.engine.formatAmount(paise: current.paise))
-                        .font(.system(size: 34, weight: .semibold, design: .serif))
-                        .foregroundStyle(Color.dmInk)
-                        .accessibilityLabel("Original amount, Rs " + model.engine.formatAmount(paise: current.paise))
-                    Text("Original amount")
-                        .font(.caption).foregroundStyle(Color.dmInkFaint)
-                    detailLine("Date", model.engine.transactionDay(date: current.date))
+                if !imported {
+                    RaisedPanel {
+                        Text("Rs " + model.engine.formatAmount(paise: current.paise))
+                            .font(.system(size: 34, weight: .semibold, design: .serif))
+                            .foregroundStyle(Color.dmInk)
+                            .accessibilityLabel("Amount, Rs " + model.engine.formatAmount(paise: current.paise))
+                        detailLine("Date", model.engine.transactionDay(date: current.date))
+                    }
                 }
 
                 if imported {
@@ -260,7 +285,7 @@ struct TransactionDetailView: View {
                         .accessibilityIdentifier("transactionError")
                 }
             }
-            .navigationTitle("Transaction")
+            .navigationTitle(imported ? "Edit transaction" : "Transaction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -268,8 +293,9 @@ struct TransactionDetailView: View {
                 }
                 if imported {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Done", action: saveImported)
+                        Button("Save", action: saveImported)
                             .accessibilityIdentifier("saveImportedTransaction")
+                            .disabled(importedSaveDisabled)
                     }
                 }
             }
@@ -277,26 +303,6 @@ struct TransactionDetailView: View {
                 loadEditorState()
             }
             .sheet(isPresented: $showingManualEdit) { EntryEditSheet(model: model, entry: current, reviewId: nil) }
-            .sheet(isPresented: $showingCategoryPicker) {
-                CategorySelectionSheet(
-                    title: "Choose category",
-                    options: model.engine.categories(),
-                    selection: $category,
-                    optionIdentifierPrefix: "transactionCategoryOption",
-                    onSelection: { option in
-                        if option == "Investments" { splitEnabled = false }
-                    }
-                )
-            }
-            .sheet(isPresented: $showingCreditKindPicker) {
-                CategorySelectionSheet(
-                    title: "Choose credit kind",
-                    options: ["income", "own_transfer", "settlement"],
-                    selection: $creditKind,
-                    optionIdentifierPrefix: "transactionCreditKindOption",
-                    optionLabel: creditLabel
-                )
-            }
             .confirmationDialog("Delete this transaction?", isPresented: $confirmingDelete) {
                 Button("Delete transaction", role: .destructive) {
                     error = model.mutate { $0.deleteEntry(id: current.id) }
@@ -323,69 +329,151 @@ struct TransactionDetailView: View {
     private var importedEditor: some View {
         Group {
             RaisedPanel {
-                detailLine("Captured at", capturedAtText)
-                FieldLabel(text: "Merchant")
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Rs " + model.engine.formatAmount(paise: current.paise))
+                            .font(.title2.weight(.semibold))
+                            .foregroundStyle(Color.dmInk)
+                        Text("Original amount, can't be edited")
+                            .font(.caption)
+                            .foregroundStyle(Color.dmInkFaint)
+                    }
+                    Spacer()
+                    Image(systemName: "lock.fill")
+                        .foregroundStyle(Color.dmInkFaint)
+                        .accessibilityHidden(true)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Original amount, Rs " + model.engine.formatAmount(paise: current.paise) + ", can't be edited")
+
+                FieldLabel(text: "Name")
                 PaperField(placeholder: "Merchant name", text: $name)
                     .accessibilityIdentifier("transactionName")
 
                 if current.type == "income" {
                     FieldLabel(text: "Credit kind")
-                    Button { showingCreditKindPicker = true } label: {
-                        HStack {
-                            Label(creditLabel(creditKind), systemImage: "tag")
-                            Spacer()
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
+                        ForEach(["income", "own_transfer", "settlement"], id: \.self) { option in
+                            SelectableCategoryChip(name: creditLabel(option), selected: creditKind == option) {
+                                creditKind = option
+                            }
+                            .accessibilityIdentifier("transactionCreditKindOption-\(option)")
                         }
                     }
-                    .buttonStyle(SecondaryPillButtonStyle())
                     .accessibilityIdentifier("transactionCreditKind")
                 } else {
                     FieldLabel(text: "Category")
-                    Button { showingCategoryPicker = true } label: {
-                        HStack {
-                            Label(category, systemImage: "tag")
-                            Spacer()
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
+                        ForEach(model.engine.categories(), id: \.self) { option in
+                            SelectableCategoryChip(name: option, selected: category == option) {
+                                category = option
+                                if option == "Investments" { splitEnabled = false }
+                            }
+                            .accessibilityIdentifier("transactionCategoryOption-\(option)")
                         }
                     }
-                    .buttonStyle(SecondaryPillButtonStyle())
                     .accessibilityIdentifier("transactionCategory")
                 }
+
+                FieldLabel(text: "Captured at")
+                HStack {
+                    Text(capturedAtText)
+                        .foregroundStyle(Color.dmInk)
+                    Spacer()
+                    Image(systemName: "lock.fill")
+                        .foregroundStyle(Color.dmInkFaint)
+                        .accessibilityHidden(true)
+                }
+                .padding(14)
+                .background(Color.dmPaperRaised)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline))
             }
 
             if current.type != "income" && category != "Investments" {
                 RaisedPanel {
-                    Toggle("Split this bill with others", isOn: $splitEnabled)
+                    Toggle("Record your share?", isOn: $splitEnabled)
                         .tint(Color.dmFlow)
                         .accessibilityIdentifier("splitTransaction")
-                    if splitEnabled {
-                        HStack(spacing: 6) {
-                            PaperSegment(title: "Split equally", value: "equal", selection: $splitMethod)
-                            PaperSegment(title: "Custom share", value: "custom", selection: $splitMethod)
+                        .disabled(maximumPeople < 2 && !splitEnabled)
+                        .onChange(of: splitEnabled) { enabled in
+                            if enabled && splitMethod == "none" {
+                                splitMethod = "equal"
+                                people = "2"
+                            }
                         }
-                        .padding(4)
-                        .background(Color.dmHairline.opacity(0.55))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
+                    if maximumPeople < 2 && !splitEnabled {
+                        Text("Equal split is unavailable because each person's share must be at least Rs 1.")
+                            .font(.caption)
+                            .foregroundStyle(Color.dmInkSoft)
+                    }
+                    if splitEnabled {
                         if splitMethod == "equal" {
-                            FieldLabel(text: "Among people, including you")
-                            PaperField(placeholder: "Number of people", text: $people, keyboard: .numberPad)
-                                .accessibilityIdentifier("splitPeople")
+                            Divider().overlay(Color.dmHairline)
+                            HStack {
+                                Text("People, including you")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Color.dmInk)
+                                Spacer()
+                                HStack(spacing: 0) {
+                                    Button {
+                                        if let value = validPeople, value > 2 { people = String(value - 1) }
+                                    } label: {
+                                        Image(systemName: "minus")
+                                            .frame(width: 44, height: 44)
+                                    }
+                                    .disabled(validPeople == nil || validPeople == 2)
+                                    .accessibilityIdentifier("splitPeopleDecrement")
+
+                                    TextField("2", text: $people)
+                                        .keyboardType(.numberPad)
+                                        .multilineTextAlignment(.center)
+                                        .frame(width: 58, height: 44)
+                                        .foregroundStyle(Color.dmInk)
+                                        .accessibilityIdentifier("splitPeople")
+
+                                    Button {
+                                        if let value = validPeople, value < maximumPeople { people = String(value + 1) }
+                                    } label: {
+                                        Image(systemName: "plus")
+                                            .frame(width: 44, height: 44)
+                                    }
+                                    .disabled(validPeople == nil || validPeople == maximumPeople)
+                                    .accessibilityIdentifier("splitPeopleIncrement")
+                                }
+                                .background(Color.dmPaperRaised)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            }
+
+                            if let participantError {
+                                Text(participantError)
+                                    .font(.caption)
+                                    .foregroundStyle(Color.dmSpend)
+                                    .accessibilityIdentifier("splitPeopleError")
+                            }
                         } else {
+                            Text("This transaction has a previously saved custom share.")
+                                .font(.caption)
+                                .foregroundStyle(Color.dmInkSoft)
                             FieldLabel(text: "Your share")
                             PaperField(placeholder: "Amount", text: $customShare, keyboard: .decimalPad)
                                 .accessibilityIdentifier("customShare")
                         }
 
                         if let previewPaise {
-                            Text("Rs \(model.engine.formatAmount(paise: current.paise)) paid - Rs \(model.engine.formatAmount(paise: previewPaise)) counts as your spending")
-                                .font(.caption).foregroundStyle(Color.dmInkSoft)
+                            HStack {
+                                Text("Your share")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color.dmInkSoft)
+                                Spacer()
+                                Text("Rs " + model.engine.formatAmount(paise: previewPaise))
+                                    .font(.headline)
+                                    .foregroundStyle(Color.dmInk)
+                            }
+                            .padding(14)
+                            .background(Color.dmPaperRaised)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 .accessibilityIdentifier("splitPreview")
-                        } else {
-                            Text(splitMethod == "equal" ? "Enter at least 2 people, including you." : "Enter an amount from Rs 0 to the original amount.")
-                                .font(.caption).foregroundStyle(Color.dmSpend)
                         }
                     }
                 }
@@ -402,7 +490,7 @@ struct TransactionDetailView: View {
         category = current.category
         creditKind = current.effectiveCreditKind()
         splitEnabled = current.splitMethod != "none" || current.personalSpent != current.paise
-        splitMethod = current.splitMethod == "equal" ? "equal" : "custom"
+        splitMethod = current.splitMethod == "custom" ? "custom" : "equal"
         let savedPeople = model.engine.splitPeopleCount(id: current.id)
         people = savedPeople >= 2 ? String(savedPeople) : "2"
         customShare = model.engine.formatAmount(paise: current.personalSpent)

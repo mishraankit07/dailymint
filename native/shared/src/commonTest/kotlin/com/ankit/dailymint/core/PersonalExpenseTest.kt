@@ -136,7 +136,7 @@ class PersonalExpenseTest {
 
         assertEquals(26700, engine.equalShare("eight", 3))
         assertEquals(10000, engine.equalShare("three", 3))
-        assertEquals(89, engine.equalShare("small", 2))
+        assertEquals(-1, engine.equalShare("small", 2))
         assertEquals(-1, engine.equalShare("eight", 1))
         assertTrue(engine.updateImportedTransaction("eight", "Dinner", "Food", "", SplitMethod.EQUAL, 3, "").success)
 

@@ -129,11 +129,15 @@ object Money {
     }
 
     fun equalShare(originalPaise: Long, people: Int): Long? {
-        if (originalPaise !in 1..MAX_PAISE || people < 2) return null
+        val maximumPeople = maximumSplitPeople(originalPaise)
+        if (people !in 2..maximumPeople) return null
         val exactShare = originalPaise / people + if (originalPaise % people == 0L) 0 else 1
         val wholeRupeeShare = exactShare / 100 + if (exactShare % 100 == 0L) 0 else 1
         return minOf(originalPaise, wholeRupeeShare * 100)
     }
+
+    fun maximumSplitPeople(originalPaise: Long): Int =
+        if (originalPaise !in 200..MAX_PAISE) 0 else (originalPaise / 100).toInt()
 }
 
 object ReminderCopy {
@@ -278,6 +282,7 @@ class LedgerEngine(private val store: LedgerStore) {
         val old = snapshot.entries.first { it.id == id }
         val error = validateEntry(name, amount, category, date, old.type == "income")
         if (error != null) return SaveResult(false, error)
+        if (LedgerDates.date(date) > LedgerDates.today()) return SaveResult(false, "Transaction date cannot be in the future.")
         val updated = old.copy(name = name.trim(), paise = Money.parse(amount)!!, category = category, date = date,
             type = entryType(old.type == "income", category),
             creditKind = if (old.type == "income") CreditKind.fromLabel(category) else null)
@@ -310,6 +315,8 @@ class LedgerEngine(private val store: LedgerStore) {
     fun equalShareForAmount(amount: String, people: Int): Long =
         Money.parse(amount)?.let { Money.equalShare(it, people) } ?: -1
     fun splitPeopleCount(id: String): Int = snapshot.entries.find { it.id == id }?.splitPeopleCount ?: 0
+    fun maximumSplitPeople(id: String): Int = snapshot.entries.find { it.id == id && it.type == "expense" }
+        ?.let { Money.maximumSplitPeople(it.paise) } ?: 0
 
     fun updateImportedTransaction(id: String, name: String, category: String, personalAmount: String,
         splitMethod: String, splitPeopleCount: Int, creditKind: String): SaveResult {
@@ -330,8 +337,14 @@ class LedgerEngine(private val store: LedgerStore) {
             }
             val personal = when (splitMethod) {
                 SplitMethod.NONE -> entry.paise
-                SplitMethod.EQUAL -> Money.equalShare(entry.paise, splitPeopleCount)
-                    ?: return SaveResult(false, "Enter at least 2 people, including you.")
+                SplitMethod.EQUAL -> {
+                    if (splitPeopleCount < 2) return SaveResult(false, "Enter at least 2 people, including you.")
+                    if (splitPeopleCount > Money.maximumSplitPeople(entry.paise)) {
+                        return SaveResult(false, "Each person's share must be at least Rs 1.")
+                    }
+                    Money.equalShare(entry.paise, splitPeopleCount)
+                        ?: return SaveResult(false, "This amount cannot be split equally.")
+                }
                 SplitMethod.CUSTOM -> Money.parseShare(personalAmount)
                     ?: return SaveResult(false, "Enter an amount with up to two decimal places.")
                 else -> return SaveResult(false, "Choose a valid split method.")

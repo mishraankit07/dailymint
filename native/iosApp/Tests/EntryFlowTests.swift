@@ -243,35 +243,74 @@ final class EntryFlowTests: XCTestCase {
         let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "ledgerEntry-")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
-        let category = app.buttons["transactionCategory"]
-        XCTAssertTrue(category.waitForExistence(timeout: 5))
-        category.tap()
         let food = app.buttons["transactionCategoryOption-Food"]
         XCTAssertTrue(food.waitForExistence(timeout: 5))
         food.tap()
-        XCTAssertTrue(category.waitForExistence(timeout: 5))
-        XCTAssertTrue(category.label.contains("Food"))
         app.swipeUp()
         let split = app.switches["splitTransaction"]
         XCTAssertTrue(split.waitForExistence(timeout: 5))
         split.tap()
-        app.buttons["Custom share"].tap()
-        let share = app.textFields["customShare"]
-        XCTAssertTrue(share.waitForExistence(timeout: 5))
-        share.tap()
-        share.typeText(XCUIKeyboardKey.delete.rawValue + "2")
+        let people = app.textFields["splitPeople"]
+        XCTAssertTrue(people.waitForExistence(timeout: 5))
+        people.tap()
+        people.typeText(XCUIKeyboardKey.delete.rawValue + "5")
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        XCTAssertFalse(app.buttons["splitPeopleIncrement"].isEnabled)
+        XCTAssertTrue(app.descendants(matching: .any)["splitPreview"].waitForExistence(timeout: 5))
         let save = app.buttons["saveImportedTransaction"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
         XCTAssertFalse(app.staticTexts["transactionError"].exists)
         app.buttons["Home"].tap()
-        XCTAssertEqual(spent.label, "Spent: Rs 2")
+        XCTAssertEqual(spent.label, "Spent: Rs 1")
 
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        XCTAssertEqual(spent.label, "Spent: Rs 2")
+        XCTAssertEqual(spent.label, "Spent: Rs 1")
+    }
+
+    func testImportedSplitRejectsParticipantCountAboveMaximum() {
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]
+        app.launch()
+        app.buttons["Ledger"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "ledgerEntry-")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        app.swipeUp()
+        app.switches["splitTransaction"].tap()
+
+        let people = app.textFields["splitPeople"]
+        XCTAssertTrue(people.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["splitPeopleDecrement"].isEnabled)
+        people.tap()
+        people.typeText(XCUIKeyboardKey.delete.rawValue + "6")
+        XCTAssertTrue(app.staticTexts["splitPeopleError"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["splitPeopleError"].label, "Each person's share must be at least Rs 1.")
+        XCTAssertFalse(app.buttons["saveImportedTransaction"].isEnabled)
+    }
+
+    func testManualEditorShowsEditableDateWithoutCaptureMetadata() {
+        app.buttons["Add"].tap()
+        app.textFields["entryName"].tap()
+        app.textFields["entryName"].typeText("Lunch")
+        app.textFields["entryAmount"].tap()
+        app.textFields["entryAmount"].typeText("50")
+        let save = app.buttons["saveEntry"]
+        if !save.isHittable { app.swipeUp() }
+        save.tap()
+
+        app.buttons["Ledger"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "ledgerEntry-")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertFalse(app.staticTexts["Captured at"].exists)
+        app.buttons["Edit manual entry"].tap()
+        XCTAssertTrue(app.datePickers["editEntryDate"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Captured at"].exists)
+        XCTAssertTrue(app.buttons["saveManualTransaction"].exists)
     }
 
     func testImportedTransactionCanBeDeletedAfterConfirmation() {

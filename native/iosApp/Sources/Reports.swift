@@ -394,64 +394,98 @@ struct EntryEditSheet: View {
     @State private var name = ""
     @State private var amount = ""
     @State private var category = ""
+    @State private var transactionDate = Date()
     @State private var error: String?
+    @State private var dateError: String?
     @State private var delete = false
-    @State private var showingCategoryPicker = false
+    private var isManualEdit: Bool { reviewId == nil && entry.source == "manual" }
+    private var categoryOptions: [String] {
+        entry.type == "income" ? ["Income", "Own account transfer", "Settlement"] : model.engine.categories()
+    }
+
     var body: some View {
         NavigationStack {
             ScreenSurface {
-                BrandHeader(title: "Edit transaction")
                 RaisedPanel {
-                    FieldLabel(text: "Name")
-                    PaperField(placeholder: "Name", text: $name)
                     if reviewId != nil && entry.source != "manual" {
                         detailLine("Original amount", "Rs " + model.engine.formatAmount(paise: entry.paise))
                     } else {
                         FieldLabel(text: "Amount")
                         PaperField(placeholder: "Amount", text: $amount, keyboard: .decimalPad)
+                            .accessibilityIdentifier("editEntryAmount")
                     }
+
+                    FieldLabel(text: "Name")
+                    PaperField(placeholder: "Name", text: $name)
+                        .accessibilityIdentifier("editEntryName")
+
                     FieldLabel(text: entry.type == "income" ? "Credit kind" : "Category")
-                    Button { showingCategoryPicker = true } label: {
-                        HStack {
-                            Label(category, systemImage: "tag")
-                            Spacer()
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
+                        ForEach(categoryOptions, id: \.self) { option in
+                            SelectableCategoryChip(name: option, selected: category == option) {
+                                category = option
+                            }
+                            .accessibilityIdentifier("editEntryCategoryOption-\(option)")
                         }
                     }
-                    .buttonStyle(SecondaryPillButtonStyle())
                     .accessibilityIdentifier("editEntryCategory")
-                    if let error { Text(error).foregroundStyle(Color.dmSpend) }
+
+                    if isManualEdit {
+                        FieldLabel(text: "Date")
+                        DatePicker("Date", selection: $transactionDate, in: ...Date(), displayedComponents: .date)
+                            .foregroundStyle(Color.dmInk)
+                            .environment(\.timeZone, Self.transactionTimeZone)
+                            .accessibilityIdentifier("editEntryDate")
+                        if let dateError {
+                            Text(dateError)
+                                .font(.caption)
+                                .foregroundStyle(Color.dmSpend)
+                                .accessibilityIdentifier("editEntryDateError")
+                        }
+                    }
+
+                    if let error, dateError == nil {
+                        Text(error).foregroundStyle(Color.dmSpend)
+                            .accessibilityIdentifier("editEntryError")
+                    }
                     if reviewId == nil {
-                        Button("Delete", role: .destructive) { delete = true }
+                        Button("Delete transaction", role: .destructive) { delete = true }
                             .buttonStyle(DestructivePillButtonStyle())
+                            .accessibilityIdentifier("deleteManualTransaction")
                     }
                 }
             }
-            .navigationTitle("")
+            .navigationTitle("Edit transaction")
             .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save") {
-                            error = model.mutate { engine in
+                            let saveError = model.mutate { engine in
                                 if let reviewId { return engine.editReview(id: reviewId, name: name, amount: amount, category: category) }
-                                return engine.editEntry(id: entry.id, name: name, amount: amount, category: category, date: entry.date, platform: "ios", nowMillis: Int64(Date().timeIntervalSince1970 * 1000))
+                                return engine.editEntry(
+                                    id: entry.id,
+                                    name: name,
+                                    amount: amount,
+                                    category: category,
+                                    date: Self.transactionDateFormatter.string(from: transactionDate),
+                                    platform: "ios",
+                                    nowMillis: Int64(Date().timeIntervalSince1970 * 1000)
+                                )
                             }
-                            if error == nil { dismiss() }
+                            error = saveError
+                            dateError = saveError == "Transaction date cannot be in the future." ? saveError : nil
+                            if saveError == nil { dismiss() }
                         }
+                        .accessibilityIdentifier("saveManualTransaction")
                     }
                 }
-                .onAppear { name = entry.name; amount = model.engine.formatAmount(paise: entry.paise); category = entry.category }
-                .sheet(isPresented: $showingCategoryPicker) {
-                    CategorySelectionSheet(
-                        title: entry.type == "income" ? "Choose credit kind" : "Choose category",
-                        options: entry.type == "income"
-                            ? ["Income", "Own account transfer", "Settlement"]
-                            : model.engine.categories(),
-                        selection: $category,
-                        optionIdentifierPrefix: "editEntryCategoryOption"
-                    )
+                .onAppear {
+                    name = entry.name
+                    amount = model.engine.formatAmount(paise: entry.paise)
+                    category = entry.category
+                    let day = model.engine.transactionDay(date: entry.date)
+                    transactionDate = Self.transactionDateFormatter.date(from: day) ?? Date()
                 }
                 .confirmationDialog("Delete transaction?", isPresented: $delete) {
                     Button("Delete", role: .destructive) {
@@ -460,6 +494,19 @@ struct EntryEditSheet: View {
                     }
                 }
         }.presentationDetents([.medium, .large])
+    }
+
+    private static var transactionDateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = transactionTimeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }
+
+    private static var transactionTimeZone: TimeZone {
+        TimeZone(identifier: "Asia/Kolkata") ?? .current
     }
 
     private func detailLine(_ title: String, _ value: String) -> some View {
