@@ -3,8 +3,6 @@ import SwiftUI
 struct SMSOnboardingView: View {
     let onContinue: () -> Void
     @Environment(\.openURL) private var openURL
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var latestReceipt: ShortcutImportReceipt?
     @State private var shortcutsUnavailable = false
 
     var body: some View {
@@ -16,29 +14,8 @@ struct SMSOnboardingView: View {
 
             step(1, "Choose a message trigger", "In Shortcuts, open Automation, tap +, then choose Message. Pick the senders or text that cover your bank alerts. For broad coverage, choose Any Sender and a single space in Message Contains if Shortcuts requires a filter. Messages without a space will not match that filter.")
             step(2, "Run automatically", "Choose Run Immediately, then Create New Shortcut. If a Receive block appears at the top, set its input type to Messages.")
-            step(3, "Send the message to DailyMint", "Search for DailyMint and add Capture Incoming SMS. Set Message to Shortcut Input's Message or Content. Set Sender to Shortcut Input's Sender if available. Leave the variable connected; do not type a sample message into the field.")
-            step(4, "Save and check", "Tap Done in Shortcuts. After the next matching message arrives, return here to check whether DailyMint received it.")
-
-            RaisedPanel {
-                SectionHeading(title: "Connection status")
-                if let receipt = latestReceipt {
-                    Label(receipt.status.capitalized, systemImage: receipt.status == "transaction added" ? "checkmark.circle.fill" : "info.circle")
-                        .foregroundStyle(receipt.status == "transaction added" ? Color.dmIncome : Color.dmFlow)
-                        .accessibilityIdentifier("smsSetupStatus")
-                    Text(receipt.status == "empty input"
-                         ? "The automation ran, but its Message field did not contain the SMS body. Reopen the action and select the message variable."
-                         : "Last received \(receipt.timestamp). A message reached the DailyMint action.")
-                        .font(.caption)
-                        .foregroundStyle(Color.dmInkSoft)
-                } else {
-                    Text("Waiting for the first message from Shortcuts")
-                        .foregroundStyle(Color.dmInkSoft)
-                        .accessibilityIdentifier("smsSetupStatus")
-                }
-                Button("Check again", action: refreshReceipt)
-                    .buttonStyle(SecondaryPillButtonStyle())
-                    .accessibilityIdentifier("checkSMSSetup")
-            }
+            step(3, "Send the message to DailyMint", "Search for DailyMint and add Import Bank SMS. Set Message to Shortcut Input's Message or Content. Set Sender to Shortcut Input's Sender if available. Leave the variable connected; do not type a sample message into the field. If an older automation uses Capture Incoming SMS, replace that action.")
+            step(4, "Save the automation", "Tap Done in Shortcuts. Recognized transactions will appear in DailyMint after the next matching bank message arrives.")
 
             Text("Shortcuts controls which messages trigger the automation. DailyMint does not read your Messages inbox, and message processing stays on this device. You can revisit this guide in Settings.")
                 .font(.caption)
@@ -62,10 +39,6 @@ struct SMSOnboardingView: View {
             .padding(.bottom, 8)
             .background(Color.dmPaperRaised)
         }
-        .onAppear(perform: refreshReceipt)
-        .onChange(of: scenePhase) { phase in
-            if phase == .active { refreshReceipt() }
-        }
         .alert("Shortcuts unavailable", isPresented: $shortcutsUnavailable) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -86,10 +59,6 @@ struct SMSOnboardingView: View {
                 }
             }
         }
-    }
-
-    private func refreshReceipt() {
-        latestReceipt = ShortcutImportLog.recent(limit: 1).first
     }
 
     private func launchShortcuts() {
