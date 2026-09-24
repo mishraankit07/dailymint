@@ -16,16 +16,21 @@ struct ImportBankSmsIntent: AppIntent {
     @Parameter(title: "Sender")
     var sender: String?
 
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        let response = await ShortcutSMSProcessor.shared.importMessage(message, sender: sender)
-        return .result(dialog: "\(response)")
+    func perform() async throws -> some IntentResult {
+        _ = await ShortcutSMSProcessor.shared.importMessage(message, sender: sender)
+        return .result()
     }
 }
 
 actor ShortcutSMSProcessor {
     static let shared = ShortcutSMSProcessor()
 
-    func importMessage(_ message: String?, sender: String?) -> String {
+    private struct ImportOutcome {
+        let response: String
+        let addedTransaction: Bool
+    }
+
+    func importMessage(_ message: String?, sender: String?) async -> String {
         let text = (message ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
             return "DailyMint did not receive a message. Check the Message field in Shortcuts."
@@ -37,18 +42,22 @@ actor ShortcutSMSProcessor {
         let sourceId = "shortcut-\(stableHash(normalizedSender + "|" + text))"
         let store = FileStore(testing: ProcessInfo.processInfo.arguments.contains("--ui-testing"))
         do {
-            return try store.withExclusiveLock {
+            let outcome = try store.withExclusiveLock {
                 importLocked(text: text, sender: normalizedSender, timestamp: timestamp, sourceId: sourceId, store: store)
             }
+            if outcome.addedTransaction {
+                await AutomaticImportNotification.sendTransactionAdded()
+            }
+            return outcome.response
         } catch {
             return "DailyMint could not access its local data. Try again."
         }
     }
 
-    private func importLocked(text: String, sender: String, timestamp: Int64, sourceId: String, store: FileStore) -> String {
+    private func importLocked(text: String, sender: String, timestamp: Int64, sourceId: String, store: FileStore) -> ImportOutcome {
         let engine = LedgerEngine(store: store)
         if let loadError = engine.loadError {
-            return "DailyMint could not open its ledger: \(loadError)"
+            return ImportOutcome(response: "DailyMint could not open its ledger: \(loadError)", addedTransaction: false)
         }
         let entryCount = engine.entries().count
         let unrecognizedCount = engine.unrecognizedMessages().count
@@ -61,14 +70,14 @@ actor ShortcutSMSProcessor {
 
         if result.success {
             if engine.entries().count > entryCount {
-                return "DailyMint added this transaction."
+                return ImportOutcome(response: "DailyMint added this transaction.", addedTransaction: true)
             }
             if engine.unrecognizedMessages().count > unrecognizedCount {
-                return "DailyMint received this SMS, but could not recognize it yet."
+                return ImportOutcome(response: "DailyMint received this SMS, but could not recognize it yet.", addedTransaction: false)
             }
-            return "DailyMint received this SMS. It was ignored or already recorded."
+            return ImportOutcome(response: "DailyMint received this SMS. It was ignored or already recorded.", addedTransaction: false)
         }
-        return "DailyMint could not save this message."
+        return ImportOutcome(response: "DailyMint could not save this message.", addedTransaction: false)
     }
 
     private func stableHash(_ text: String) -> String {

@@ -134,6 +134,9 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.buttons.matching(identifier: "settings").count, 1)
         app.buttons["settings"].tap()
+        let notificationToggle = app.switches["automaticImportNotificationToggle"]
+        if !notificationToggle.exists { app.swipeUp() }
+        XCTAssertTrue(notificationToggle.waitForExistence(timeout: 5))
         let setupGuide = app.buttons["openSMSSetup"]
         if !setupGuide.isHittable { app.swipeUp() }
         setupGuide.tap()

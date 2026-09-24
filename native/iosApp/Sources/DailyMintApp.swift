@@ -136,8 +136,27 @@ enum ReminderScheduler {
     }
 }
 
+final class DailyMintAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+}
+
 @main
 struct DailyMintApp: App {
+    @UIApplicationDelegateAdaptor(DailyMintAppDelegate.self) private var appDelegate
     @StateObject private var model = LedgerModel()
     @State private var selectedTab = AppTab.home
     @State private var showingAdd = false
@@ -334,6 +353,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var model: LedgerModel
     @AppStorage("smsOnboardingSeenV1") private var onboardingSeen = true
+    @AppStorage(AutomaticImportNotification.enabledKey) private var automaticImportNotificationsEnabled = false
     @State private var showCategory = false
     @State private var deletion: String?
     @State private var error: String?
@@ -342,6 +362,7 @@ struct SettingsView: View {
     @State private var unrecognizedText: String?
     @State private var reminderDigits = ReminderDigits.from24Hour("21:30")
     @State private var focusedReminderDigit: ReminderDigit?
+    @State private var notificationPermissionDenied = false
     var body: some View {
         NavigationStack {
             ScreenSurface {
@@ -365,11 +386,17 @@ struct SettingsView: View {
                     reminderEnabled = model.engine.reminderEnabled()
                     reminderTime = model.engine.reminderTime()
                     reminderDigits = ReminderDigits.from24Hour(reminderTime)
+                    refreshAutomaticImportNotificationPermission()
                 }
                 .alert("Unrecognized message", isPresented: Binding(get: { unrecognizedText != nil }, set: { if !$0 { unrecognizedText = nil } })) {
                     Button("Close") { unrecognizedText = nil }
                 } message: {
                     Text(unrecognizedText ?? "")
+                }
+                .alert("Notifications are off", isPresented: $notificationPermissionDenied) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text("Allow notifications for DailyMint in iPhone Settings, then enable this option again.")
                 }
         }
     }
@@ -472,6 +499,13 @@ struct SettingsView: View {
             Text("Set up or review the Message automation in Shortcuts.")
                 .font(.subheadline)
                 .foregroundStyle(Color.dmInkSoft)
+            Toggle(
+                "Notify when DailyMint adds a transaction automatically?",
+                isOn: automaticImportNotificationBinding
+            )
+            .tint(Color.dmFlow)
+            .foregroundStyle(Color.dmInk)
+            .accessibilityIdentifier("automaticImportNotificationToggle")
             Button {
                 onboardingSeen = false
                 dismiss()
@@ -507,6 +541,38 @@ struct SettingsView: View {
                 updateReminder(time: value)
             }
         )
+    }
+
+    private var automaticImportNotificationBinding: Binding<Bool> {
+        Binding(
+            get: { automaticImportNotificationsEnabled },
+            set: { enabled in
+                guard enabled else {
+                    automaticImportNotificationsEnabled = false
+                    return
+                }
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                    DispatchQueue.main.async {
+                        automaticImportNotificationsEnabled = granted
+                        notificationPermissionDenied = !granted
+                    }
+                }
+            }
+        )
+    }
+
+    private func refreshAutomaticImportNotificationPermission() {
+        guard automaticImportNotificationsEnabled else { return }
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let allowed = settings.authorizationStatus == .authorized ||
+                settings.authorizationStatus == .provisional ||
+                settings.authorizationStatus == .ephemeral
+            if !allowed {
+                DispatchQueue.main.async {
+                    automaticImportNotificationsEnabled = false
+                }
+            }
+        }
     }
 
     private var periodBinding: Binding<String> {
