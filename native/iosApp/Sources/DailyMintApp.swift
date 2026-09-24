@@ -154,12 +154,61 @@ final class DailyMintAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
     }
 }
 
+private struct AnimatedBrandSplash: View {
+    let onFinished: () -> Void
+    @State private var taglineVisible = false
+    @State private var splashOpacity = 1.0
+
+    var body: some View {
+        GeometryReader { proxy in
+            let designWidth: CGFloat = 1290
+            let designHeight: CGFloat = 2796
+            let scale = max(proxy.size.width / designWidth, proxy.size.height / designHeight)
+            let renderedWidth = designWidth * scale
+            let renderedHeight = designHeight * scale
+            let originY = (proxy.size.height - renderedHeight) / 2
+
+            ZStack {
+                Color(red: 1 / 255, green: 102 / 255, blue: 61 / 255)
+                Image("SplashScreen")
+                    .resizable()
+                    .frame(width: renderedWidth, height: renderedHeight)
+                    .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+
+                Text("Know your flow")
+                    .font(.system(size: 58 * scale, weight: .medium))
+                    .foregroundStyle(Color(red: 245 / 255, green: 247 / 255, blue: 236 / 255).opacity(0.9))
+                    .tracking(0.5 * scale)
+                    .position(x: proxy.size.width / 2, y: originY + (1950 * scale))
+                    .opacity(taglineVisible ? 1 : 0)
+                    .offset(y: taglineVisible ? 0 : 8)
+            }
+        }
+        .ignoresSafeArea()
+        .opacity(splashOpacity)
+        .accessibilityHidden(true)
+        .task {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            withAnimation(.easeOut(duration: 0.28)) {
+                taglineVisible = true
+            }
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            withAnimation(.easeOut(duration: 0.25)) {
+                splashOpacity = 0
+            }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            onFinished()
+        }
+    }
+}
+
 @main
 struct DailyMintApp: App {
     @UIApplicationDelegateAdaptor(DailyMintAppDelegate.self) private var appDelegate
     @StateObject private var model = LedgerModel()
     @State private var selectedTab = AppTab.home
     @State private var showingAdd = false
+    @State private var showingBrandSplash: Bool
     @AppStorage("smsOnboardingSeenV1") private var onboardingSeen = false
     @Environment(\.scenePhase) private var scenePhase
     private enum AppTab: String, CaseIterable { case home, growth, add, ledger, plan
@@ -175,6 +224,7 @@ struct DailyMintApp: App {
         }
     }
     init() {
+        _showingBrandSplash = State(initialValue: !ProcessInfo.processInfo.arguments.contains("--ui-testing"))
         if ProcessInfo.processInfo.arguments.contains("--reset-onboarding") {
             UserDefaults.standard.removeObject(forKey: "smsOnboardingSeenV1")
         }
@@ -231,6 +281,13 @@ struct DailyMintApp: App {
                 }
             }
             #endif
+            .overlay {
+                if showingBrandSplash {
+                    AnimatedBrandSplash {
+                        showingBrandSplash = false
+                    }
+                }
+            }
         }
     }
 
