@@ -106,10 +106,8 @@ struct LedgerView: View {
                         ? ["All", "Income", "Own account transfer", "Settlement"]
                         : ["All"] + model.engine.categories(),
                     selection: $categoryFilter,
-                    optionIdentifierPrefix: "ledgerCategoryFilterOption",
-                    onSelection: { _ in
-                        showingCategoryFilter = false
-                    }
+                    isPresented: $showingCategoryFilter,
+                    optionIdentifierPrefix: "ledgerCategoryFilterOption"
                 )
             }
         }

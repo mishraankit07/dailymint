@@ -20,12 +20,10 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.textFields["categoryName"].waitForExistence(timeout: 5))
     }
     private func replaceText(in field: XCUIElement, with replacement: String) {
-        field.tap()
         let current = field.value as? String ?? ""
-        for _ in current {
-            field.typeText(XCUIKeyboardKey.delete.rawValue)
-        }
-        field.typeText(replacement)
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let deleteExisting = String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count)
+        field.typeText(deleteExisting + replacement)
     }
     func testSaveCategoryWithKeyboardAndRelaunch() {
         openCategory()

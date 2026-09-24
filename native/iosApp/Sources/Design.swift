@@ -355,13 +355,13 @@ struct CategorySelectionSheet: View {
     let title: String
     let options: [String]
     @Binding var selection: String
+    @Binding var isPresented: Bool
     var optionIdentifierPrefix: String?
     var addActionTitle: String?
     var addActionIdentifier: String?
     var onSelection: ((String) -> Void)?
     var onAdd: (() -> Void)?
     var optionLabel: (String) -> String = { $0 == "All" ? "All categories" : $0 }
-    @Environment(\.dismiss) private var dismiss
 
     private var uniqueOptions: [String] {
         options.reduce(into: []) { result, option in
@@ -376,7 +376,7 @@ struct CategorySelectionSheet: View {
                     Button {
                         selection = option
                         onSelection?(option)
-                        dismiss()
+                        isPresented = false
                     } label: {
                         HStack {
                             CategoryDot(name: option, size: 10)
@@ -395,7 +395,7 @@ struct CategorySelectionSheet: View {
                 if let addActionTitle, let onAdd {
                     Button {
                         onAdd()
-                        dismiss()
+                        isPresented = false
                     } label: {
                         Label(addActionTitle, systemImage: "plus.circle.fill")
                             .foregroundStyle(Color.dmFlow)
@@ -409,7 +409,7 @@ struct CategorySelectionSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { isPresented = false }
                 }
             }
         }
