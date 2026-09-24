@@ -476,7 +476,9 @@ struct TransactionDetailView: View {
                             .padding(14)
                             .background(Color.dmPaperRaised)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .accessibilityIdentifier("splitPreview")
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Your share, Rs " + model.engine.formatAmount(paise: previewPaise))
+                            .accessibilityIdentifier("splitPreview")
                         }
                     }
                 }

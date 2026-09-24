@@ -19,6 +19,14 @@ final class EntryFlowTests: XCTestCase {
         addCategory.tap()
         XCTAssertTrue(app.textFields["categoryName"].waitForExistence(timeout: 5))
     }
+    private func replaceText(in field: XCUIElement, with replacement: String) {
+        field.tap()
+        let current = field.value as? String ?? ""
+        for _ in current {
+            field.typeText(XCUIKeyboardKey.delete.rawValue)
+        }
+        field.typeText(replacement)
+    }
     func testSaveCategoryWithKeyboardAndRelaunch() {
         openCategory()
         let field = app.textFields["categoryName"]
@@ -252,8 +260,8 @@ final class EntryFlowTests: XCTestCase {
         split.tap()
         let people = app.textFields["splitPeople"]
         XCTAssertTrue(people.waitForExistence(timeout: 5))
-        people.tap()
-        people.typeText(XCUIKeyboardKey.delete.rawValue + "5")
+        replaceText(in: people, with: "5")
+        XCTAssertEqual(people.value as? String, "5")
         XCTAssertTrue(app.keyboards.firstMatch.exists)
         XCTAssertFalse(app.buttons["splitPeopleIncrement"].isEnabled)
         XCTAssertTrue(app.descendants(matching: .any)["splitPreview"].waitForExistence(timeout: 5))
@@ -285,8 +293,8 @@ final class EntryFlowTests: XCTestCase {
         let people = app.textFields["splitPeople"]
         XCTAssertTrue(people.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["splitPeopleDecrement"].isEnabled)
-        people.tap()
-        people.typeText(XCUIKeyboardKey.delete.rawValue + "6")
+        replaceText(in: people, with: "6")
+        XCTAssertEqual(people.value as? String, "6")
         XCTAssertTrue(app.staticTexts["splitPeopleError"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["splitPeopleError"].label, "Each person's share must be at least Rs 1.")
         XCTAssertFalse(app.buttons["saveImportedTransaction"].isEnabled)
