@@ -82,9 +82,12 @@ final class EntryFlowTests: XCTestCase {
         let miscellaneous = app.buttons["ledgerCategoryFilterOption-Miscellaneous"]
         XCTAssertTrue(miscellaneous.waitForExistence(timeout: 5))
         miscellaneous.tap()
-        XCTAssertTrue(app.navigationBars["Filter expenses"].waitForNonExistence(timeout: 5))
-        app.swipeUp()
-        XCTAssertTrue(app.buttons["ledgerCategoryFilter"].label.contains("Miscellaneous"))
+        let selectedFilter = app.buttons["ledgerCategoryFilter"]
+        expectation(
+            for: NSPredicate(format: "exists == true AND hittable == true AND label CONTAINS %@", "Miscellaneous"),
+            evaluatedWith: selectedFilter
+        )
+        waitForExpectations(timeout: 5)
     }
     func testEveryTabOpens() {
         for tab in ["Home", "Growth", "Ledger", "Plan"] {
