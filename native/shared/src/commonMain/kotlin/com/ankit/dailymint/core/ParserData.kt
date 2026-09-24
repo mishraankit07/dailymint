@@ -21,6 +21,7 @@ internal object ParserData {
         Regex("\\bcashback\\b", RegexOption.IGNORE_CASE))
     val balanceRejectRules = listOf(Regex("\\bAvl\\s*Bal\\b", RegexOption.IGNORE_CASE),
         Regex("\\bAvlBal\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bBal\\b", RegexOption.IGNORE_CASE),
         Regex("\\bAvailable Balance\\b", RegexOption.IGNORE_CASE),
         Regex("\\bTotal Bal\\b", RegexOption.IGNORE_CASE),
         Regex("\\bAvlbl Amt\\b", RegexOption.IGNORE_CASE),
@@ -45,12 +46,14 @@ internal object ParserData {
         Regex("\\blandmark\\s+rewards?\\b[\\s\\S]*\\b(?:sbi\\s+)?(?:credit|debit)\\s+card\\b[\\s\\S]*\\b(?:switch\\s+now|apply\\s+now|offer|t&c|terms)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b(?:credit|debit)\\s+card\\b[\\s\\S]*\\blandmark\\s+rewards?\\b[\\s\\S]*\\b(?:switch\\s+now|apply\\s+now|offer|t&c|terms)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b(?:get|earn)\\s+cashback\\s+on\\s+every\\s+(?:rs\\.?|inr)\\s*[\\d,.]+\\s+spent\\b", RegexOption.IGNORE_CASE))
-    val accountRules = listOf(Regex("\\bfrom\\s+((?:[A-Z]+\\s+)?(?:Bank\\s+)?(?:A\\/c|A\\/C|Acct|Account|Card|Credit Card)\\s*[Xx*.\\d]+)\\b", RegexOption.IGNORE_CASE),
+    val accountRules = listOf(Regex("\\b(IndusInd\\s+(?:A\\/C|Account)\\s+[Xx*.\\d]+)\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bfrom\\s+((?:[A-Z]+\\s+)?(?:Bank\\s+)?(?:A\\/c|A\\/C|Acct|Account|Card|Credit Card)\\s*[Xx*.\\d]+)\\b", RegexOption.IGNORE_CASE),
         Regex("\\bfrom\\s+((?:[A-Z][A-Za-z&.]+(?:\\s+[A-Z][A-Za-z&.]+){0,5}\\s+Bank|Bank\\s+of\\s+[A-Z][A-Za-z]+(?:\\s+[A-Z][A-Za-z]+){0,4}|[A-Z]{2,8})[A-Z\\s]*\\s+(?:A\\/c|A\\/C|Acct|Account|Card|Credit Card)\\s*[Xx*.\\d]+)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b((?:[A-Z][A-Za-z&.]+(?:\\s+[A-Z][A-Za-z&.]+){0,5}\\s+Bank|Bank\\s+of\\s+[A-Z][A-Za-z]+(?:\\s+[A-Z][A-Za-z]+){0,4}|[A-Z]{2,8})[A-Z\\s]*\\s+(?:A\\/c|A\\/C|Acct|Account|Card|Credit Card)\\s*[Xx*.]*\\d*)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b((?:A\\/c|A\\/C|Acct|Account)\\s*[Xx*.]+\\d+)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b((?:Card|Credit Card|Debit Card)\\s*[Xx*.]+\\d*)\\b", RegexOption.IGNORE_CASE))
-    val debitToRules = listOf(Regex("\\bRef\\s+No\\.?\\s*(FD Booking)\\s+\\d+", RegexOption.IGNORE_CASE),
+    val debitToRules = listOf(Regex("\\btowards\\s+(IMPS|NEFT|RTGS)\\/[A-Z0-9]+\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bRef\\s+No\\.?\\s*(FD Booking)\\s+\\d+", RegexOption.IGNORE_CASE),
         Regex("\\b(FD Booking)\\s+\\d+", RegexOption.IGNORE_CASE),
         Regex(";\\s*([A-Z][A-Z .]{2,80}?)\\s+credited\\b", RegexOption.IGNORE_CASE),
         Regex("\\bTo\\s+((?:A\\/c|A\\/C|Acct|Account)\\s*[Xx*.]*\\d+)\\b", RegexOption.IGNORE_CASE),

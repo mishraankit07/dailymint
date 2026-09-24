@@ -65,6 +65,7 @@ object BankSmsParser {
             .minByOrNull { it.second }?.first
     }
     private fun reference(text: String): String? = listOf(
+        """\bRef\s*[:#-]\s*([A-Z][A-Z0-9]{8,40})\b""",
         """\bRRN\s*[:#-]?\s*(\d{12,13})\b""",
         """\b(?:UPI\s+Ref\s+ID|UPI\s+Ref\s+No|Ref|Refno|Ref\s+No|UPI)\s*[:#-]?\s*(\d{12})\b""",
         """\b(\d{12})\b"""
@@ -77,7 +78,7 @@ object BankSmsParser {
             .replace(Regex("""^Dear\s+UPI\s+user\s+""", RegexOption.IGNORE_CASE), "")
             .replace(Regex("""^your\s+""", RegexOption.IGNORE_CASE), "")
             .replace(Regex("""[.;]+$"""), "").trim()
-        if (cleaned.isEmpty() || Regex("""^UPI(?:\s+Ref)?|^account$|^\d{8,}$""", RegexOption.IGNORE_CASE).containsMatchIn(cleaned)) return null
+        if (cleaned.isEmpty() || Regex("""^UPI(?:\s+Ref)?|^account$|^\d{8,}$|^[A-Z][A-Za-z&.]+\s+(?:A/C|Account)$|^(?:report(?: an)? issue|report fraud|block|call)\b""", RegexOption.IGNORE_CASE).containsMatchIn(cleaned)) return null
         Regex("""^(?:a/c|acct|account)\s+no\.?\s*[Xx*.]*(\d{3,4})$""", RegexOption.IGNORE_CASE).find(cleaned)?.let { return "A/c " + it.groupValues[1] }
         return cleaned
     }

@@ -31,4 +31,32 @@ class BankSmsParserTest {
         assertEquals("Miscellaneous", MerchantTagger.category("merchant123", false, mapOf("merchant" to "Travel"), categories))
         assertEquals("merchant", MerchantTagger.learningKey("merchant.123@bank"))
     }
+
+    @Test fun indusIndMaskedFormatsKeepReferencesAndSafeLedgerNames() {
+        val debitSms = "Your IndusInd Account 15XXXXX1234 has been debited for INR 501 towards IMPS/900000000023. Call 18602677777 to report issue-IndusInd Bank"
+        val creditSms = "IndusInd A/C Credited; INR 500.00 Ref-SAOAO900000000000000001.Bal INR 500.00.Dispute-Call 18602677777-IndusInd Bank"
+
+        val debit = BankSmsParser.parse(debitSms)
+        assertTrue(debit.parsed)
+        assertEquals("IndusInd Account 15XXXXX1234", debit.from)
+        assertEquals("IMPS", debit.to)
+        assertEquals("900000000023", debit.referenceId)
+
+        val credit = BankSmsParser.parse(creditSms)
+        assertTrue(credit.parsed)
+        assertNull(credit.from)
+        assertNull(credit.to)
+        assertEquals("SAOAO900000000000000001", credit.referenceId)
+
+        val debitEntry = TransactionImport.sms(
+            debitSms, "", "2026-09-24T10:00:00Z", 1, Snapshot()
+        ).entry!!
+        val creditEntry = TransactionImport.sms(
+            creditSms, "", "2026-09-24T10:01:00Z", 2, Snapshot()
+        ).entry!!
+        assertEquals("IMPS", debitEntry.name)
+        assertEquals("UPI credit", creditEntry.name)
+        assertEquals(50100, debitEntry.paise)
+        assertEquals(50000, creditEntry.paise)
+    }
 }
