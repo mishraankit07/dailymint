@@ -11,7 +11,7 @@ struct ImportBankSmsIntent: AppIntent {
     }
 
     @Parameter(title: "Message", inputConnectionBehavior: .connectToPreviousIntentResult)
-    var message: String
+    var message: String?
 
     @Parameter(title: "Sender")
     var sender: String?
