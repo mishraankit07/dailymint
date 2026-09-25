@@ -2,7 +2,7 @@ import AppIntents
 import Foundation
 import DailyMintCore
 
-struct ImportBankSmsIntent: AppIntent {
+struct CaptureIncomingSmsIntent: AppIntent {
     static var title: LocalizedStringResource = "Import Bank SMS"
     static var description = IntentDescription("Send a bank transaction message to DailyMint.")
     static var openAppWhenRun = false
@@ -93,7 +93,7 @@ struct DailyMintShortcuts: AppShortcutsProvider {
     @AppShortcutsBuilder
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: ImportBankSmsIntent(),
+            intent: CaptureIncomingSmsIntent(),
             phrases: [
                 "Import bank SMS in \(.applicationName)",
                 "Add bank SMS to \(.applicationName)"
