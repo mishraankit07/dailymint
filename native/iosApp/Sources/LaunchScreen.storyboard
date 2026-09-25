@@ -16,7 +16,7 @@
                         <rect key="frame" x="0.0" y="0.0" width="430" height="932"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" image="SplashScreen" translatesAutoresizingMaskIntoConstraints="NO" id="launch-image">
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="SplashScreen" translatesAutoresizingMaskIntoConstraints="NO" id="launch-image">
                                 <rect key="frame" x="0.0" y="0.0" width="430" height="932"/>
                             </imageView>
                         </subviews>

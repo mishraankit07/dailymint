@@ -164,7 +164,7 @@ private struct AnimatedBrandSplash: View {
         GeometryReader { proxy in
             let designWidth: CGFloat = 1290
             let designHeight: CGFloat = 2796
-            let scale = max(proxy.size.width / designWidth, proxy.size.height / designHeight)
+            let scale = min(proxy.size.width / designWidth, proxy.size.height / designHeight)
             let renderedWidth = designWidth * scale
             let renderedHeight = designHeight * scale
             let originY = (proxy.size.height - renderedHeight) / 2
@@ -173,6 +173,7 @@ private struct AnimatedBrandSplash: View {
                 Color(red: 1 / 255, green: 102 / 255, blue: 61 / 255)
                 Image("SplashScreen")
                     .resizable()
+                    .aspectRatio(contentMode: .fit)
                     .frame(width: renderedWidth, height: renderedHeight)
                     .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
 
