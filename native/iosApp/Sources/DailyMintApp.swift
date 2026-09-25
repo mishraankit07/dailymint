@@ -669,6 +669,7 @@ struct SettingsView: View {
                 get: { focusedReminderDigit == digit },
                 set: { if $0 { focusedReminderDigit = digit } else if focusedReminderDigit == digit { focusedReminderDigit = nil } }
             ),
+            dismissKeyboard: focusedReminderDigit == nil,
             onEmptyBackspace: {
                 guard let previous = digit.previous else { return }
                 reminderDigits.set("", for: previous)
@@ -744,6 +745,7 @@ private enum ReminderDigit: String, Hashable {
 private struct ReminderDigitTextField: UIViewRepresentable {
     @Binding var text: String
     @Binding var isFocused: Bool
+    let dismissKeyboard: Bool
     let onEmptyBackspace: () -> Void
     let accessibilityIdentifier: String
 
@@ -768,8 +770,11 @@ private struct ReminderDigitTextField: UIViewRepresentable {
         field.textColor = UIColor(Color.dmInk)
         if field.text != text { field.text = text }
         if isFocused && !field.isFirstResponder {
-            DispatchQueue.main.async { field.becomeFirstResponder() }
-        } else if !isFocused && field.isFirstResponder {
+            let coordinator = context.coordinator
+            DispatchQueue.main.async {
+                if coordinator.parent.isFocused { field.becomeFirstResponder() }
+            }
+        } else if dismissKeyboard && field.isFirstResponder {
             field.resignFirstResponder()
         }
     }
