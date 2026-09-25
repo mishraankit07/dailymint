@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AppIntents
 import DailyMintCore
 import UserNotifications
 import Darwin
@@ -224,6 +225,7 @@ struct DailyMintApp: App {
         }
     }
     init() {
+        DailyMintShortcuts.updateAppShortcutParameters()
         _showingBrandSplash = State(initialValue: !ProcessInfo.processInfo.arguments.contains("--ui-testing"))
         if ProcessInfo.processInfo.arguments.contains("--reset-onboarding") {
             UserDefaults.standard.removeObject(forKey: "smsOnboardingSeenV1")
