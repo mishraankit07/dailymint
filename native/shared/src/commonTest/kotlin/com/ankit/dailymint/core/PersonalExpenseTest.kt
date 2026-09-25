@@ -213,14 +213,31 @@ class PersonalExpenseTest {
 
     @Test fun schemaFiveLegacyCreditKindIsNormalizedBeforeValidation() {
         val saved = Snapshot(schemaVersion = 5, entries = listOf(
-            imported("salary", 10000, "income", "Salary").copy(creditKind = "salary")
+            imported("income", 10000, "income", "Income").copy(creditKind = null),
+            imported("other", 20000, "income", "Other income").copy(creditKind = null),
+            imported("transfer", 30000, "income", "Self account transfer").copy(creditKind = null),
+            imported("refund", 40000, "income", "Refund").copy(creditKind = null)
         ))
         val engine = LedgerEngine(MemoryStore().apply { value = Json.encodeToString(saved) })
 
         assertNull(engine.loadError)
-        assertEquals("salary", engine.entries().single().id)
-        assertEquals(CreditKind.INCOME, engine.entries().single().creditKind)
-        assertEquals("Income", engine.entries().single().category)
+        assertEquals(listOf(CreditKind.INCOME, CreditKind.INCOME, CreditKind.OWN_TRANSFER, CreditKind.SETTLEMENT),
+            engine.entries().map { it.creditKind })
+        assertEquals(listOf("Income", "Income", "Own account transfer", "Settlement"),
+            engine.entries().map { it.category })
+    }
+
+    @Test fun obsoleteIgnoredAndSplitMetadataDoesNotBlockTheSavedLedger() {
+        val saved = Snapshot(schemaVersion = 5, entries = listOf(
+            imported("kept", 10000).copy(splitMethod = "legacy", splitPeopleCount = 4),
+            imported("ignored", 20000).copy(ignored = true)
+        ))
+        val engine = LedgerEngine(MemoryStore().apply { value = Json.encodeToString(saved) })
+
+        assertNull(engine.loadError)
+        assertEquals(listOf("kept"), engine.entries().map { it.id })
+        assertEquals(SplitMethod.NONE, engine.entries().single().splitMethod)
+        assertNull(engine.entries().single().splitPeopleCount)
     }
 
     @Test fun pendingLegacyCreditIsMigratedBeforeItCanBeSavedIntoSchemaFive() {

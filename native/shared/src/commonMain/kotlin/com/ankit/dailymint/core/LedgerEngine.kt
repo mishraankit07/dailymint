@@ -24,7 +24,7 @@ data class Entry(val id: String, val name: String, val paise: Long, val category
     val personalSpent: Long get() = if (type == "expense") personalExpensePaise ?: paise else 0
     val earnedIncome: Long get() = if (type == "income" && effectiveCreditKind() in CreditKind.earned) paise else 0
     val neutralCredit: Long get() = if (type == "income" && effectiveCreditKind() in CreditKind.neutral) paise else 0
-    fun effectiveCreditKind(): String = CreditKind.migrate(creditKind, category)
+    fun effectiveCreditKind(): String = CreditKind.migrate(creditKind, category, settleUnknown = false)
 }
 
 object SplitMethod {
@@ -51,11 +51,19 @@ object CreditKind {
         "Settlement", "Reimbursement", "Refund" -> SETTLEMENT
         else -> INCOME
     }
-    fun migrate(kind: String?, category: String): String = when (kind) {
-        OWN_TRANSFER -> OWN_TRANSFER
-        SETTLEMENT, "reimbursement", "refund" -> SETTLEMENT
-        INCOME, "salary", "other_income" -> INCOME
-        else -> fromLabel(category)
+    fun migrate(kind: String?, category: String, settleUnknown: Boolean = true): String {
+        fun normalized(value: String): String = value.trim().lowercase()
+            .replace('-', '_').replace(' ', '_')
+        return when (kind?.let(::normalized)) {
+            INCOME, "salary", "other_income" -> INCOME
+            OWN_TRANSFER, "self_account_transfer" -> OWN_TRANSFER
+            SETTLEMENT, "reimbursement", "refund" -> SETTLEMENT
+            else -> when (normalized(category)) {
+                INCOME, "salary", "other_income", "received" -> INCOME
+                OWN_TRANSFER, "self_account_transfer" -> OWN_TRANSFER
+                else -> if (settleUnknown) SETTLEMENT else fromLabel(category)
+            }
+        }
     }
 }
 
@@ -161,9 +169,8 @@ class LedgerEngine(private val store: LedgerStore) {
                 require(loaded.schemaVersion in 1..5)
                 require(loaded.categories.contains("Miscellaneous"))
                 require(loaded.categories.map(String::lowercase).distinct().size == loaded.categories.size)
-                if (loaded.schemaVersion >= 4) require(loaded.entries.none { entry -> entry.ignored })
                 val migratedEntries = loaded.entries
-                    .filterNot { entry -> loaded.schemaVersion <= 3 && entry.ignored }
+                    .filterNot { entry -> entry.ignored }
                     .map { entry -> migrateEntry(entry, loaded.schemaVersion) }
                 val migrated = loaded.copy(
                     schemaVersion = 5,
@@ -439,18 +446,25 @@ class LedgerEngine(private val store: LedgerStore) {
 
 private fun migrateEntry(entry: Entry, schemaVersion: Int): Entry {
     val migratedCreditKind = if (entry.type == "income") {
-        CreditKind.migrate(entry.creditKind, entry.category)
+        CreditKind.migrate(entry.creditKind, entry.category, settleUnknown = true)
     } else null
-    val migrated = entry.copy(
+    var migrated = entry.copy(
         ignored = false,
         category = if (migratedCreditKind != null) CreditKind.label(migratedCreditKind) else entry.category,
         creditKind = migratedCreditKind,
         originalName = if (entry.source != "manual" && entry.originalName.isBlank()) entry.name else entry.originalName,
         originalCategory = if (entry.source != "manual" && entry.originalCategory.isBlank()) entry.category else entry.originalCategory
     )
-    return if (schemaVersion < 3 && migrated.type == "expense" && migrated.personalExpensePaise != null) {
-        migrated.copy(splitMethod = SplitMethod.CUSTOM)
-    } else migrated
+    migrated = if (migrated.type != "expense") {
+        migrated.copy(personalExpensePaise = null, splitMethod = SplitMethod.NONE, splitPeopleCount = null)
+    } else when {
+        migrated.splitMethod == SplitMethod.EQUAL && migrated.splitPeopleCount != null && migrated.splitPeopleCount >= 2 -> migrated
+        migrated.splitMethod == SplitMethod.CUSTOM -> migrated.copy(splitPeopleCount = null)
+        (schemaVersion < 3 || migrated.splitMethod !in SplitMethod.all) && migrated.personalExpensePaise != null ->
+            migrated.copy(splitMethod = SplitMethod.CUSTOM, splitPeopleCount = null)
+        else -> migrated.copy(splitMethod = SplitMethod.NONE, splitPeopleCount = null)
+    }
+    return migrated
 }
 
 private fun validDate(value: String): Boolean {
