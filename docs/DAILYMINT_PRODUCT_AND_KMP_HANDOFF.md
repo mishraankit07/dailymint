@@ -405,11 +405,15 @@ The chart:
 - Shows a labeled no-data state when every bucket is zero.
 - Never claims to show bank balance or wealth.
 
+### Saved + invested chart
+
+A second chart compares retained value for each displayed calendar period. Each point is calculated independently as earned income minus personal spending, which is equivalent to money saved plus invested. Values do not carry over between periods. Neutral credits are excluded, and the chart never represents bank balance or total wealth.
+
 ### Period details
 
 Below the chart, selectable period chips expose exact amounts for the chosen period. If no chip is explicitly selected, the most recent period is shown.
 
-The detail displays Money in, Personal spent, and Invested with both color and text.
+The detail displays Money in, Personal spent, Invested, and Saved + invested with both color and text.
 
 ## 11. Add Screen
 

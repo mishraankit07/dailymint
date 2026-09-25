@@ -311,10 +311,10 @@ struct GrowthView: View {
                 }
                 RaisedPanel {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Money left + invested")
+                        Text("Saved + invested")
                             .font(.headline)
                             .foregroundStyle(Color.dmInk)
-                        Text("Running total by \(years ? "calendar year" : "calendar month")")
+                        Text("For each \(years ? "calendar year" : "calendar month")")
                             .font(.caption)
                             .foregroundStyle(Color.dmInkFaint)
                     }
@@ -328,13 +328,13 @@ struct GrowthView: View {
                             ForEach(buckets, id: \.label) { bucket in
                                 LineMark(
                                     x: .value("Period", bucket.label),
-                                    y: .value("Rupees", Double(bucket.wealth) / 100)
+                                    y: .value("Rupees", Double(bucket.savedAndInvested) / 100)
                                 )
                                 .foregroundStyle(Color.dmFlow)
                                 .interpolationMethod(.linear)
                                 PointMark(
                                     x: .value("Period", bucket.label),
-                                    y: .value("Rupees", Double(bucket.wealth) / 100)
+                                    y: .value("Rupees", Double(bucket.savedAndInvested) / 100)
                                 )
                                 .foregroundStyle(Color.dmFlow)
                             }
@@ -363,7 +363,7 @@ struct GrowthView: View {
                             }
                         }
                         .frame(height: 220)
-                        .accessibilityIdentifier("moneyLeftInvestedChart")
+                        .accessibilityIdentifier("savedAndInvestedChart")
                     }
                 }
                 if !buckets.isEmpty {
@@ -385,7 +385,7 @@ struct GrowthView: View {
                                 .foregroundStyle(Color.dmSpend)
                             Text("Invested: Rs " + model.engine.formatAmount(paise: selected.invested))
                                 .foregroundStyle(Color.dmInvest)
-                            Text("Money left + invested: Rs " + model.engine.formatAmount(paise: selected.wealth))
+                            Text("Saved + invested: Rs " + model.engine.formatAmount(paise: selected.savedAndInvested))
                                 .foregroundStyle(Color.dmFlow)
                         }
                     }

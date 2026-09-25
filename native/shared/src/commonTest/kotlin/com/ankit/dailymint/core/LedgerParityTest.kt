@@ -45,13 +45,13 @@ class LedgerParityTest {
         assertTrue(engine.deleteEntry("1", "ios", captured).success)
         assertEquals(0, engine.totals().spent)
     }
-    @Test fun trendsUseCalendarMonthsAndExcludeInvestmentFromWealthReduction() {
+    @Test fun trendsShowSavedAndInvestedForEachCalendarPeriod() {
         val entries = listOf(entry("pay", "2026-08-27", 10000, "income"), entry("out", "2026-09-01", 1000, "expense"),
             entry("sip", "2026-09-01", 2000, "investment"))
         val buckets = LedgerAnalytics.trends(entries, "2026-09-13", false, 3)
         assertEquals(3, buckets.size)
-        assertEquals(listOf(0L, 10000L, 9000L), buckets.map { it.wealth })
-        assertEquals(9000, buckets.last().wealth)
+        assertEquals(listOf(0L, 10000L, -1000L), buckets.map { it.savedAndInvested })
+        assertEquals(-1000, buckets.last().savedAndInvested)
         assertEquals(2000, buckets.last().invested)
         assertEquals(1, LedgerAnalytics.trends(entries, "2026-09-13", true, 1).size)
     }

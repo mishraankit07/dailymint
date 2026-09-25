@@ -28,7 +28,7 @@ data class MonthSummary(
     val allocationInvestedPercent: Int = -1, val allocationSpentPercent: Int = -1,
     val allocationLeftPercent: Int = -1, val allocationExceedsIncome: Boolean = false
 )
-data class TrendBucket(val label: String, val moneyIn: Long, val spent: Long, val invested: Long, val wealth: Long,
+data class TrendBucket(val label: String, val moneyIn: Long, val spent: Long, val invested: Long, val savedAndInvested: Long,
     val neutralCredits: Long = 0)
 
 object LedgerAnalytics {
@@ -92,7 +92,6 @@ object LedgerAnalytics {
         val allowed = if (years) listOf(1, 2, 3, 5) else listOf(3, 6)
         val safeCount = if (count in allowed) count else allowed.first()
         val now = LedgerDates.date(today)
-        var cumulative = 0L
         return (safeCount - 1 downTo 0).map { offset ->
             val start = if (years) LocalDate(now.year - offset, 1, 1)
                 else LocalDate(now.year, now.monthNumber, 1).minus(DatePeriod(months = offset))
@@ -101,9 +100,8 @@ object LedgerAnalytics {
             val moneyIn = selected.sumOf { it.earnedIncome }
             val spent = selected.sumOf { it.personalSpent }
             val invested = selected.filter { it.type == "investment" }.sumOf { it.paise }
-            cumulative += moneyIn - spent
             TrendBucket(if (years) start.year.toString() else start.toString().take(7), moneyIn, spent, invested,
-                cumulative, selected.sumOf { it.neutralCredit })
+                moneyIn - spent, selected.sumOf { it.neutralCredit })
         }
     }
 }
