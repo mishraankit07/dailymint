@@ -227,6 +227,18 @@ struct GrowthView: View {
     private var safeCount: Int32 {
         rangeOptions.contains(count) ? count : rangeOptions[0]
     }
+    private func periodLabel(_ label: String) -> String {
+        if years { return String(label.prefix(4)) }
+        let parts = label.split(separator: "-")
+        guard parts.count >= 2,
+              let month = Int(parts[1]),
+              month >= 1,
+              month <= 12 else { return label }
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        let names = safeCount == 3 ? formatter.monthSymbols : formatter.shortMonthSymbols
+        return names?[month - 1] ?? label
+    }
     var body: some View {
         NavigationStack {
             let buckets = model.engine.trendBuckets(today: model.engine.today(), years: years, count: safeCount)
@@ -284,12 +296,16 @@ struct GrowthView: View {
                         .chartForegroundStyleScale(["Money in": Color.dmIncome, "Personal spent": Color.dmSpend, "Invested": Color.dmInvest])
                         .chartLegend(position: .bottom, alignment: .leading)
                         .chartXAxis {
-                            AxisMarks(values: buckets.map { $0.label }) { _ in
+                            AxisMarks(values: buckets.map { $0.label }) { value in
                                 AxisGridLine().foregroundStyle(Color.dmHairline)
                                 AxisTick().foregroundStyle(Color.dmInkFaint)
-                                AxisValueLabel()
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.dmInkSoft)
+                                AxisValueLabel {
+                                    if let label = value.as(String.self) {
+                                        Text(periodLabel(label))
+                                            .font(.caption2)
+                                            .foregroundStyle(Color.dmInkSoft)
+                                    }
+                                }
                             }
                         }
                         .chartYAxis {
@@ -340,12 +356,16 @@ struct GrowthView: View {
                         }
                         .chartLegend(.hidden)
                         .chartXAxis {
-                            AxisMarks(values: buckets.map { $0.label }) { _ in
+                            AxisMarks(values: buckets.map { $0.label }) { value in
                                 AxisGridLine().foregroundStyle(Color.dmHairline)
                                 AxisTick().foregroundStyle(Color.dmInkFaint)
-                                AxisValueLabel()
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.dmInkSoft)
+                                AxisValueLabel {
+                                    if let label = value.as(String.self) {
+                                        Text(periodLabel(label))
+                                            .font(.caption2)
+                                            .foregroundStyle(Color.dmInkSoft)
+                                    }
+                                }
                             }
                         }
                         .chartYAxis {
