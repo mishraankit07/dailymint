@@ -60,9 +60,12 @@ struct ScreenSurface<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.top, 6)
-            .padding(.bottom, 24)
+            .padding(.bottom, 12)
         }
         .scrollDismissesKeyboard(.interactively)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: 20)
+        }
         .background(
             Color.dmPaper
                 .ignoresSafeArea()
