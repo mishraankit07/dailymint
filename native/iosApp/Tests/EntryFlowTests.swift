@@ -100,8 +100,12 @@ final class EntryFlowTests: XCTestCase {
         app.launchArguments = ["--ui-testing", "--show-onboarding", "--reset-onboarding"]
         app.launch()
         XCTAssertTrue(app.buttons["openShortcuts"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Send the message to DailyMint"].exists)
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Import Bank SMS")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["Open Automation"].exists)
+        for title in ["Choose Message", "Choose a bank trigger", "Find DailyMint", "Connect the message", "Save and repeat"] {
+            app.buttons["onboardingNext"].tap()
+            XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
+        }
+        XCTAssertTrue(app.staticTexts["Save and repeat"].exists)
         app.buttons["continueWithoutSMS"].tap()
         XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.buttons.matching(identifier: "settings").count, 1)
