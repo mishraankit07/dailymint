@@ -101,7 +101,16 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["openShortcuts"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Open Automation"].exists)
-        for title in ["Choose Message", "Choose a bank trigger", "Find DailyMint", "Connect the message", "Save and repeat"] {
+        for title in [
+            "Choose Message",
+            "Set the trigger",
+            "Run automatically",
+            "Create the shortcut",
+            "Find DailyMint",
+            "Connect the message",
+            "Connect the sender",
+            "Save and repeat"
+        ] {
             app.buttons["onboardingNext"].tap()
             XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
         }
