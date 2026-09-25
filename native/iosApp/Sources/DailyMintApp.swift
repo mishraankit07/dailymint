@@ -431,6 +431,7 @@ struct SettingsView: View {
                 }
                 categoriesSection
                 shortcutSetupSection
+                automaticImportNotificationSection
                 unrecognizedSection
             }
             .navigationTitle("")
@@ -556,13 +557,6 @@ struct SettingsView: View {
             Text("Set up or review the Message automation in Shortcuts.")
                 .font(.subheadline)
                 .foregroundStyle(Color.dmInkSoft)
-            Toggle(
-                "Notify when DailyMint adds a transaction automatically?",
-                isOn: automaticImportNotificationBinding
-            )
-            .tint(Color.dmFlow)
-            .foregroundStyle(Color.dmInk)
-            .accessibilityIdentifier("automaticImportNotificationToggle")
             Button {
                 onboardingSeen = false
                 dismiss()
@@ -571,6 +565,18 @@ struct SettingsView: View {
             }
             .buttonStyle(SecondaryPillButtonStyle())
             .accessibilityIdentifier("openSMSSetup")
+        }
+    }
+
+    private var automaticImportNotificationSection: some View {
+        RaisedPanel {
+            Toggle(
+                "Notify when DailyMint adds a transaction automatically?",
+                isOn: automaticImportNotificationBinding
+            )
+            .tint(Color.dmFlow)
+            .foregroundStyle(Color.dmInk)
+            .accessibilityIdentifier("automaticImportNotificationToggle")
         }
     }
 
