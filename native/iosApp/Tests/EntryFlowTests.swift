@@ -57,7 +57,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertFalse(app.buttons["addCategoryFromEntry"].exists)
     }
     func testEveryTabOpens() {
-        for tab in ["Home", "Growth", "Ledger", "Plan"] {
+        for tab in ["Home", "Growth", "Ledger"] {
             let button = app.buttons[tab]
             XCTAssertTrue(button.waitForExistence(timeout: 5), "Missing tab \(tab)")
             button.tap()
@@ -72,7 +72,7 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["Add"].tap()
         XCTAssertTrue(app.textFields["entryName"].waitForExistence(timeout: 5))
         app.buttons["cancelEntry"].tap()
-        XCTAssertTrue(app.buttons["Plan"].isSelected)
+        XCTAssertTrue(app.buttons["Ledger"].isSelected)
     }
     func testHomeGreetingFollowsTimeOfDay() {
         app.terminate()
@@ -345,7 +345,7 @@ final class EntryFlowTests: XCTestCase {
         app.launchArguments = ["--ui-testing", "--reset-test-data"]
         app.launch()
 
-        for tab in ["Home", "Growth", "Ledger", "Plan"] {
+        for tab in ["Home", "Growth", "Ledger"] {
             let button = app.buttons[tab]
             XCTAssertTrue(button.waitForExistence(timeout: 5))
             button.tap()

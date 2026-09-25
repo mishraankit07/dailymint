@@ -212,7 +212,7 @@ struct DailyMintApp: App {
     @State private var showingBrandSplash: Bool
     @AppStorage("smsOnboardingSeenV1") private var onboardingSeen = false
     @Environment(\.scenePhase) private var scenePhase
-    private enum AppTab: String, CaseIterable { case home, growth, add, ledger, plan
+    private enum AppTab: String, CaseIterable { case home, growth, add, ledger
         var title: String { rawValue.capitalized }
         var icon: String {
             switch self {
@@ -220,7 +220,6 @@ struct DailyMintApp: App {
             case .growth: return "chart.xyaxis.line"
             case .add: return "plus.circle.fill"
             case .ledger: return "list.bullet.rectangle"
-            case .plan: return "target"
             }
         }
     }
@@ -241,7 +240,6 @@ struct DailyMintApp: App {
                         persistentDestination(.home) { MonthView(model: model) }
                         persistentDestination(.growth) { GrowthView(model: model) }
                         persistentDestination(.ledger) { LedgerView(model: model) }
-                        persistentDestination(.plan) { PlanView(model: model) }
                     }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         DockedTabBar(
@@ -300,27 +298,6 @@ struct DailyMintApp: App {
             .allowsHitTesting(selectedTab == tab)
             .accessibilityHidden(selectedTab != tab)
             .zIndex(selectedTab == tab ? 1 : 0)
-    }
-}
-
-struct PlanView: View {
-    @ObservedObject var model: LedgerModel
-    var body: some View {
-        NavigationStack {
-            ScreenSurface {
-                BrandHeader(title: "Plan")
-                RaisedPanel {
-                    Text("Coming soon")
-                        .font(.headline)
-                        .foregroundStyle(Color.dmInk)
-                    Text("Budgets and savings goals are not available yet.")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.dmInkSoft)
-                }
-            }
-            .navigationTitle("")
-            .withSettings(model: model)
-        }
     }
 }
 
