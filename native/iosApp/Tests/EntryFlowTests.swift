@@ -66,6 +66,7 @@ final class EntryFlowTests: XCTestCase {
             waitForExpectations(timeout: 5)
             if tab == "Growth" {
                 XCTAssertTrue(app.staticTexts["Saved + invested"].waitForExistence(timeout: 5))
+                XCTAssertFalse(app.staticTexts["Period details"].exists)
             }
         }
         app.buttons["Add"].tap()

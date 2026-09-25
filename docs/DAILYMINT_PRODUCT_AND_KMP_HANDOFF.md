@@ -407,13 +407,7 @@ The chart:
 
 ### Saved + invested chart
 
-A second chart compares retained value for each displayed calendar period. Each point is calculated independently as earned income minus personal spending, which is equivalent to money saved plus invested. Values do not carry over between periods. Neutral credits are excluded, and the chart never represents bank balance or total wealth.
-
-### Period details
-
-Below the chart, selectable period chips expose exact amounts for the chosen period. If no chip is explicitly selected, the most recent period is shown.
-
-The detail displays Money in, Personal spent, Invested, and Saved + invested with both color and text.
+A second chart compares retained value for each displayed calendar period. Each point is calculated independently as earned income minus personal spending, which is equivalent to money saved plus invested. Values do not carry over between periods. Neutral credits are excluded, and the chart never represents bank balance or total wealth. Growth does not include a separate period-details block below the charts.
 
 ## 11. Add Screen
 

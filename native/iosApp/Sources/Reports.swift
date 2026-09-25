@@ -223,7 +223,6 @@ struct GrowthView: View {
     @ObservedObject var model: LedgerModel
     @State private var years = false
     @State private var count: Int32 = 3
-    @State private var selectedPeriod: String?
     private var rangeOptions: [Int32] { years ? [1, 2, 3, 5] : [3, 6] }
     private var safeCount: Int32 {
         rangeOptions.contains(count) ? count : rangeOptions[0]
@@ -364,30 +363,6 @@ struct GrowthView: View {
                         }
                         .frame(height: 220)
                         .accessibilityIdentifier("savedAndInvestedChart")
-                    }
-                }
-                if !buckets.isEmpty {
-                    SectionHeading(title: "Period details")
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(buckets, id: \.label) { bucket in
-                                PaperOption(title: bucket.label, active: selectedPeriod == bucket.label,
-                                            action: { selectedPeriod = bucket.label })
-                            }
-                        }
-                    }
-                    if let selected = buckets.first(where: { $0.label == selectedPeriod }) ?? buckets.last {
-                        RaisedPanel {
-                            Text(selected.label).font(.headline).foregroundStyle(Color.dmInk)
-                            Text("Money in: Rs " + model.engine.formatAmount(paise: selected.moneyIn))
-                                .foregroundStyle(Color.dmIncome)
-                            Text("Personal spent: Rs " + model.engine.formatAmount(paise: selected.spent))
-                                .foregroundStyle(Color.dmSpend)
-                            Text("Invested: Rs " + model.engine.formatAmount(paise: selected.invested))
-                                .foregroundStyle(Color.dmInvest)
-                            Text("Saved + invested: Rs " + model.engine.formatAmount(paise: selected.savedAndInvested))
-                                .foregroundStyle(Color.dmFlow)
-                        }
                     }
                 }
             }
