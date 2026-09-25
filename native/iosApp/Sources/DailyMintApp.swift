@@ -331,7 +331,6 @@ struct ManualView: View {
     @State private var category = "Miscellaneous"
     @State private var date = Date()
     @State private var error: String?
-    @State private var showingCategory = false
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case name, amount }
     var body: some View {
@@ -366,18 +365,9 @@ struct ManualView: View {
                             }
                             .accessibilityIdentifier("entryCategoryOption-\(option)")
                         }
-                        if !income {
-                            Button { showingCategory = true } label: {
-                                Label("Add category", systemImage: "plus.circle.fill")
-                                    .font(.caption.weight(.semibold))
-                                    .frame(maxWidth: .infinity, minHeight: 42)
-                            }
-                            .buttonStyle(SecondaryPillButtonStyle())
-                            .accessibilityIdentifier("addCategoryFromEntry")
-                        }
                     }
                     .accessibilityIdentifier("entryCategory")
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                    DatePicker("Date", selection: $date, in: ...Date(), displayedComponents: .date)
                         .foregroundStyle(Color.dmInk)
 
                     if let error { Text(error).foregroundStyle(Color.dmSpend).accessibilityIdentifier("entryError") }
@@ -394,7 +384,6 @@ struct ManualView: View {
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingCategory) { CategorySheet(model: model) }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onFinish).accessibilityIdentifier("cancelEntry")

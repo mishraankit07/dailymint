@@ -416,6 +416,7 @@ class LedgerEngine(private val store: LedgerStore) {
         if (id.isBlank() || snapshot.entries.any { it.id == id }) return SaveResult(false, "This record already exists.")
         if (name.trim().isEmpty() || name.trim().length > 120) return SaveResult(false, "Enter a name between 1 and 120 characters.")
         if (!validDate(date)) return SaveResult(false, "Choose a valid transaction date.")
+        if (LedgerDates.date(date) > LedgerDates.today()) return SaveResult(false, "Transaction date cannot be in the future.")
         val allowed = if (income) CreditKind.all.map(CreditKind::label) else snapshot.categories
         if (category !in allowed) return SaveResult(false, "Choose a valid category.")
         if (snapshot.entries.size >= 100_000) return SaveResult(false, "Ledger capacity reached.")

@@ -99,6 +99,23 @@ class TransactionEditGuardrailTest {
     }
 
     @Test
+    fun manualAddAcceptsTodayAndPastButRejectsFuture() {
+        val engine = LedgerEngine(MemoryStore())
+        val today = LedgerDates.today()
+        val future = today.plus(DatePeriod(days = 1)).toString()
+
+        val rejected = engine.addEntry("future", "Tomorrow", "50", "Food", future, false)
+        assertFalse(rejected.success)
+        assertEquals("Transaction date cannot be in the future.", rejected.message)
+        assertTrue(engine.entries().isEmpty())
+
+        val past = today.minus(DatePeriod(days = 1)).toString()
+        assertTrue(engine.addEntry("past", "Yesterday", "25", "Food", past, false).success)
+        assertTrue(engine.addEntry("today", "Today", "30", "Food", today.toString(), false).success)
+        assertEquals(listOf(past, today.toString()), engine.entries().map { it.date })
+    }
+
+    @Test
     fun manualDateEditAcceptsPastAndTodayAndMovesEveryView() {
         val engine = LedgerEngine(MemoryStore())
         val now = Clock.System.now().toEpochMilliseconds()

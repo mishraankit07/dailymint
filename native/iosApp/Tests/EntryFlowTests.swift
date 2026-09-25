@@ -52,17 +52,9 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["categoryError"].exists)
         XCTAssertTrue(app.textFields["categoryName"].exists)
     }
-    func testExpenseCategoryCanBeCreatedFromAdd() {
+    func testCategoriesCanOnlyBeCreatedFromSettings() {
         app.buttons["Add"].tap()
-        let addCategory = app.buttons["addCategoryFromEntry"]
-        XCTAssertTrue(addCategory.waitForExistence(timeout: 5))
-        if !addCategory.isHittable { app.swipeUp() }
-        addCategory.tap()
-        XCTAssertTrue(app.textFields["categoryName"].waitForExistence(timeout: 5))
-        app.textFields["categoryName"].typeText("Travel")
-        app.buttons["saveCategory"].tap()
-        XCTAssertTrue(app.textFields["categoryName"].waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["entryCategoryOption-Travel"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["addCategoryFromEntry"].exists)
     }
     func testEveryTabOpens() {
         for tab in ["Home", "Growth", "Ledger", "Plan"] {
