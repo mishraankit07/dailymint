@@ -309,6 +309,63 @@ struct GrowthView: View {
                         .frame(height: 240)
                     }
                 }
+                RaisedPanel {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Money left + invested")
+                            .font(.headline)
+                            .foregroundStyle(Color.dmInk)
+                        Text("Running total by \(years ? "calendar year" : "calendar month")")
+                            .font(.caption)
+                            .foregroundStyle(Color.dmInkFaint)
+                    }
+                    if buckets.allSatisfy({ $0.spent == 0 && $0.invested == 0 && $0.moneyIn == 0 }) {
+                        Text("No movement in these periods.")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.dmInkSoft)
+                            .frame(maxWidth: .infinity, minHeight: 150)
+                    } else {
+                        Chart {
+                            ForEach(buckets, id: \.label) { bucket in
+                                LineMark(
+                                    x: .value("Period", bucket.label),
+                                    y: .value("Rupees", Double(bucket.wealth) / 100)
+                                )
+                                .foregroundStyle(Color.dmFlow)
+                                .interpolationMethod(.linear)
+                                PointMark(
+                                    x: .value("Period", bucket.label),
+                                    y: .value("Rupees", Double(bucket.wealth) / 100)
+                                )
+                                .foregroundStyle(Color.dmFlow)
+                            }
+                        }
+                        .chartLegend(.hidden)
+                        .chartXAxis {
+                            AxisMarks(values: buckets.map { $0.label }) { _ in
+                                AxisGridLine().foregroundStyle(Color.dmHairline)
+                                AxisTick().foregroundStyle(Color.dmInkFaint)
+                                AxisValueLabel()
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.dmInkSoft)
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .trailing) { value in
+                                AxisGridLine().foregroundStyle(Color.dmHairline.opacity(0.65))
+                                AxisTick().foregroundStyle(Color.dmInkFaint)
+                                AxisValueLabel {
+                                    if let rupees = value.as(Double.self) {
+                                        Text(model.engine.formatAmount(paise: Int64(rupees * 100)))
+                                            .font(.caption2)
+                                            .foregroundStyle(Color.dmInkSoft)
+                                    }
+                                }
+                            }
+                        }
+                        .frame(height: 220)
+                        .accessibilityIdentifier("moneyLeftInvestedChart")
+                    }
+                }
                 if !buckets.isEmpty {
                     SectionHeading(title: "Period details")
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -328,6 +385,8 @@ struct GrowthView: View {
                                 .foregroundStyle(Color.dmSpend)
                             Text("Invested: Rs " + model.engine.formatAmount(paise: selected.invested))
                                 .foregroundStyle(Color.dmInvest)
+                            Text("Money left + invested: Rs " + model.engine.formatAmount(paise: selected.wealth))
+                                .foregroundStyle(Color.dmFlow)
                         }
                     }
                 }

@@ -64,6 +64,9 @@ final class EntryFlowTests: XCTestCase {
             let selected = NSPredicate(format: "selected == true")
             expectation(for: selected, evaluatedWith: button)
             waitForExpectations(timeout: 5)
+            if tab == "Growth" {
+                XCTAssertTrue(app.staticTexts["Money left + invested"].waitForExistence(timeout: 5))
+            }
         }
         app.buttons["Add"].tap()
         XCTAssertTrue(app.textFields["entryName"].waitForExistence(timeout: 5))

@@ -50,6 +50,7 @@ class LedgerParityTest {
             entry("sip", "2026-09-01", 2000, "investment"))
         val buckets = LedgerAnalytics.trends(entries, "2026-09-13", false, 3)
         assertEquals(3, buckets.size)
+        assertEquals(listOf(0L, 10000L, 9000L), buckets.map { it.wealth })
         assertEquals(9000, buckets.last().wealth)
         assertEquals(2000, buckets.last().invested)
         assertEquals(1, LedgerAnalytics.trends(entries, "2026-09-13", true, 1).size)
