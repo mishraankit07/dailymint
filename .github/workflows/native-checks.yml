@@ -5,8 +5,19 @@ on:
   pull_request:
     paths: ["native/**", ".github/workflows/native-checks.yml"]
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform checks to run
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - android
+          - ios
 jobs:
   android:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,6 +51,7 @@ jobs:
             native/**/build/reports/
             native/androidApp/build/outputs/apk/
   ios:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios'
     runs-on: macos-15
     defaults:
       run:
