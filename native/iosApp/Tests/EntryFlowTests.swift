@@ -375,8 +375,8 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
         XCTAssertFalse(app.staticTexts["Captured at"].exists)
-        app.buttons["Edit manual entry"].tap()
         XCTAssertTrue(app.datePickers["editEntryDate"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Edit manual entry"].exists)
         XCTAssertFalse(app.staticTexts["Captured at"].exists)
         XCTAssertTrue(app.buttons["saveManualTransaction"].exists)
     }

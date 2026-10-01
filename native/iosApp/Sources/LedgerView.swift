@@ -190,14 +190,16 @@ struct TransactionDetailView: View {
     let entry: Entry
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
+    @State private var amount = ""
     @State private var category = ""
     @State private var creditKind = "income"
+    @State private var transactionDate = Date()
     @State private var splitEnabled = false
     @State private var splitMethod = "equal"
     @State private var people = "2"
     @State private var customShare = ""
     @State private var error: String?
-    @State private var showingManualEdit = false
+    @State private var dateError: String?
     @State private var confirmingDelete = false
     @State private var confirmingDiscard = false
 
@@ -205,6 +207,13 @@ struct TransactionDetailView: View {
         model.engine.entries().first(where: { $0.id == entry.id }) ?? entry
     }
     private var imported: Bool { current.source != "manual" }
+    private var manualEditable: Bool {
+        !imported && model.engine.canEdit(
+            id: current.id,
+            platform: "ios",
+            nowMillis: Int64(Date().timeIntervalSince1970 * 1000)
+        )
+    }
     private var isExpense: Bool { category != "Investments" && current.type != "income" }
     private var stagedMethod: String { splitEnabled && isExpense ? splitMethod : "none" }
     private var maximumPeople: Int { Int(model.engine.maximumSplitPeople(id: current.id)) }
@@ -243,7 +252,13 @@ struct TransactionDetailView: View {
         return false
     }
     private var hasUnsavedChanges: Bool {
-        guard imported else { return false }
+        if !imported {
+            guard manualEditable else { return false }
+            return name != current.name ||
+                amount != model.engine.formatAmount(paise: current.paise) ||
+                category != current.category ||
+                Self.transactionDateFormatter.string(from: transactionDate) != model.engine.transactionDay(date: current.date)
+        }
         let savedSplit = current.splitMethod != "none" || current.personalSpent != current.paise
         let savedMethod = current.splitMethod == "none" && savedSplit ? "custom" : current.splitMethod
         let savedPeople = model.engine.splitPeopleCount(id: current.id)
@@ -258,7 +273,9 @@ struct TransactionDetailView: View {
     var body: some View {
         NavigationStack {
             ScreenSurface {
-                if !imported {
+                if manualEditable {
+                    manualEditor
+                } else if !imported {
                     RaisedPanel {
                         Text("Rs " + model.engine.formatAmount(paise: current.paise))
                             .font(.system(size: 34, weight: .semibold, design: .serif))
@@ -270,46 +287,43 @@ struct TransactionDetailView: View {
 
                 if imported {
                     importedEditor
-                } else {
+                } else if !manualEditable {
                     RaisedPanel {
                         detailLine("Name", current.name)
                         detailLine("Category", current.type == "income" ? creditLabel(current.effectiveCreditKind()) : current.category)
                     }
-                    if model.engine.canEdit(id: current.id, platform: "ios", nowMillis: Int64(Date().timeIntervalSince1970 * 1000)) {
-                        Button("Edit manual entry") { showingManualEdit = true }
-                            .buttonStyle(SecondaryPillButtonStyle())
-                    }
                 }
 
-                if let error {
+                if let error, dateError == nil {
                     Text(error).foregroundStyle(Color.dmSpend)
                         .accessibilityIdentifier("transactionError")
                 }
             }
-            .navigationTitle(imported ? "Edit transaction" : "Transaction")
+            .navigationTitle(imported || manualEditable ? "Edit transaction" : "Transaction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(imported ? "Cancel" : "Done", action: requestDismiss)
+                    Button(imported || manualEditable ? "Cancel" : "Done", action: requestDismiss)
                 }
-                if imported {
+                if imported || manualEditable {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Save", action: saveImported)
-                            .accessibilityIdentifier("saveImportedTransaction")
-                            .disabled(importedSaveDisabled)
+                        Button("Save") {
+                            if imported { saveImported() } else { saveManual() }
+                        }
+                            .accessibilityIdentifier(imported ? "saveImportedTransaction" : "saveManualTransaction")
+                            .disabled(imported && importedSaveDisabled)
                     }
                 }
             }
             .onAppear {
                 loadEditorState()
             }
-            .sheet(isPresented: $showingManualEdit) { EntryEditSheet(model: model, entry: current, reviewId: nil) }
             .confirmationDialog("Delete this transaction?", isPresented: $confirmingDelete) {
                 Button("Delete transaction", role: .destructive) {
                     error = model.mutate { $0.deleteEntry(id: current.id) }
                     if error == nil { dismiss() }
                 }
-                .accessibilityIdentifier("confirmDeleteImportedTransaction")
+                .accessibilityIdentifier(imported ? "confirmDeleteImportedTransaction" : "confirmDeleteManualTransaction")
                 Button("Cancel", role: .cancel) {}
                     .accessibilityIdentifier("cancelDeleteImportedTransaction")
             } message: {
@@ -323,8 +337,54 @@ struct TransactionDetailView: View {
             } message: {
                 Text("Your changes have not been saved.")
             }
-            .interactiveDismissDisabled(imported && hasUnsavedChanges)
+            .interactiveDismissDisabled(hasUnsavedChanges)
         }
+    }
+
+    private var manualEditor: some View {
+        Group {
+            RaisedPanel {
+                FieldLabel(text: "Amount")
+                PaperField(placeholder: "Amount", text: $amount, keyboard: .decimalPad)
+                    .accessibilityIdentifier("editEntryAmount")
+
+                FieldLabel(text: "Name")
+                PaperField(placeholder: "Name", text: $name)
+                    .accessibilityIdentifier("editEntryName")
+
+                FieldLabel(text: current.type == "income" ? "Credit kind" : "Category")
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
+                    ForEach(manualCategoryOptions, id: \.self) { option in
+                        SelectableCategoryChip(name: option, selected: category == option) {
+                            category = option
+                        }
+                        .accessibilityIdentifier("editEntryCategoryOption-\(option)")
+                    }
+                }
+                .accessibilityIdentifier("editEntryCategory")
+
+                FieldLabel(text: "Date")
+                DatePicker("Date", selection: $transactionDate, in: ...Date(), displayedComponents: .date)
+                    .foregroundStyle(Color.dmInk)
+                    .environment(\.timeZone, Self.transactionTimeZone)
+                    .accessibilityIdentifier("editEntryDate")
+
+                if let dateError {
+                    Text(dateError)
+                        .font(.caption)
+                        .foregroundStyle(Color.dmSpend)
+                        .accessibilityIdentifier("editEntryDateError")
+                }
+            }
+
+            Button("Delete transaction") { confirmingDelete = true }
+                .buttonStyle(DestructivePillButtonStyle())
+                .accessibilityIdentifier("deleteManualTransaction")
+        }
+    }
+
+    private var manualCategoryOptions: [String] {
+        current.type == "income" ? ["Income", "Own account transfer", "Settlement"] : model.engine.categories()
     }
 
     private var importedEditor: some View {
@@ -490,8 +550,11 @@ struct TransactionDetailView: View {
 
     private func loadEditorState() {
         name = current.name
+        amount = model.engine.formatAmount(paise: current.paise)
         category = current.category
         creditKind = current.effectiveCreditKind()
+        let day = model.engine.transactionDay(date: current.date)
+        transactionDate = Self.transactionDateFormatter.date(from: day) ?? Date()
         splitEnabled = current.splitMethod != "none" || current.personalSpent != current.paise
         splitMethod = current.splitMethod == "custom" ? "custom" : "equal"
         let savedPeople = model.engine.splitPeopleCount(id: current.id)
@@ -500,7 +563,7 @@ struct TransactionDetailView: View {
     }
 
     private func requestDismiss() {
-        if imported && hasUnsavedChanges { confirmingDiscard = true } else { dismiss() }
+        if hasUnsavedChanges { confirmingDiscard = true } else { dismiss() }
     }
 
     private func saveImported() {
@@ -516,6 +579,23 @@ struct TransactionDetailView: View {
             )
         }
         if error == nil { dismiss() }
+    }
+
+    private func saveManual() {
+        let saveError = model.mutate {
+            $0.editEntry(
+                id: current.id,
+                name: name,
+                amount: amount,
+                category: category,
+                date: Self.transactionDateFormatter.string(from: transactionDate),
+                platform: "ios",
+                nowMillis: Int64(Date().timeIntervalSince1970 * 1000)
+            )
+        }
+        error = saveError
+        dateError = saveError == "Transaction date cannot be in the future." ? saveError : nil
+        if saveError == nil { dismiss() }
     }
 
     private func parseDisplayAmount(_ value: String) -> Int64? {
@@ -546,6 +626,19 @@ struct TransactionDetailView: View {
         case "settlement": return "Settlement"
         default: return "Income"
         }
+    }
+
+    private static var transactionDateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = transactionTimeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }
+
+    private static var transactionTimeZone: TimeZone {
+        TimeZone(identifier: "Asia/Kolkata") ?? .current
     }
 
     private var capturedAtText: String {
