@@ -13,8 +13,8 @@ struct SMSOnboardingView: View {
         SetupStep(title: "Run automatically", detail: "Enter your bank name, choose Run Immediately, then tap Next.", imageName: "SMSSetup04Immediate"),
         SetupStep(title: "Create the shortcut", detail: "Tap Create New Shortcut to add the DailyMint action.", imageName: "SMSSetup05Create"),
         SetupStep(title: "Find DailyMint", detail: "Search for DailyMint and choose Import Bank SMS.", imageName: "SMSSetup06Search"),
-        SetupStep(title: "Connect the message", detail: "Use the blue Shortcut Input variable for Message. Do not type sample SMS text.", imageName: "SMSSetup08SenderInput"),
-        SetupStep(title: "Connect the sender", detail: "Choose Sender from Shortcut Input when the Sender field is shown.", imageName: "SMSSetup07MessageInput"),
+        SetupStep(title: "Connect the message", detail: "Tap Message and choose Shortcut Input. Do not put Shortcut Input in Sender.", imageName: "SMSSetup08SenderInput"),
+        SetupStep(title: "Leave sender empty", detail: "DailyMint identifies the bank from the message, so Sender is optional.", imageName: "SMSSetup07MessageInput"),
         SetupStep(title: "Save and repeat", detail: "Tap the blue checkmark, then repeat these steps for each bank.", imageName: "SMSSetup09Complete")
     ]
 

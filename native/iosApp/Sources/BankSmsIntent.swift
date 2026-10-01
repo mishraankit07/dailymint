@@ -7,13 +7,13 @@ struct CaptureIncomingSmsIntent: AppIntent {
     static var description = IntentDescription("Send a bank transaction message to DailyMint.")
     static var openAppWhenRun = false
     static var parameterSummary: some ParameterSummary {
-        Summary("Import \(\.$message) from \(\.$sender)")
+        Summary("Import \(\.$message)")
     }
 
     @Parameter(title: "Message", inputConnectionBehavior: .connectToPreviousIntentResult)
     var message: String?
 
-    @Parameter(title: "Sender")
+    @Parameter(title: "Sender (optional)")
     var sender: String?
 
     func perform() async throws -> some IntentResult {
@@ -32,14 +32,16 @@ actor ShortcutSMSProcessor {
     }
 
     func importMessage(_ message: String?, sender: String?) async -> String {
-        let text = (message ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let suppliedMessage = (message ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let suppliedSender = (sender ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let recoveredFromSender = suppliedMessage.isEmpty && !suppliedSender.isEmpty
+        let text = recoveredFromSender ? suppliedSender : suppliedMessage
         guard !text.isEmpty else {
-            ShortcutImportLog.record(status: "empty input", sender: sender ?? "Shortcut", message: "")
+            ShortcutImportLog.record(status: "empty input", sender: "Shortcut", message: "")
             return "DailyMint did not receive a message. Check the Message field in Shortcuts."
         }
 
-        let messageSender = sender?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedSender = (messageSender?.isEmpty == false) ? messageSender! : "Shortcut"
+        let normalizedSender = recoveredFromSender || suppliedSender.isEmpty ? "Shortcut" : suppliedSender
         let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
         let sourceId = "shortcut-\(stableHash(normalizedSender + "|" + text))"
         let store = FileStore(testing: ProcessInfo.processInfo.arguments.contains("--ui-testing"))
@@ -47,7 +49,8 @@ actor ShortcutSMSProcessor {
             let outcome = try store.withExclusiveLock {
                 importLocked(text: text, sender: normalizedSender, timestamp: timestamp, sourceId: sourceId, store: store)
             }
-            ShortcutImportLog.record(status: outcome.status, sender: normalizedSender, message: text)
+            let status = recoveredFromSender ? outcome.status + " (recovered sender input)" : outcome.status
+            ShortcutImportLog.record(status: status, sender: normalizedSender, message: text)
             if outcome.addedTransaction {
                 await AutomaticImportNotification.sendTransactionAdded()
             }

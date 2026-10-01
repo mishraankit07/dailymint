@@ -270,14 +270,17 @@ struct DailyMintApp: App {
             }
             #if DEBUG
             .task {
-                if ProcessInfo.processInfo.arguments.contains("--simulate-sms-after-launch") {
+                let arguments = ProcessInfo.processInfo.arguments
+                if arguments.contains("--simulate-sms-after-launch") || arguments.contains("--simulate-sms-in-sender") {
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
                     let formatter = DateFormatter()
                     formatter.dateFormat = "dd/MM/yyyy"
                     let date = formatter.string(from: Date())
+                    let message = "A/c *2468 debited by Rs.5.00 towards mandate for APPLE MEDIA on \(date).RRN:900000000022 Avl bal is Rs.6247.64-INDIAN BANK"
+                    let messageInSender = arguments.contains("--simulate-sms-in-sender")
                     _ = await ShortcutSMSProcessor.shared.importMessage(
-                        "A/c *2468 debited by Rs.5.00 towards mandate for APPLE MEDIA on \(date).RRN:900000000022 Avl bal is Rs.6247.64-INDIAN BANK",
-                        sender: "INDIAN BANK"
+                        messageInSender ? nil : message,
+                        sender: messageInSender ? message : "INDIAN BANK"
                     )
                 }
             }
