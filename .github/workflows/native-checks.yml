@@ -1,9 +1,5 @@
 name: DailyMint native checks
 on:
-  push:
-    paths: ["native/**", ".github/workflows/native-checks.yml"]
-  pull_request:
-    paths: ["native/**", ".github/workflows/native-checks.yml"]
   workflow_dispatch:
     inputs:
       platform:
@@ -17,7 +13,7 @@ on:
           - ios
 jobs:
   android:
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android'
+    if: inputs.platform == 'all' || inputs.platform == 'android'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,7 +47,7 @@ jobs:
             native/**/build/reports/
             native/androidApp/build/outputs/apk/
   ios:
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios'
+    if: inputs.platform == 'all' || inputs.platform == 'ios'
     runs-on: macos-15
     defaults:
       run:
