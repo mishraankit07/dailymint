@@ -239,6 +239,63 @@ struct IconBubble: View {
     }
 }
 
+struct ChipFlowLayout: Layout {
+    var horizontalSpacing: CGFloat = 8
+    var verticalSpacing: CGFloat = 8
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        let availableWidth = proposal.width ?? .infinity
+        var rowWidth: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var contentWidth: CGFloat = 0
+        var contentHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if rowWidth > 0 && rowWidth + horizontalSpacing + size.width > availableWidth {
+                contentWidth = max(contentWidth, rowWidth)
+                contentHeight += rowHeight + verticalSpacing
+                rowWidth = 0
+                rowHeight = 0
+            }
+            if rowWidth > 0 { rowWidth += horizontalSpacing }
+            rowWidth += size.width
+            rowHeight = max(rowHeight, size.height)
+        }
+
+        contentWidth = max(contentWidth, rowWidth)
+        contentHeight += rowHeight
+        return CGSize(width: proposal.width ?? contentWidth, height: contentHeight)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + verticalSpacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: .unspecified)
+            x += size.width + horizontalSpacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
 struct CategoryChip: View {
     let name: String
     let removable: Bool
@@ -265,6 +322,7 @@ struct CategoryChip: View {
         .background(Color.dmPaperRaised)
         .clipShape(Capsule())
         .overlay(Capsule().stroke(categoryColor(name), lineWidth: 1))
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 

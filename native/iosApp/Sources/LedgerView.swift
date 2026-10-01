@@ -375,7 +375,7 @@ struct TransactionDetailView: View {
                 fieldValidationLine(manualNameError, identifier: "editEntryNameError")
 
                 FieldLabel(text: current.type == "income" ? "Credit kind" : "Category")
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
+                ChipFlowLayout {
                     ForEach(manualCategoryOptions, id: \.self) { option in
                         SelectableCategoryChip(name: option, selected: category == option) {
                             category = option
@@ -435,7 +435,7 @@ struct TransactionDetailView: View {
 
                 if current.type == "income" {
                     FieldLabel(text: "Credit kind")
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
+                    ChipFlowLayout {
                         ForEach(["income", "own_transfer", "settlement"], id: \.self) { option in
                             SelectableCategoryChip(name: creditLabel(option), selected: creditKind == option) {
                                 creditKind = option
@@ -446,7 +446,7 @@ struct TransactionDetailView: View {
                     .accessibilityIdentifier("transactionCreditKind")
                 } else {
                     FieldLabel(text: "Category")
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
+                    ChipFlowLayout {
                         ForEach(model.engine.categories(), id: \.self) { option in
                             SelectableCategoryChip(name: option, selected: category == option) {
                                 category = option
