@@ -430,7 +430,7 @@ struct SettingsAccess: ViewModifier {
                     .accessibilityIdentifier("settings")
                 }
             }
-            .sheet(isPresented: $visible) { SettingsView(model: model) }
+            .fullScreenCover(isPresented: $visible) { SettingsView(model: model) }
             .onChange(of: destinationIsActive) { isActive in
                 if !isActive { visible = false }
             }

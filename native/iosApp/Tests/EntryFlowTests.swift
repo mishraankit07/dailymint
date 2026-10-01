@@ -56,6 +56,15 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["Add"].tap()
         XCTAssertFalse(app.buttons["addCategoryFromEntry"].exists)
     }
+    func testSettingsUsesStartDateLabelAndCloses() {
+        app.buttons["settings"].tap()
+        XCTAssertTrue(app.staticTexts["Start date"].waitForExistence(timeout: 5))
+
+        let close = app.buttons["closeSettings"]
+        XCTAssertTrue(close.exists)
+        close.tap()
+        XCTAssertTrue(close.waitForNonExistence(timeout: 5))
+    }
     func testEveryTabOpens() {
         for tab in ["Home", "Growth", "Ledger"] {
             let button = app.buttons[tab]

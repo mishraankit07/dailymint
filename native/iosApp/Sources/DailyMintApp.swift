@@ -425,7 +425,21 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ScreenSurface {
-                BrandHeader(title: "Settings")
+                HStack(alignment: .top, spacing: 12) {
+                    BrandHeader(title: "Settings")
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color.dmInk)
+                            .frame(width: 44, height: 44)
+                            .background(Color.dmPaperRaised)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.dmHairline, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close settings")
+                    .accessibilityIdentifier("closeSettings")
+                }
                 dailyCheckInSection
                 trackingCyclePicker
                 if let error {
@@ -524,7 +538,7 @@ struct SettingsView: View {
                 }
             } label: {
                 HStack {
-                    Text("Tracking cycle starts").foregroundStyle(Color.dmInk)
+                    Text("Start date").foregroundStyle(Color.dmInk)
                     Spacer()
                     Text(String(model.engine.monthStartDay())).foregroundStyle(Color.dmFlow)
                     Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Color.dmFlow)
