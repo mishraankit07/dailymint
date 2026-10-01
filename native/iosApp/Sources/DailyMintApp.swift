@@ -6,6 +6,34 @@ import UserNotifications
 import Darwin
 import UIKit
 
+enum OnboardingReleaseTracker {
+    static let seenKey = "smsOnboardingSeenV1"
+    static let releaseKey = "smsOnboardingRelease"
+
+    static func prepare(arguments: [String] = ProcessInfo.processInfo.arguments, defaults: UserDefaults = .standard) {
+        if arguments.contains("--reset-onboarding-release") {
+            defaults.removeObject(forKey: releaseKey)
+        }
+
+        let release = testRelease(in: arguments) ?? bundleRelease
+        guard defaults.string(forKey: releaseKey) != release else { return }
+        defaults.set(false, forKey: seenKey)
+        defaults.set(release, forKey: releaseKey)
+    }
+
+    private static func testRelease(in arguments: [String]) -> String? {
+        arguments
+            .first { $0.hasPrefix("--test-app-release=") }
+            .map { String($0.dropFirst("--test-app-release=".count)) }
+    }
+
+    private static var bundleRelease: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        return "\(version) (\(build))"
+    }
+}
+
 final class FileStore: NSObject, LedgerStore {
     let url: URL
     init(testing: Bool = false) {
@@ -211,7 +239,7 @@ struct DailyMintApp: App {
     @State private var selectedTab = AppTab.home
     @State private var showingAdd = false
     @State private var showingBrandSplash: Bool
-    @AppStorage("smsOnboardingSeenV1") private var onboardingSeen = false
+    @AppStorage(OnboardingReleaseTracker.seenKey) private var onboardingSeen = false
     @Environment(\.scenePhase) private var scenePhase
     private enum AppTab: String, CaseIterable { case home, growth, add, ledger
         var title: String { rawValue.capitalized }
@@ -225,10 +253,11 @@ struct DailyMintApp: App {
         }
     }
     init() {
+        OnboardingReleaseTracker.prepare()
         DailyMintShortcuts.updateAppShortcutParameters()
         _showingBrandSplash = State(initialValue: !ProcessInfo.processInfo.arguments.contains("--ui-testing"))
         if ProcessInfo.processInfo.arguments.contains("--reset-onboarding") {
-            UserDefaults.standard.removeObject(forKey: "smsOnboardingSeenV1")
+            UserDefaults.standard.removeObject(forKey: OnboardingReleaseTracker.seenKey)
         }
     }
     var body: some Scene {
@@ -381,7 +410,7 @@ struct ManualView: View {
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var model: LedgerModel
-    @AppStorage("smsOnboardingSeenV1") private var onboardingSeen = true
+    @AppStorage(OnboardingReleaseTracker.seenKey) private var onboardingSeen = true
     @AppStorage(AutomaticImportNotification.enabledKey) private var automaticImportNotificationsEnabled = false
     @State private var showCategory = false
     @State private var deletion: String?

@@ -127,6 +127,32 @@ final class EntryFlowTests: XCTestCase {
         setupGuide.tap()
         XCTAssertTrue(app.buttons["openShortcuts"].waitForExistence(timeout: 5))
     }
+
+    func testOnboardingReturnsAfterAppVersionChanges() {
+        app.terminate()
+        app.launchArguments = [
+            "--ui-testing",
+            "--show-onboarding",
+            "--reset-onboarding-release",
+            "--test-app-release=1.0 (1)"
+        ]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Open Automation"].waitForExistence(timeout: 5))
+        app.buttons["continueWithoutSMS"].tap()
+        XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--show-onboarding", "--test-app-release=1.0 (1)"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Open Automation"].exists)
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--show-onboarding", "--test-app-release=1.0 (2)"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Open Automation"].waitForExistence(timeout: 5))
+    }
+
     func testDecimalExpenseUpdatesLedger() {
         app.buttons["Add"].tap()
         app.textFields["entryName"].tap()
