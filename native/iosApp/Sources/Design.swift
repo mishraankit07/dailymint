@@ -248,57 +248,6 @@ struct CategoryChip: View {
     }
 }
 
-struct CategoryChipLayout: Layout {
-    var horizontalSpacing: CGFloat = 8
-    var verticalSpacing: CGFloat = 8
-
-    func sizeThatFits(
-        proposal: ProposedViewSize,
-        subviews: Subviews,
-        cache: inout ()
-    ) -> CGSize {
-        layout(subviews: subviews, width: proposal.width ?? .infinity).size
-    }
-
-    func placeSubviews(
-        in bounds: CGRect,
-        proposal: ProposedViewSize,
-        subviews: Subviews,
-        cache: inout ()
-    ) {
-        let result = layout(subviews: subviews, width: bounds.width)
-        for (index, point) in result.points.enumerated() {
-            subviews[index].place(
-                at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y),
-                proposal: .unspecified
-            )
-        }
-    }
-
-    private func layout(subviews: Subviews, width: CGFloat) -> (size: CGSize, points: [CGPoint]) {
-        var points: [CGPoint] = []
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        var contentWidth: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > 0 && x + size.width > width {
-                x = 0
-                y += rowHeight + verticalSpacing
-                rowHeight = 0
-            }
-            points.append(CGPoint(x: x, y: y))
-            contentWidth = max(contentWidth, x + size.width)
-            x += size.width + horizontalSpacing
-            rowHeight = max(rowHeight, size.height)
-        }
-
-        return (CGSize(width: width.isFinite ? width : contentWidth, height: y + rowHeight), points)
-    }
-}
-
 struct SelectableCategoryChip: View {
     let name: String
     let selected: Bool

@@ -370,7 +370,7 @@ struct ManualView: View {
                         .accessibilityIdentifier("entryAmount")
                         .focused($focusedField, equals: .amount)
                     FieldLabel(text: income ? "Credit kind" : "Category")
-                    CategoryChipLayout {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
                         ForEach(income ? ["Income", "Own account transfer", "Settlement"] : model.engine.categories(), id: \.self) { option in
                             SelectableCategoryChip(name: option, selected: category == option) {
                                 category = option
@@ -563,7 +563,7 @@ struct SettingsView: View {
             .buttonStyle(SecondaryPillButtonStyle())
             .accessibilityLabel("Add category")
             .accessibilityIdentifier("addCategory")
-            CategoryChipLayout {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: 8)], alignment: .leading, spacing: 8) {
                 ForEach(model.engine.categories(), id: \.self) { item in
                     CategoryChip(name: item, removable: item != "Miscellaneous") {
                         deletion = item
