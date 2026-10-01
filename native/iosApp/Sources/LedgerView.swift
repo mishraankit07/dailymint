@@ -375,10 +375,13 @@ struct TransactionDetailView: View {
                 FieldLabel(text: current.type == "income" ? "Credit kind" : "Category")
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
                     ForEach(manualCategoryOptions, id: \.self) { option in
-                        SelectableCategoryChip(name: option, selected: category == option) {
+                        SelectableCategoryChip(
+                            name: option,
+                            selected: category == option,
+                            accessibilityIdentifier: "editEntryCategoryOption-\(option)"
+                        ) {
                             category = option
                         }
-                        .accessibilityIdentifier("editEntryCategoryOption-\(option)")
                     }
                 }
                 .accessibilityIdentifier("editEntryCategory")
@@ -435,10 +438,13 @@ struct TransactionDetailView: View {
                     FieldLabel(text: "Credit kind")
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
                         ForEach(["income", "own_transfer", "settlement"], id: \.self) { option in
-                            SelectableCategoryChip(name: creditLabel(option), selected: creditKind == option) {
+                            SelectableCategoryChip(
+                                name: creditLabel(option),
+                                selected: creditKind == option,
+                                accessibilityIdentifier: "transactionCreditKindOption-\(option)"
+                            ) {
                                 creditKind = option
                             }
-                            .accessibilityIdentifier("transactionCreditKindOption-\(option)")
                         }
                     }
                     .accessibilityIdentifier("transactionCreditKind")
@@ -446,11 +452,14 @@ struct TransactionDetailView: View {
                     FieldLabel(text: "Category")
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
                         ForEach(model.engine.categories(), id: \.self) { option in
-                            SelectableCategoryChip(name: option, selected: category == option) {
+                            SelectableCategoryChip(
+                                name: option,
+                                selected: category == option,
+                                accessibilityIdentifier: "transactionCategoryOption-\(option)"
+                            ) {
                                 category = option
                                 if option == "Investments" { splitEnabled = false }
                             }
-                            .accessibilityIdentifier("transactionCategoryOption-\(option)")
                         }
                     }
                     .accessibilityIdentifier("transactionCategory")

@@ -78,6 +78,8 @@ final class FileStore: NSObject, LedgerStore {
 final class LedgerModel: ObservableObject {
     @Published private(set) var engine: LedgerEngine
     @Published var revision = 0
+    @Published var backupStatus: ICloudBackupStatus?
+    @Published var isSyncingBackup = false
     private let store: FileStore
     private var lastLoadedFileState: FileState?
 
@@ -94,6 +96,7 @@ final class LedgerModel: ObservableObject {
             try? FileManager.default.removeItem(at: store.url)
         }
         #endif
+        backupStatus = ICloudLedgerBackup.restoreIfLocalMissing(to: store.url)
         engine = LedgerEngine(store: store)
         lastLoadedFileState = fileState()
     }
@@ -138,6 +141,17 @@ final class LedgerModel: ObservableObject {
                                  category: category, date: formatter.string(from: date), income: income,
                                  splitMethod: "none", splitPeopleCount: 0, personalAmount: "")
         }
+    }
+
+    func syncICloudBackup() async {
+        guard !isSyncingBackup else { return }
+        isSyncingBackup = true
+        let status = ICloudLedgerBackup.sync(localURL: store.url)
+        backupStatus = status
+        if status.title == "Backup restored" {
+            reload()
+        }
+        isSyncingBackup = false
     }
 }
 
@@ -372,10 +386,13 @@ struct ManualView: View {
                     FieldLabel(text: income ? "Credit kind" : "Category")
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
                         ForEach(income ? ["Income", "Own account transfer", "Settlement"] : model.engine.categories(), id: \.self) { option in
-                            SelectableCategoryChip(name: option, selected: category == option) {
+                            SelectableCategoryChip(
+                                name: option,
+                                selected: category == option,
+                                accessibilityIdentifier: "entryCategoryOption-\(option)"
+                            ) {
                                 category = option
                             }
-                            .accessibilityIdentifier("entryCategoryOption-\(option)")
                         }
                     }
                     .accessibilityIdentifier("entryCategory")
@@ -448,6 +465,7 @@ struct SettingsView: View {
                 categoriesSection
                 shortcutSetupSection
                 automaticImportNotificationSection
+                iCloudBackupSection
                 shortcutReceiptsSection
                 unrecognizedSection
             }
@@ -599,6 +617,45 @@ struct SettingsView: View {
             }
             .tint(Color.dmFlow)
             .accessibilityIdentifier("automaticImportNotificationToggle")
+        }
+    }
+
+    private var iCloudBackupSection: some View {
+        RaisedPanel {
+            SectionHeading(title: "iCloud backup")
+            Text("Keep DailyMint data available after reinstalling the app on this iPhone.")
+                .font(.subheadline)
+                .foregroundStyle(Color.dmInkSoft)
+
+            Button {
+                Task { await model.syncICloudBackup() }
+            } label: {
+                HStack(spacing: 10) {
+                    if model.isSyncingBackup {
+                        ProgressView()
+                            .tint(Color.dmInk)
+                    } else {
+                        Image(systemName: "icloud.and.arrow.up")
+                    }
+                    Text(model.isSyncingBackup ? "Syncing..." : "Sync backup")
+                    Spacer()
+                }
+            }
+            .buttonStyle(SecondaryPillButtonStyle())
+            .disabled(model.isSyncingBackup)
+            .accessibilityIdentifier("syncICloudBackup")
+
+            if let status = model.backupStatus {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(status.title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.dmInk)
+                    Text(status.detail)
+                        .font(.caption)
+                        .foregroundStyle(Color.dmInkFaint)
+                }
+                .accessibilityIdentifier("iCloudBackupStatus")
+            }
         }
     }
 

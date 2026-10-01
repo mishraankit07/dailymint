@@ -502,10 +502,13 @@ struct EntryEditSheet: View {
                     FieldLabel(text: entry.type == "income" ? "Credit kind" : "Category")
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
                         ForEach(categoryOptions, id: \.self) { option in
-                            SelectableCategoryChip(name: option, selected: category == option) {
+                            SelectableCategoryChip(
+                                name: option,
+                                selected: category == option,
+                                accessibilityIdentifier: "editEntryCategoryOption-\(option)"
+                            ) {
                                 category = option
                             }
-                            .accessibilityIdentifier("editEntryCategoryOption-\(option)")
                         }
                     }
                     .accessibilityIdentifier("editEntryCategory")

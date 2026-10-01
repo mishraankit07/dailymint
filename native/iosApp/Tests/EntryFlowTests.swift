@@ -65,6 +65,18 @@ final class EntryFlowTests: XCTestCase {
         close.tap()
         XCTAssertTrue(close.waitForNonExistence(timeout: 5))
     }
+
+    func testICloudBackupControlShowsUnavailableStateInUITests() {
+        app.buttons["settings"].tap()
+        let sync = app.buttons["syncICloudBackup"]
+        for _ in 0..<6 where !sync.isHittable { app.swipeUp() }
+        XCTAssertTrue(sync.waitForExistence(timeout: 5))
+        sync.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["iCloudBackupStatus"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["iCloud unavailable"].exists)
+    }
+
     func testEveryTabOpens() {
         for tab in ["Home", "Growth", "Ledger"] {
             let button = app.buttons[tab]
