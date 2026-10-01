@@ -52,7 +52,7 @@ struct RaisedPanel<Content: View>: View {
 
 struct ScreenSurface<Content: View>: View {
     @ViewBuilder var content: Content
-    private let bottomContentClearance: CGFloat = 98
+    private let bottomContentClearance: CGFloat = 84
 
     var body: some View {
         ScrollView {
@@ -129,23 +129,23 @@ struct DockedTabBar<Tab: Hashable>: View {
                 Button {
                     action(tab)
                 } label: {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 2) {
                         ZStack {
                             if isCenterAction(tab) {
                                 Circle()
                                     .fill(Color.dmCenterActionFill)
-                                    .frame(width: 42, height: 42)
+                                    .frame(width: 36, height: 36)
                             }
                             Image(systemName: icon(tab))
-                                .font(.system(size: isCenterAction(tab) ? 22 : 20, weight: .semibold))
+                                .font(.system(size: isCenterAction(tab) ? 20 : 18, weight: .semibold))
                                 .foregroundStyle(isCenterAction(tab) ? Color.dmCenterActionIcon : (selected == tab ? Color.dmNavSelected : Color.dmInkSoft))
                         }
-                        .frame(height: 42)
+                        .frame(height: 36)
                         Text(title(tab))
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(selected == tab && !isCenterAction(tab) ? Color.dmNavSelected : Color.dmInkSoft)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 60)
+                    .frame(maxWidth: .infinity, minHeight: 50)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -154,8 +154,8 @@ struct DockedTabBar<Tab: Hashable>: View {
             }
         }
         .padding(.horizontal, 8)
-        .padding(.top, 8)
-        .padding(.bottom, 6)
+        .padding(.top, 5)
+        .padding(.bottom, 4)
         .background { Rectangle().fill(Color.dmNav).ignoresSafeArea(edges: .bottom) }
         .overlay(alignment: .top) { Rectangle().fill(Color.dmHairline).frame(height: 1) }
         .id(colorScheme)
