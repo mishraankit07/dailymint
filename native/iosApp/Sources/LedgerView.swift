@@ -337,18 +337,13 @@ struct TransactionDetailView: View {
             .onAppear {
                 loadEditorState()
             }
-            .confirmationDialog("Delete this transaction?", isPresented: $confirmingDelete) {
-                Button("Delete transaction", role: .destructive) {
-                    error = model.mutate { $0.deleteEntry(id: current.id) }
-                    if error == nil { dismiss() }
-                }
-                .accessibilityIdentifier(imported ? "confirmDeleteImportedTransaction" : "confirmDeleteManualTransaction")
-                Button("Cancel", role: .cancel) {}
-                    .accessibilityIdentifier("cancelDeleteImportedTransaction")
-            } message: {
-                Text(hasUnsavedChanges
-                     ? "This transaction will be removed from the Ledger and from all calculations. Your unsaved changes will not be applied."
-                     : "This transaction will be removed from the Ledger and from all calculations.")
+            .sheet(isPresented: $confirmingDelete) {
+                DeleteTransactionConfirmationSheet(
+                    hasUnsavedChanges: hasUnsavedChanges,
+                    confirmIdentifier: imported ? "confirmDeleteImportedTransaction" : "confirmDeleteManualTransaction",
+                    onDelete: deleteTransaction,
+                    onCancel: { confirmingDelete = false }
+                )
             }
             .confirmationDialog("Discard changes?", isPresented: $confirmingDiscard) {
                 Button("Discard", role: .destructive) { dismiss() }
@@ -625,6 +620,14 @@ struct TransactionDetailView: View {
         if saveError == nil { dismiss() }
     }
 
+    private func deleteTransaction() {
+        confirmingDelete = false
+        error = model.mutate { $0.deleteEntry(id: current.id) }
+        if error == nil {
+            DispatchQueue.main.async { dismiss() }
+        }
+    }
+
     private func fieldValidationLine(_ message: String?, identifier: String) -> some View {
         Text(message ?? " ")
             .font(.caption)
@@ -684,5 +687,48 @@ struct TransactionDetailView: View {
         formatter.timeZone = .current
         formatter.dateFormat = "d MMM yyyy, h:mm a"
         return formatter.string(from: Date(timeIntervalSince1970: Double(current.capturedAtMillis) / 1000))
+    }
+}
+
+private struct DeleteTransactionConfirmationSheet: View {
+    let hasUnsavedChanges: Bool
+    let confirmIdentifier: String
+    let onDelete: () -> Void
+    let onCancel: () -> Void
+
+    private var message: String {
+        if hasUnsavedChanges {
+            return "This transaction will be removed from the Ledger and from all calculations. Your unsaved changes will not be applied."
+        }
+        return "This transaction will be removed from the Ledger and from all calculations."
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Delete transaction?")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(Color.dmInk)
+            Text(message)
+                .font(.body)
+                .foregroundStyle(Color.dmInkSoft)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("deleteTransactionMessage")
+            Spacer(minLength: 0)
+            Button(role: .destructive, action: onDelete) {
+                Text("Delete transaction").frame(maxWidth: .infinity)
+            }
+                .buttonStyle(DestructivePillButtonStyle())
+                .accessibilityIdentifier(confirmIdentifier)
+            Button(action: onCancel) {
+                Text("Cancel").frame(maxWidth: .infinity)
+            }
+                .buttonStyle(SecondaryPillButtonStyle())
+                .accessibilityIdentifier("cancelDeleteImportedTransaction")
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.dmPaper.ignoresSafeArea())
+        .presentationDetents([.height(hasUnsavedChanges ? 300 : 270)])
+        .presentationDragIndicator(.visible)
     }
 }
