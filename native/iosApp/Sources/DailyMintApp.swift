@@ -532,7 +532,7 @@ struct SettingsView: View {
     private var trackingCyclePicker: some View {
         RaisedPanel {
             SectionHeading(title: "Tracking cycle")
-            Menu {
+            StableMenu {
                 ForEach(1...31, id: \.self) { day in
                     Button(String(day)) { monthStartBinding.wrappedValue = Int32(day) }
                 }
@@ -546,7 +546,6 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .buttonStyle(.plain)
             .accessibilityIdentifier("trackingCycleMenu")
             Text("For shorter months, the cycle starts on the last day of the month.")

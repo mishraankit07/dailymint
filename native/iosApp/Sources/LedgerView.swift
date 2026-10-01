@@ -116,7 +116,7 @@ struct LedgerView: View {
     private var filterControls: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Menu {
+                StableMenu {
                     ForEach(["All", "expense", "income"], id: \.self) { value in
                         Button(typeLabel(value)) {
                             typeFilter = value
@@ -125,13 +125,15 @@ struct LedgerView: View {
                     }
                 } label: {
                     Label(typeLabel(typeFilter), systemImage: "line.3.horizontal.decrease")
-                        .frame(minHeight: 44)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
+                .accessibilityIdentifier("ledgerTypeFilter")
                 if typeFilter != "All" {
                     Button { showingCategoryFilter = true } label: {
                         Label(classificationFilterLabel, systemImage: "tag")
-                            .frame(minHeight: 44)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
+                    .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("ledgerCategoryFilter")
                 }
             }

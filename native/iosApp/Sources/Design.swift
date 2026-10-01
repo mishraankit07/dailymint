@@ -50,6 +50,27 @@ struct RaisedPanel<Content: View>: View {
     }
 }
 
+struct StableMenu<MenuContent: View, Label: View>: View {
+    private let menuContent: MenuContent
+    private let label: Label
+
+    init(@ViewBuilder _ content: () -> MenuContent, @ViewBuilder label: () -> Label) {
+        menuContent = content()
+        self.label = label()
+    }
+
+    var body: some View {
+        Menu {
+            menuContent
+        } label: {
+            label
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct ScreenSurface<Content: View>: View {
     @ViewBuilder var content: Content
     private let bottomContentClearance: CGFloat = 84

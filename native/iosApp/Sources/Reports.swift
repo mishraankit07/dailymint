@@ -249,7 +249,7 @@ struct GrowthView: View {
             ScreenSurface {
                 BrandHeader(title: "Growth")
                 VStack(alignment: .leading, spacing: 8) {
-                    Menu {
+                    StableMenu {
                         Button("Months") {
                             years = false
                             count = 3
@@ -261,18 +261,16 @@ struct GrowthView: View {
                     } label: {
                         periodMenuRow(title: "Period", value: years ? "Years" : "Months")
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("growthPeriodMenu")
 
-                    Menu {
+                    StableMenu {
                         ForEach(rangeOptions, id: \.self) { value in
                             Button(rangeTitle(value)) { count = value }
                         }
                     } label: {
                         periodMenuRow(title: "Range", value: rangeTitle(safeCount))
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("growthRangeMenu")
                 }
