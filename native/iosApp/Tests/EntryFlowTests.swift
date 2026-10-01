@@ -406,15 +406,16 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Source"].exists)
 
         app.buttons["deleteImportedTransaction"].tap()
-        let cancelDelete = app.buttons["cancelDeleteImportedTransaction"]
-        XCTAssertTrue(cancelDelete.waitForExistence(timeout: 5))
+        let confirmDelete = app.buttons["confirmDeleteImportedTransaction"]
+        XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["deleteTransactionMessage"].exists)
         XCTAssertEqual(
             app.staticTexts["deleteTransactionMessage"].label,
             "This transaction will be removed from the Ledger and from all calculations."
         )
-        XCTAssertGreaterThan(cancelDelete.frame.midY, app.frame.midY)
-        cancelDelete.tap()
+        XCTAssertLessThan(abs(confirmDelete.frame.midY - app.frame.midY), app.frame.height / 4)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.1)).tap()
+        XCTAssertTrue(confirmDelete.waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.buttons["deleteImportedTransaction"].exists)
 
         app.buttons["deleteImportedTransaction"].tap()

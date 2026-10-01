@@ -337,14 +337,6 @@ struct TransactionDetailView: View {
             .onAppear {
                 loadEditorState()
             }
-            .sheet(isPresented: $confirmingDelete) {
-                DeleteTransactionConfirmationSheet(
-                    hasUnsavedChanges: hasUnsavedChanges,
-                    confirmIdentifier: imported ? "confirmDeleteImportedTransaction" : "confirmDeleteManualTransaction",
-                    onDelete: deleteTransaction,
-                    onCancel: { confirmingDelete = false }
-                )
-            }
             .confirmationDialog("Discard changes?", isPresented: $confirmingDiscard) {
                 Button("Discard", role: .destructive) { dismiss() }
                 Button("Keep editing", role: .cancel) {}
@@ -353,6 +345,18 @@ struct TransactionDetailView: View {
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
         }
+        .allowsHitTesting(!confirmingDelete)
+        .overlay {
+            if confirmingDelete {
+                DeleteTransactionConfirmationDialog(
+                    hasUnsavedChanges: hasUnsavedChanges,
+                    confirmIdentifier: imported ? "confirmDeleteImportedTransaction" : "confirmDeleteManualTransaction",
+                    onDelete: deleteTransaction,
+                    onCancel: { confirmingDelete = false }
+                )
+            }
+        }
+        .animation(.easeOut(duration: 0.18), value: confirmingDelete)
     }
 
     private var manualEditor: some View {
@@ -690,7 +694,7 @@ struct TransactionDetailView: View {
     }
 }
 
-private struct DeleteTransactionConfirmationSheet: View {
+private struct DeleteTransactionConfirmationDialog: View {
     let hasUnsavedChanges: Bool
     let confirmIdentifier: String
     let onDelete: () -> Void
@@ -704,31 +708,37 @@ private struct DeleteTransactionConfirmationSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Delete transaction?")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Color.dmInk)
-            Text(message)
-                .font(.body)
-                .foregroundStyle(Color.dmInkSoft)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("deleteTransactionMessage")
-            Spacer(minLength: 0)
-            Button(role: .destructive, action: onDelete) {
-                Text("Delete transaction").frame(maxWidth: .infinity)
+        ZStack {
+            Color.black.opacity(0.42)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onCancel)
+                .accessibilityIdentifier("deleteTransactionBackdrop")
+
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Delete transaction?")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.dmInk)
+                Text(message)
+                    .font(.body)
+                    .foregroundStyle(Color.dmInkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("deleteTransactionMessage")
+                HStack {
+                    Spacer()
+                    Button("Delete", role: .destructive, action: onDelete)
+                        .buttonStyle(DestructivePillButtonStyle())
+                        .accessibilityIdentifier(confirmIdentifier)
+                }
             }
-                .buttonStyle(DestructivePillButtonStyle())
-                .accessibilityIdentifier(confirmIdentifier)
-            Button(action: onCancel) {
-                Text("Cancel").frame(maxWidth: .infinity)
-            }
-                .buttonStyle(SecondaryPillButtonStyle())
-                .accessibilityIdentifier("cancelDeleteImportedTransaction")
+            .padding(20)
+            .frame(maxWidth: 320, alignment: .leading)
+            .background(Color.dmPaperRaised)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.dmHairline))
+            .shadow(color: .black.opacity(0.22), radius: 20, y: 8)
+            .padding(.horizontal, 28)
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.dmPaper.ignoresSafeArea())
-        .presentationDetents([.height(hasUnsavedChanges ? 300 : 270)])
-        .presentationDragIndicator(.visible)
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
     }
 }
