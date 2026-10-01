@@ -248,7 +248,7 @@ struct GrowthView: View {
             let buckets = model.engine.trendBuckets(today: model.engine.today(), years: years, count: safeCount)
             ScreenSurface {
                 BrandHeader(title: "Growth")
-                VStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 8) {
                     Menu {
                         Button("Months") {
                             years = false
@@ -261,6 +261,8 @@ struct GrowthView: View {
                     } label: {
                         periodMenuRow(title: "Period", value: years ? "Years" : "Months")
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("growthPeriodMenu")
 
                     Menu {
@@ -270,8 +272,11 @@ struct GrowthView: View {
                     } label: {
                         periodMenuRow(title: "Range", value: rangeTitle(safeCount))
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("growthRangeMenu")
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 RaisedPanel {
                     VStack(alignment: .leading, spacing: 2) {
@@ -412,10 +417,11 @@ struct GrowthView: View {
         }
         .font(.body)
         .padding(.horizontal, 14)
-        .frame(minHeight: 48)
+        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
         .background(Color.dmPaperRaised)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline))
+        .contentShape(Rectangle())
     }
 }
 

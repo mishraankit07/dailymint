@@ -543,8 +543,12 @@ struct SettingsView: View {
                     Text(String(model.engine.monthStartDay())).foregroundStyle(Color.dmFlow)
                     Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Color.dmFlow)
                 }
-                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                .contentShape(Rectangle())
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("trackingCycleMenu")
             Text("For shorter months, the cycle starts on the last day of the month.")
                 .font(.caption)
                 .foregroundStyle(Color.dmInkFaint)
