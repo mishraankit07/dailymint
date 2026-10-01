@@ -52,6 +52,8 @@ struct RaisedPanel<Content: View>: View {
 
 struct ScreenSurface<Content: View>: View {
     @ViewBuilder var content: Content
+    private let bottomContentClearance: CGFloat = 98
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -60,12 +62,9 @@ struct ScreenSurface<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.top, 6)
-            .padding(.bottom, 12)
+            .padding(.bottom, bottomContentClearance)
         }
         .scrollDismissesKeyboard(.interactively)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            Color.clear.frame(height: 20)
-        }
         .background(
             Color.dmPaper
                 .ignoresSafeArea()
