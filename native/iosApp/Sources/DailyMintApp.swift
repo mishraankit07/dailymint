@@ -592,12 +592,12 @@ struct SettingsView: View {
 
     private var automaticImportNotificationSection: some View {
         RaisedPanel {
-            Toggle(
-                "Notify when DailyMint adds a transaction automatically?",
-                isOn: automaticImportNotificationBinding
-            )
+            Toggle(isOn: automaticImportNotificationBinding) {
+                Text("Notify when DailyMint adds a transaction automatically?")
+                    .font(.body)
+                    .foregroundStyle(Color.dmInk)
+            }
             .tint(Color.dmFlow)
-            .foregroundStyle(Color.dmInk)
             .accessibilityIdentifier("automaticImportNotificationToggle")
         }
     }
