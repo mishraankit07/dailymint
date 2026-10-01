@@ -126,6 +126,11 @@ final class EntryFlowTests: XCTestCase {
         ] {
             app.buttons["onboardingNext"].tap()
             XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
+            if title == "Run automatically" {
+                XCTAssertTrue(
+                    app.staticTexts["Enter a short bank name, such as HDFC, PNB, ICICI, or BOB. Choose Run Immediately, then tap Next."].exists
+                )
+            }
         }
         XCTAssertTrue(app.staticTexts["Save and repeat"].exists)
         app.buttons["continueWithoutSMS"].tap()

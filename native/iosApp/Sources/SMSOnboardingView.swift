@@ -10,7 +10,7 @@ struct SMSOnboardingView: View {
         SetupStep(title: "Open Automation", detail: "In Shortcuts, open Automation and tap +.", imageName: "SMSSetup01Automation"),
         SetupStep(title: "Choose Message", detail: "Create a Personal Automation, then choose Message.", imageName: "SMSSetup02Message"),
         SetupStep(title: "Set the trigger", detail: "Leave Sender as Any Sender, then tap Message Contains.", imageName: "SMSSetup03Trigger"),
-        SetupStep(title: "Run automatically", detail: "Enter your bank name, choose Run Immediately, then tap Next.", imageName: "SMSSetup04Immediate"),
+        SetupStep(title: "Run automatically", detail: "Enter a short bank name, such as HDFC, PNB, ICICI, or BOB. Choose Run Immediately, then tap Next.", imageName: "SMSSetup04Immediate"),
         SetupStep(title: "Create the shortcut", detail: "Tap Create New Shortcut to add the DailyMint action.", imageName: "SMSSetup05Create"),
         SetupStep(title: "Find DailyMint", detail: "Search for DailyMint and choose Import Bank SMS.", imageName: "SMSSetup06Search"),
         SetupStep(title: "Connect the message", detail: "Tap Message and choose Shortcut Input. Do not put Shortcut Input in Sender.", imageName: "SMSSetup08SenderInput"),
