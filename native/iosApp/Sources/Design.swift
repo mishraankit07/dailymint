@@ -370,25 +370,6 @@ struct PaperSegment<Selection: Hashable>: View {
     }
 }
 
-struct PaperOption: View {
-    let title: String
-    let active: Bool
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(active ? Color.dmPaperRaised : Color.dmInkSoft)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(active ? Color.dmInk : Color.dmPaperRaised)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.dmHairline, lineWidth: active ? 0 : 1))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 struct SectionHeading: View {
     let title: String
     var trailing: String?

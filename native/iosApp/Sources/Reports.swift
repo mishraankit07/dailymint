@@ -227,6 +227,10 @@ struct GrowthView: View {
     private var safeCount: Int32 {
         rangeOptions.contains(count) ? count : rangeOptions[0]
     }
+    private func rangeTitle(_ value: Int32) -> String {
+        let unit = years ? (value == 1 ? "year" : "years") : "months"
+        return "\(value) \(unit)"
+    }
     private func periodLabel(_ label: String) -> String {
         if years { return String(label.prefix(4)) }
         let parts = label.split(separator: "-")
@@ -244,27 +248,30 @@ struct GrowthView: View {
             let buckets = model.engine.trendBuckets(today: model.engine.today(), years: years, count: safeCount)
             ScreenSurface {
                 BrandHeader(title: "Growth")
-                HStack(spacing: 6) {
-                    PaperSegment(title: "Months", value: false, selection: $years)
-                    PaperSegment(title: "Years", value: true, selection: $years)
-                }
-                .onChange(of: years) { value in count = value ? 1 : 3 }
-                .padding(4)
-                .background(Color.dmHairline.opacity(0.55))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                HStack(spacing: 8) {
-                    ForEach(rangeOptions, id: \.self) { value in
-                        PaperOption(
-                            title: String(value) + (years ? " years" : " months"),
-                            active: safeCount == value,
-                            action: { count = value }
-                        )
+                VStack(spacing: 8) {
+                    Menu {
+                        Button("Months") {
+                            years = false
+                            count = 3
+                        }
+                        Button("Years") {
+                            years = true
+                            count = 1
+                        }
+                    } label: {
+                        periodMenuRow(title: "Period", value: years ? "Years" : "Months")
                     }
-                }
+                    .accessibilityIdentifier("growthPeriodMenu")
 
-                Text(years ? "Full calendar years" : "Full calendar months")
-                    .font(.caption).foregroundStyle(Color.dmInkFaint)
+                    Menu {
+                        ForEach(rangeOptions, id: \.self) { value in
+                            Button(rangeTitle(value)) { count = value }
+                        }
+                    } label: {
+                        periodMenuRow(title: "Range", value: rangeTitle(safeCount))
+                    }
+                    .accessibilityIdentifier("growthRangeMenu")
+                }
 
                 RaisedPanel {
                     VStack(alignment: .leading, spacing: 2) {
@@ -390,6 +397,25 @@ struct GrowthView: View {
             .navigationBarTitleDisplayMode(.inline)
             .withSettings(model: model)
         }
+    }
+
+    private func periodMenuRow(title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(Color.dmInk)
+            Spacer()
+            Text(value)
+                .foregroundStyle(Color.dmFlow)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.caption)
+                .foregroundStyle(Color.dmFlow)
+        }
+        .font(.body)
+        .padding(.horizontal, 14)
+        .frame(minHeight: 48)
+        .background(Color.dmPaperRaised)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline))
     }
 }
 

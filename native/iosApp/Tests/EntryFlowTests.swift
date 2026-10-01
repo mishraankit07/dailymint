@@ -76,6 +76,10 @@ final class EntryFlowTests: XCTestCase {
             if tab == "Growth" {
                 XCTAssertTrue(app.staticTexts["Saved + invested"].waitForExistence(timeout: 5))
                 XCTAssertFalse(app.staticTexts["Period details"].exists)
+                XCTAssertTrue(app.buttons["growthPeriodMenu"].exists)
+                XCTAssertTrue(app.buttons["growthRangeMenu"].exists)
+                XCTAssertFalse(app.staticTexts["Full calendar months"].exists)
+                XCTAssertFalse(app.staticTexts["Full calendar years"].exists)
             }
         }
         app.buttons["Add"].tap()
