@@ -200,6 +200,7 @@ struct TransactionDetailView: View {
     @State private var customShare = ""
     @State private var error: String?
     @State private var dateError: String?
+    @State private var manualValidationAttempted = false
     @State private var confirmingDelete = false
     @State private var confirmingDiscard = false
 
@@ -250,6 +251,24 @@ struct TransactionDetailView: View {
             return value > current.paise
         }
         return false
+    }
+    private var manualAmountIsValid: Bool {
+        guard let value = parseDisplayAmount(amount) else { return false }
+        return value > 0
+    }
+    private var manualNameIsValid: Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && trimmed.count <= 120
+    }
+    private var manualAmountError: String? {
+        manualValidationAttempted && !manualAmountIsValid
+            ? "Enter a positive amount with up to two decimal places."
+            : nil
+    }
+    private var manualNameError: String? {
+        manualValidationAttempted && !manualNameIsValid
+            ? "Enter a name between 1 and 120 characters."
+            : nil
     }
     private var hasUnsavedChanges: Bool {
         if !imported {
@@ -347,10 +366,12 @@ struct TransactionDetailView: View {
                 FieldLabel(text: "Amount")
                 PaperField(placeholder: "Amount", text: $amount, keyboard: .decimalPad)
                     .accessibilityIdentifier("editEntryAmount")
+                fieldValidationLine(manualAmountError, identifier: "editEntryAmountError")
 
                 FieldLabel(text: "Name")
                 PaperField(placeholder: "Name", text: $name)
                     .accessibilityIdentifier("editEntryName")
+                fieldValidationLine(manualNameError, identifier: "editEntryNameError")
 
                 FieldLabel(text: current.type == "income" ? "Credit kind" : "Category")
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
@@ -582,6 +603,12 @@ struct TransactionDetailView: View {
     }
 
     private func saveManual() {
+        manualValidationAttempted = true
+        guard manualAmountIsValid, manualNameIsValid else {
+            error = nil
+            dateError = nil
+            return
+        }
         let saveError = model.mutate {
             $0.editEntry(
                 id: current.id,
@@ -596,6 +623,15 @@ struct TransactionDetailView: View {
         error = saveError
         dateError = saveError == "Transaction date cannot be in the future." ? saveError : nil
         if saveError == nil { dismiss() }
+    }
+
+    private func fieldValidationLine(_ message: String?, identifier: String) -> some View {
+        Text(message ?? " ")
+            .font(.caption)
+            .foregroundStyle(message == nil ? Color.clear : Color.dmSpend)
+            .frame(maxWidth: .infinity, minHeight: 16, alignment: .leading)
+            .accessibilityHidden(message == nil)
+            .accessibilityIdentifier(identifier)
     }
 
     private func parseDisplayAmount(_ value: String) -> Int64? {

@@ -384,6 +384,14 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Captured at"].exists)
         XCTAssertTrue(app.buttons["saveManualTransaction"].exists)
         XCTAssertLessThan(app.buttons["editEntryCategoryOption-Food"].frame.width, app.frame.width / 2)
+
+        let amount = app.textFields["editEntryAmount"]
+        replaceText(in: amount, with: "")
+        app.buttons["saveManualTransaction"].tap()
+        XCTAssertTrue(app.staticTexts["editEntryAmountError"].waitForExistence(timeout: 5))
+        amount.tap()
+        amount.typeText("25")
+        XCTAssertTrue(app.staticTexts["editEntryAmountError"].waitForNonExistence(timeout: 5))
     }
 
     func testImportedTransactionCanBeDeletedAfterConfirmation() {
