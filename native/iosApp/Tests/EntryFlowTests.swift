@@ -379,6 +379,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertFalse(app.buttons["Edit manual entry"].exists)
         XCTAssertFalse(app.staticTexts["Captured at"].exists)
         XCTAssertTrue(app.buttons["saveManualTransaction"].exists)
+        XCTAssertLessThan(app.buttons["editEntryCategoryOption-Food"].frame.width, app.frame.width / 2)
     }
 
     func testImportedTransactionCanBeDeletedAfterConfirmation() {

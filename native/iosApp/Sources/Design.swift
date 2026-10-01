@@ -248,6 +248,57 @@ struct CategoryChip: View {
     }
 }
 
+struct CategoryChipLayout: Layout {
+    var horizontalSpacing: CGFloat = 8
+    var verticalSpacing: CGFloat = 8
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        layout(subviews: subviews, width: proposal.width ?? .infinity).size
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        let result = layout(subviews: subviews, width: bounds.width)
+        for (index, point) in result.points.enumerated() {
+            subviews[index].place(
+                at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y),
+                proposal: .unspecified
+            )
+        }
+    }
+
+    private func layout(subviews: Subviews, width: CGFloat) -> (size: CGSize, points: [CGPoint]) {
+        var points: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var contentWidth: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > width {
+                x = 0
+                y += rowHeight + verticalSpacing
+                rowHeight = 0
+            }
+            points.append(CGPoint(x: x, y: y))
+            contentWidth = max(contentWidth, x + size.width)
+            x += size.width + horizontalSpacing
+            rowHeight = max(rowHeight, size.height)
+        }
+
+        return (CGSize(width: width.isFinite ? width : contentWidth, height: y + rowHeight), points)
+    }
+}
+
 struct SelectableCategoryChip: View {
     let name: String
     let selected: Bool
@@ -260,7 +311,6 @@ struct SelectableCategoryChip: View {
                 Text(name)
                     .font(.caption.weight(.semibold))
                     .multilineTextAlignment(.leading)
-                Spacer(minLength: 0)
                 if selected {
                     Image(systemName: "checkmark")
                         .font(.caption2.weight(.bold))
@@ -268,15 +318,15 @@ struct SelectableCategoryChip: View {
             }
             .foregroundStyle(selected ? Color.dmPaperRaised : categoryColor(name))
             .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+            .frame(minHeight: 38)
             .background(selected ? categoryColor(name) : Color.dmPaperRaised)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(categoryColor(name), lineWidth: selected ? 2 : 1)
+                Capsule().stroke(categoryColor(name), lineWidth: selected ? 2 : 1)
             )
         }
         .buttonStyle(.plain)
+        .fixedSize(horizontal: true, vertical: false)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
