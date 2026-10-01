@@ -476,10 +476,13 @@ struct EntryEditSheet: View {
                     FieldLabel(text: entry.type == "income" ? "Credit kind" : "Category")
                     CategoryChipLayout {
                         ForEach(categoryOptions, id: \.self) { option in
-                            SelectableCategoryChip(name: option, selected: category == option) {
+                            SelectableCategoryChip(
+                                name: option,
+                                selected: category == option,
+                                accessibilityIdentifier: "editEntryCategoryOption-\(option)"
+                            ) {
                                 category = option
                             }
-                            .accessibilityIdentifier("editEntryCategoryOption-\(option)")
                         }
                     }
                     .accessibilityIdentifier("editEntryCategory")
