@@ -550,6 +550,8 @@ struct TransactionDetailView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline))
                         fieldValidationLine(customShareError, identifier: "customShareError")
+                            .padding(.top, 2)
+                            .padding(.bottom, 4)
                     }
 
                     if splitMethod == "equal", let previewPaise {
