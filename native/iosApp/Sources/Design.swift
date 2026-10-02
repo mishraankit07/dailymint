@@ -85,16 +85,24 @@ struct ScreenSurface<Content: View>: View {
             .padding(.top, 6)
             .padding(.bottom, bottomContentClearance)
         }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            dismissKeyboard()
+        }
         .scrollDismissesKeyboard(.interactively)
         .background(
             Color.dmPaper
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    dismissKeyboard()
                 }
         )
     }
+}
+
+func dismissKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 }
 
 struct PrimaryPillButtonStyle: ButtonStyle {

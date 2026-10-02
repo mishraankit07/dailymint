@@ -242,6 +242,7 @@ struct DailyMintApp: App {
     @State private var transactionSavedToastVisible = false
     @State private var transactionSavedToastGeneration = 0
     @State private var showingBrandSplash: Bool
+    @State private var keyboardVisible = false
     @AppStorage(OnboardingReleaseTracker.seenKey) private var onboardingSeen = false
     @Environment(\.scenePhase) private var scenePhase
     private enum AppTab: String, CaseIterable { case home, growth, add, ledger
@@ -292,17 +293,21 @@ struct DailyMintApp: App {
                         }
                     }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        DockedTabBar(
-                            tabs: AppTab.allCases,
-                            selected: selectedTab,
-                            title: { $0.title },
-                            icon: { $0.icon },
-                            isCenterAction: { $0 == .add },
-                            action: { tab in
-                                if tab == .add { showingAdd = true } else { selectedTab = tab }
-                            }
-                        )
+                        if !keyboardVisible {
+                            DockedTabBar(
+                                tabs: AppTab.allCases,
+                                selected: selectedTab,
+                                title: { $0.title },
+                                icon: { $0.icon },
+                                isCenterAction: { $0 == .add },
+                                action: { tab in
+                                    dismissKeyboard()
+                                    if tab == .add { showingAdd = true } else { selectedTab = tab }
+                                }
+                            )
+                        }
                     }
+                    .animation(.easeOut(duration: 0.16), value: keyboardVisible)
                     .tint(Color.dmFlow)
                 }
             }
@@ -323,6 +328,12 @@ struct DailyMintApp: App {
             }
             .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
                 if scenePhase == .active { model.refreshIfChanged() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                keyboardVisible = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                keyboardVisible = false
             }
             #if DEBUG
             .task {
