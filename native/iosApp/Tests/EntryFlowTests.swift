@@ -139,8 +139,9 @@ final class EntryFlowTests: XCTestCase {
             "Run automatically",
             "Create the shortcut",
             "Find DailyMint",
-            "Connect the message",
-            "Leave sender empty",
+            "Tap Message",
+            "Choose Shortcut Input",
+            "Confirm the connection",
             "Save and repeat"
         ] {
             app.buttons["onboardingNext"].tap()
