@@ -459,7 +459,7 @@ final class EntryFlowTests: XCTestCase {
         if !save.isHittable { app.swipeUp() }
         save.tap()
 
-        app.buttons["Home"].tap()
+        app.buttons["tab-Home"].tap()
         XCTAssertEqual(spent.label, "Spent: Rs 0")
     }
 

@@ -181,6 +181,7 @@ struct DockedTabBar<Tab: Hashable>: View {
                     .frame(width: proxy.size.width * tabWeight(at: index) / totalTabWeight)
                     .buttonStyle(.plain)
                     .accessibilityLabel(title(tab))
+                    .accessibilityIdentifier("tab-" + title(tab))
                     .accessibilityAddTraits(selected == tab && !isCenterAction(tab) ? .isSelected : [])
                 }
             }
