@@ -77,9 +77,13 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(close.waitForNonExistence(timeout: 5))
     }
     func testEveryTabOpens() {
-        XCTAssertEqual(app.buttons["Add"].frame.midX, app.frame.midX, accuracy: 1)
+        let tabButtons = ["Home", "Growth", "Add", "Ledger"].map { app.buttons["tab-" + $0] }
+        tabButtons.forEach { XCTAssertTrue($0.waitForExistence(timeout: 5)) }
+        let tabGaps = zip(tabButtons, tabButtons.dropFirst()).map { $1.frame.midX - $0.frame.midX }
+        XCTAssertEqual(tabGaps[0], tabGaps[1], accuracy: 1)
+        XCTAssertEqual(tabGaps[1], tabGaps[2], accuracy: 1)
         for tab in ["Home", "Growth", "Ledger"] {
-            let button = app.buttons[tab]
+            let button = app.buttons["tab-" + tab]
             XCTAssertTrue(button.waitForExistence(timeout: 5), "Missing tab \(tab)")
             button.tap()
             let selected = NSPredicate(format: "selected == true")
