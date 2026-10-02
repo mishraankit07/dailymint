@@ -434,7 +434,6 @@ struct ManualView: View {
                             }
                         }
                     }
-                    .accessibilityIdentifier("entryCategory")
                     DatePicker("Date", selection: $date, in: ...Date(), displayedComponents: .date)
                         .foregroundStyle(Color.dmInk)
 

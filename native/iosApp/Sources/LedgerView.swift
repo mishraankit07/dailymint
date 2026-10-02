@@ -678,7 +678,6 @@ struct TransactionDetailView: View {
                 }
             }
         }
-        .accessibilityIdentifier(imported ? "transactionCategory" : "editEntryCategory")
     }
 
     private func deleteTransaction() {

@@ -612,7 +612,6 @@ struct EntryEditSheet: View {
                 }
             }
         }
-        .accessibilityIdentifier("editEntryCategory")
     }
 
     private func creditLabel(_ kind: String) -> String {
