@@ -46,7 +46,7 @@ class PersonalExpenseTest {
         assertTrue(engine.monthSummary("2026-09-15").topFive.isEmpty())
     }
 
-    @Test fun ledgerDaysUseCurrentCycleAndKeepGrossAmounts() {
+    @Test fun ledgerDaysUseCurrentCycleAndPersonalSpending() {
         val engine = LedgerEngine(MemoryStore())
         val expense = imported("expense", 30000)
         val olderCredit = imported("credit", 20000, type = "income", category = "Income", date = "2026-08-20")
@@ -54,7 +54,7 @@ class PersonalExpenseTest {
         assertTrue(engine.setPersonalExpense("expense", "100").success)
         val days = engine.ledgerDays("2026-09-15")
         assertEquals(listOf("2026-09-10"), days.map { it.date })
-        assertEquals(30000, days.first().moneyOut)
+        assertEquals(10000, days.first().spent)
         assertEquals(10000, days.first().entries.single().personalSpent)
     }
 
@@ -68,11 +68,12 @@ class PersonalExpenseTest {
         assertEquals(0, engine.totals().moneyIn)
         assertEquals(20000, engine.totals().neutralCredits)
         assertEquals(30000, engine.totals().spent)
-        assertEquals(20000, engine.monthSummary("2026-09-15").days.sumOf { it.moneyIn })
+        assertEquals(0, engine.monthSummary("2026-09-15").days.sumOf { it.moneyIn })
         assertTrue(engine.classifyCredit("credit", CreditKind.OWN_TRANSFER).success)
         assertEquals(0, engine.totals().moneyIn)
         assertTrue(engine.classifyCredit("credit", CreditKind.INCOME).success)
         assertEquals(20000, engine.totals().moneyIn)
+        assertEquals(20000, engine.ledgerDays("2026-09-15").single { it.date == "2026-09-12" }.moneyIn)
     }
 
     @Test fun importedDebitCanBeClassifiedAsNeutralOwnAccountTransfer() {
@@ -90,7 +91,7 @@ class PersonalExpenseTest {
         assertEquals(DebitKind.OWN_TRANSFER, saved.category)
         assertEquals(0, saved.personalSpent)
         assertEquals(0, engine.totals().spent)
-        assertEquals(30000, engine.ledgerDays("2026-09-15").single().moneyOut)
+        assertEquals(0, engine.ledgerDays("2026-09-15").single().spent)
         assertEquals(DebitKind.OWN_TRANSFER, LedgerEngine(store).entries().single().category)
     }
 
@@ -108,7 +109,7 @@ class PersonalExpenseTest {
         assertEquals("Own account transfer", saved.category)
         assertEquals(0, engine.totals().moneyIn)
         assertEquals(20000, engine.totals().neutralCredits)
-        assertEquals(20000, engine.ledgerDays("2026-09-15").single().moneyIn)
+        assertEquals(0, engine.ledgerDays("2026-09-15").single().moneyIn)
     }
 
     @Test fun migrationKeepsOldIdentityAndReceivedIncome() {

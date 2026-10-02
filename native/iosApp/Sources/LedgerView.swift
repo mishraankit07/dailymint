@@ -4,8 +4,8 @@ import DailyMintCore
 private struct LedgerDateGroup: Identifiable {
     let date: String
     let entries: [Entry]
-    let grossIn: Int64
-    let grossOut: Int64
+    let moneyIn: Int64
+    let spent: Int64
     var id: String { date }
 }
 
@@ -28,7 +28,7 @@ struct LedgerView: View {
                 matchesType(entry) && matchesClassification(entry)
             }
             return entries.isEmpty ? nil : LedgerDateGroup(date: day.date, entries: entries,
-                                                            grossIn: day.moneyIn, grossOut: day.moneyOut)
+                                                            moneyIn: day.moneyIn, spent: day.spent)
         }
     }
 
@@ -80,8 +80,9 @@ struct LedgerView: View {
                                             .font(.caption).foregroundStyle(Color.dmInkFaint)
                                     }
                                     Text((filterActive ? "Full day · " : "") +
-                                         "Gross in Rs \(model.engine.formatAmount(paise: group.grossIn)) · out Rs \(model.engine.formatAmount(paise: group.grossOut))")
+                                         "Money in Rs \(model.engine.formatAmount(paise: group.moneyIn)) · spent Rs \(model.engine.formatAmount(paise: group.spent))")
                                         .font(.caption).foregroundStyle(Color.dmInkSoft)
+                                        .accessibilityIdentifier("ledgerDaySummary-\(group.date)")
                                 }
                                 .padding(.vertical, 8)
                                 ForEach(group.entries, id: \.id) { entry in

@@ -18,7 +18,7 @@ internal object LedgerDates {
 }
 
 data class CategoryTotal(val name: String, val paise: Long, val percent: Double)
-data class DayGroup(val date: String, val moneyIn: Long, val moneyOut: Long, val entries: List<Entry>)
+data class DayGroup(val date: String, val moneyIn: Long, val spent: Long, val entries: List<Entry>)
 data class MonthSummary(
     val start: String, val endExclusive: String, val label: String,
     val moneyIn: Long, val spent: Long, val invested: Long, val remaining: Long,
@@ -48,8 +48,8 @@ object LedgerAnalytics {
         .groupBy { LedgerDates.date(it.date).toString() }
         .map { (date, items) ->
             DayGroup(date,
-                items.filter { it.type == "income" }.sumOf { it.paise },
-                items.filter { it.type != "income" }.sumOf { it.paise },
+                items.sumOf { it.earnedIncome },
+                items.sumOf { it.personalSpent },
                 items.sortedWith(compareByDescending<Entry> { it.date }.thenByDescending { it.capturedAtMillis }))
         }
         .sortedByDescending { it.date }
@@ -72,8 +72,8 @@ object LedgerAnalytics {
         val categoryTotals = (expenseCategories + investmentCategory)
             .sortedWith(compareBy<CategoryTotal> { it.name == "Miscellaneous" }.thenByDescending { it.paise }.thenBy { it.name })
         val days = selected.groupBy { LedgerDates.date(it.date).toString() }.map { (date, items) ->
-            DayGroup(date, items.filter { it.type == "income" }.sumOf { it.paise },
-                items.filter { it.type != "income" }.sumOf { it.paise }, items.sortedByDescending { it.paise })
+            DayGroup(date, items.sumOf { it.earnedIncome },
+                items.sumOf { it.personalSpent }, items.sortedByDescending { it.paise })
         }.sortedByDescending { it.date }
         return MonthSummary(start.toString(), end.toString(), start.toString() + " - " + end.minus(DatePeriod(days = 1)),
             moneyIn, spent, invested, moneyIn - spent - invested,

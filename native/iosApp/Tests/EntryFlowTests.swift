@@ -342,6 +342,11 @@ final class EntryFlowTests: XCTestCase {
         if !save.isHittable { app.swipeUp() }
         save.tap()
         XCTAssertFalse(app.staticTexts["transactionError"].exists)
+        let daySummary = app.staticTexts.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "ledgerDaySummary-")
+        ).firstMatch
+        XCTAssertTrue(daySummary.waitForExistence(timeout: 5))
+        XCTAssertEqual(daySummary.label, "Money in Rs 0 · spent Rs 1")
         app.buttons["Home"].tap()
         XCTAssertEqual(spent.label, "Spent: Rs 1")
 

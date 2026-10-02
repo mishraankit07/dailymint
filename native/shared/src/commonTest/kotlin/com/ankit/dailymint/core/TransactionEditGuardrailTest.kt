@@ -161,6 +161,6 @@ class TransactionEditGuardrailTest {
         assertEquals("expense", debit.type)
         assertEquals(DebitKind.OWN_TRANSFER, debit.category)
         assertEquals(0, debit.personalSpent)
-        assertEquals(5000, engine.ledgerDays(today).single().moneyOut)
+        assertEquals(0, engine.ledgerDays(today).single().spent)
     }
 }

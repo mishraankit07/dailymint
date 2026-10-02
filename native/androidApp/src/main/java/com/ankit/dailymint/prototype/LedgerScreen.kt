@@ -105,12 +105,12 @@ fun LedgerContent(
             visible.groupBy { it.date.take(10) }.forEach { (date, entries) ->
                 RaisedCard {
                     val active = dayTotals.getValue(date).filterNot { it.ignored }
-                    val grossIn = active.filter { it.type == "income" }.sumOf { it.paise }
-                    val grossOut = active.filter { it.type != "income" }.sumOf { it.paise }
+                    val moneyIn = active.sumOf { it.earnedIncome }
+                    val spent = active.sumOf { it.personalSpent }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(date, color = Ink, fontWeight = FontWeight.Bold)
-                        Text("In Rs ${engine.formatAmount(grossIn)} · Out Rs ${engine.formatAmount(grossOut)}", color = InkFaint,
-                            style = MaterialTheme.typography.bodySmall)
+                        Text("Money in Rs ${engine.formatAmount(moneyIn)} · spent Rs ${engine.formatAmount(spent)}", color = InkFaint,
+                            style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("ledgerDaySummary-$date"))
                     }
                     entries.forEach { entry ->
                         TransactionRow(entry, engine, onClick = { onDetail(entry) }, tag = "ledgerRow-${entry.id}")
