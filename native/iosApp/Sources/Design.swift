@@ -51,6 +51,7 @@ struct RaisedPanel<Content: View>: View {
 }
 
 struct StableMenu<MenuContent: View, Label: View>: View {
+    @State private var isPresented = false
     private let menuContent: MenuContent
     private let label: Label
 
@@ -60,14 +61,21 @@ struct StableMenu<MenuContent: View, Label: View>: View {
     }
 
     var body: some View {
-        Menu {
-            menuContent
+        Button {
+            isPresented = true
         } label: {
             label
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .confirmationDialog(
+            "Choose an option",
+            isPresented: $isPresented,
+            titleVisibility: .hidden
+        ) {
+            menuContent
+        }
     }
 }
 
