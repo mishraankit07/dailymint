@@ -25,6 +25,16 @@ final class EntryFlowTests: XCTestCase {
         let deleteExisting = String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count)
         field.typeText(deleteExisting + replacement)
     }
+    private func tapTab(_ title: String) {
+        let button = app.buttons["tab-" + title]
+        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "hittable == true"),
+            object: button
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed)
+        button.tap()
+    }
     func testSaveCategoryWithKeyboardAndRelaunch() {
         openCategory()
         let field = app.textFields["categoryName"]
@@ -354,7 +364,7 @@ final class EntryFlowTests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(daySummary.waitForExistence(timeout: 5))
         XCTAssertEqual(daySummary.label, "Money in Rs 0 · spent Rs 1")
-        app.buttons["Home"].tap()
+        tapTab("Home")
         XCTAssertEqual(spent.label, "Spent: Rs 1")
 
         app.terminate()
@@ -410,7 +420,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(save.isEnabled)
         if !save.isHittable { app.swipeUp() }
         save.tap()
-        app.buttons["Home"].tap()
+        tapTab("Home")
         XCTAssertEqual(spent.label, "Spent: Rs 1.25")
 
         app.terminate()
@@ -459,7 +469,7 @@ final class EntryFlowTests: XCTestCase {
         if !save.isHittable { app.swipeUp() }
         save.tap()
 
-        app.buttons["tab-Home"].tap()
+        tapTab("Home")
         XCTAssertEqual(spent.label, "Spent: Rs 0")
     }
 
