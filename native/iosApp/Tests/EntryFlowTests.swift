@@ -181,6 +181,10 @@ final class EntryFlowTests: XCTestCase {
         if !save.isHittable { app.swipeUp() }
         save.tap()
         XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
+        let toast = app.staticTexts["transactionSavedToast"]
+        XCTAssertTrue(toast.waitForExistence(timeout: 5))
+        XCTAssertEqual(toast.label, "Transaction Saved!")
+        XCTAssertTrue(toast.waitForNonExistence(timeout: 4))
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         let month = app.buttons["Home"]
         let selected = NSPredicate(format: "selected == true")

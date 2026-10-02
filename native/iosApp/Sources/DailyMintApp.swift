@@ -238,6 +238,9 @@ struct DailyMintApp: App {
     @StateObject private var model = LedgerModel()
     @State private var selectedTab = AppTab.home
     @State private var showingAdd = false
+    @State private var pendingTransactionSavedToast = false
+    @State private var transactionSavedToastVisible = false
+    @State private var transactionSavedToastGeneration = 0
     @State private var showingBrandSplash: Bool
     @AppStorage(OnboardingReleaseTracker.seenKey) private var onboardingSeen = false
     @Environment(\.scenePhase) private var scenePhase
@@ -270,6 +273,23 @@ struct DailyMintApp: App {
                         persistentDestination(.home) { MonthView(model: model) }
                         persistentDestination(.growth) { GrowthView(model: model) }
                         persistentDestination(.ledger) { LedgerView(model: model) }
+                        if transactionSavedToastVisible {
+                            Text("Transaction Saved!")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.dmPaper)
+                                .padding(.horizontal, 18)
+                                .frame(minHeight: 44)
+                                .background(Color.dmInk)
+                                .clipShape(Capsule())
+                                .shadow(color: Color.black.opacity(0.18), radius: 10, y: 4)
+                                .padding(.horizontal, 20)
+                                .padding(.bottom, 12)
+                                .frame(maxHeight: .infinity, alignment: .bottom)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                                .accessibilityIdentifier("transactionSavedToast")
+                                .allowsHitTesting(false)
+                                .zIndex(20)
+                        }
                     }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         DockedTabBar(
@@ -286,8 +306,15 @@ struct DailyMintApp: App {
                     .tint(Color.dmFlow)
                 }
             }
-            .sheet(isPresented: $showingAdd) {
-                ManualView(model: model, onFinish: { showingAdd = false })
+            .sheet(isPresented: $showingAdd, onDismiss: {
+                guard pendingTransactionSavedToast else { return }
+                pendingTransactionSavedToast = false
+                showTransactionSavedToast()
+            }) {
+                ManualView(model: model, onFinish: { saved in
+                    pendingTransactionSavedToast = saved
+                    showingAdd = false
+                })
             }
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
@@ -324,6 +351,21 @@ struct DailyMintApp: App {
         }
     }
 
+    private func showTransactionSavedToast() {
+        transactionSavedToastGeneration += 1
+        let generation = transactionSavedToastGeneration
+        withAnimation(.easeOut(duration: 0.2)) {
+            transactionSavedToastVisible = true
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            guard transactionSavedToastGeneration == generation else { return }
+            withAnimation(.easeIn(duration: 0.2)) {
+                transactionSavedToastVisible = false
+            }
+        }
+    }
+
     private func persistentDestination<Content: View>(_ tab: AppTab, @ViewBuilder content: () -> Content) -> some View {
         content()
             .environment(\.destinationIsActive, selectedTab == tab)
@@ -336,7 +378,7 @@ struct DailyMintApp: App {
 
 struct ManualView: View {
     @ObservedObject var model: LedgerModel
-    let onFinish: () -> Void
+    let onFinish: (_ saved: Bool) -> Void
     @State private var name = ""
     @State private var amount = ""
     @State private var income = false
@@ -386,7 +428,7 @@ struct ManualView: View {
                     Button("Save") {
                         focusedField = nil
                         error = model.addEntry(name: name, amount: amount, category: category, date: date, income: income)
-                        if error == nil { onFinish() }
+                        if error == nil { onFinish(true) }
                     }
                     .buttonStyle(PrimaryPillButtonStyle())
                     .frame(maxWidth: .infinity)
@@ -398,7 +440,7 @@ struct ManualView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onFinish).accessibilityIdentifier("cancelEntry")
+                    Button("Cancel") { onFinish(false) }.accessibilityIdentifier("cancelEntry")
                 }
             }
             .onDisappear { focusedField = nil }
