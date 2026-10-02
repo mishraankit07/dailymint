@@ -137,7 +137,6 @@ final class EntryFlowTests: XCTestCase {
             "Choose Message",
             "Set the trigger",
             "Run automatically",
-            "Create the shortcut",
             "Find DailyMint",
             "Tap Message",
             "Choose Shortcut Input",
