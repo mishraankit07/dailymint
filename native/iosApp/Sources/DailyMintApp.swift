@@ -529,22 +529,13 @@ struct SettingsView: View {
     private var dailyCheckInSection: some View {
         RaisedPanel {
             SectionHeading(title: "Daily check-in")
-            Button(action: toggleReminder) {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Expense reminder").font(.headline).foregroundStyle(Color.dmInk)
-                        Text(reminderEnabled ? "Reminder on" : "Reminder off")
-                            .font(.caption)
-                            .foregroundStyle(Color.dmInkFaint)
-                            .accessibilityIdentifier("reminderStatus")
-                    }
-                    Spacer()
-                    Image(systemName: reminderEnabled ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(reminderEnabled ? Color.dmIncome : Color.dmInkFaint)
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("reminderToggle")
+            settingsToggleRow(
+                title: "Expense reminder",
+                subtitle: reminderEnabled ? "Reminder on" : "Reminder off",
+                isOn: reminderEnabledBinding,
+                identifier: "reminderToggle",
+                statusIdentifier: "reminderStatus"
+            )
 
             if reminderEnabled {
                 VStack(alignment: .leading, spacing: 8) {
@@ -640,14 +631,35 @@ struct SettingsView: View {
 
     private var automaticImportNotificationSection: some View {
         RaisedPanel {
-            Toggle(isOn: automaticImportNotificationBinding) {
-                Text("Notify when DailyMint adds a transaction automatically?")
-                    .font(.body)
-                    .foregroundStyle(Color.dmInk)
-            }
-            .tint(Color.dmFlow)
-            .accessibilityIdentifier("automaticImportNotificationToggle")
+            settingsToggleRow(
+                title: "Notify on auto-import",
+                subtitle: "Alert when DailyMint adds a transaction automatically",
+                isOn: automaticImportNotificationBinding,
+                identifier: "automaticImportNotificationToggle"
+            )
         }
+    }
+
+    private func settingsToggleRow(
+        title: String,
+        subtitle: String,
+        isOn: Binding<Bool>,
+        identifier: String,
+        statusIdentifier: String? = nil
+    ) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(Color.dmInk)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(Color.dmInkFaint)
+                    .accessibilityIdentifier(statusIdentifier ?? "\(identifier)Status")
+            }
+        }
+        .tint(Color.dmFlow)
+        .accessibilityIdentifier(identifier)
     }
 
     @ViewBuilder
@@ -689,6 +701,13 @@ struct SettingsView: View {
                 reminderTime = value
                 updateReminder(time: value)
             }
+        )
+    }
+
+    private var reminderEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { reminderEnabled },
+            set: updateReminderEnabled
         )
     }
 
@@ -743,12 +762,11 @@ struct SettingsView: View {
         )
     }
 
-    private func toggleReminder() {
-        let next = !reminderEnabled
-        let result = model.mutate { $0.setReminder(enabled: next, time: reminderTime) }
+    private func updateReminderEnabled(_ enabled: Bool) {
+        let result = model.mutate { $0.setReminder(enabled: enabled, time: reminderTime) }
         error = result
         if result == nil {
-            reminderEnabled = next
+            reminderEnabled = enabled
             ReminderScheduler.apply(engine: model.engine)
         }
     }

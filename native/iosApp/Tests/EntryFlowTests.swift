@@ -59,6 +59,7 @@ final class EntryFlowTests: XCTestCase {
     func testSettingsUsesStartDateLabelAndCloses() {
         app.buttons["settings"].tap()
         XCTAssertTrue(app.staticTexts["Start date"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches["reminderToggle"].exists)
 
         let close = app.buttons["closeSettings"]
         XCTAssertTrue(close.exists)
