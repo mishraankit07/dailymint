@@ -67,6 +67,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(close.waitForNonExistence(timeout: 5))
     }
     func testEveryTabOpens() {
+        XCTAssertEqual(app.buttons["Add"].frame.midX, app.frame.midX, accuracy: 1)
         for tab in ["Home", "Growth", "Ledger"] {
             let button = app.buttons[tab]
             XCTAssertTrue(button.waitForExistence(timeout: 5), "Missing tab \(tab)")

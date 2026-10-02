@@ -153,41 +153,60 @@ struct DockedTabBar<Tab: Hashable>: View {
     let action: (Tab) -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(tabs, id: \.self) { tab in
-                Button {
-                    action(tab)
-                } label: {
-                    VStack(spacing: 2) {
-                        ZStack {
-                            if isCenterAction(tab) {
-                                Circle()
-                                    .fill(Color.dmCenterActionFill)
-                                    .frame(width: 36, height: 36)
+        GeometryReader { proxy in
+            HStack(spacing: 0) {
+                ForEach(Array(tabs.enumerated()), id: \.element) { index, tab in
+                    Button {
+                        action(tab)
+                    } label: {
+                        VStack(spacing: 2) {
+                            ZStack {
+                                if isCenterAction(tab) {
+                                    Circle()
+                                        .fill(Color.dmCenterActionFill)
+                                        .frame(width: 36, height: 36)
+                                }
+                                Image(systemName: icon(tab))
+                                    .font(.system(size: isCenterAction(tab) ? 20 : 18, weight: .semibold))
+                                    .foregroundStyle(isCenterAction(tab) ? Color.dmCenterActionIcon : (selected == tab ? Color.dmNavSelected : Color.dmInkSoft))
                             }
-                            Image(systemName: icon(tab))
-                                .font(.system(size: isCenterAction(tab) ? 20 : 18, weight: .semibold))
-                                .foregroundStyle(isCenterAction(tab) ? Color.dmCenterActionIcon : (selected == tab ? Color.dmNavSelected : Color.dmInkSoft))
+                            .frame(height: 36)
+                            Text(title(tab))
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(selected == tab && !isCenterAction(tab) ? Color.dmNavSelected : Color.dmInkSoft)
                         }
-                        .frame(height: 36)
-                        Text(title(tab))
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(selected == tab && !isCenterAction(tab) ? Color.dmNavSelected : Color.dmInkSoft)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity, minHeight: 50)
-                    .contentShape(Rectangle())
+                    .frame(width: proxy.size.width * tabWeight(at: index) / totalTabWeight)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(title(tab))
+                    .accessibilityAddTraits(selected == tab && !isCenterAction(tab) ? .isSelected : [])
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(title(tab))
-                .accessibilityAddTraits(selected == tab && !isCenterAction(tab) ? .isSelected : [])
             }
         }
+        .frame(height: 50)
         .padding(.horizontal, 8)
         .padding(.top, 5)
         .padding(.bottom, 4)
         .background { Rectangle().fill(Color.dmNav).ignoresSafeArea(edges: .bottom) }
         .overlay(alignment: .top) { Rectangle().fill(Color.dmHairline).frame(height: 1) }
         .id(colorScheme)
+    }
+
+    private var centerActionIndex: Int? {
+        tabs.firstIndex(where: isCenterAction)
+    }
+
+    private var totalTabWeight: CGFloat {
+        tabs.indices.reduce(0) { $0 + tabWeight(at: $1) }
+    }
+
+    private func tabWeight(at index: Int) -> CGFloat {
+        guard let centerActionIndex else { return 1 }
+        let trailingCount = tabs.count - centerActionIndex - 1
+        guard centerActionIndex > 0, trailingCount > 0, index > centerActionIndex else { return 1 }
+        return CGFloat(centerActionIndex) / CGFloat(trailingCount)
     }
 }
 
