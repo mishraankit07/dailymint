@@ -444,24 +444,28 @@ struct TransactionDetailView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline))
             }
 
-            if isExpense {
-                RaisedPanel {
-                    Toggle("Record your share?", isOn: $splitEnabled)
-                        .tint(Color.dmFlow)
-                        .accessibilityIdentifier("splitTransaction")
-                        .disabled(maximumPeople < 2 && !splitEnabled)
-                        .onChange(of: splitEnabled) { enabled in
-                            if enabled && splitMethod == "none" {
-                                splitMethod = "equal"
-                                people = "2"
-                            }
+            RaisedPanel {
+                Toggle("Record your share?", isOn: $splitEnabled)
+                    .tint(Color.dmFlow)
+                    .accessibilityIdentifier("splitTransaction")
+                    .disabled(!isExpense || (maximumPeople < 2 && !splitEnabled))
+                    .onChange(of: splitEnabled) { enabled in
+                        if enabled && splitMethod == "none" {
+                            splitMethod = "equal"
+                            people = "2"
                         }
-                    if maximumPeople < 2 && !splitEnabled {
-                        Text("Equal split is unavailable because each person's share must be at least Rs 1.")
-                            .font(.caption)
-                            .foregroundStyle(Color.dmInkSoft)
                     }
-                    if splitEnabled {
+                if !isExpense {
+                    Text("Available for debit spending categories.")
+                        .font(.caption)
+                        .foregroundStyle(Color.dmInkSoft)
+                        .accessibilityIdentifier("splitUnavailableReason")
+                } else if maximumPeople < 2 && !splitEnabled {
+                    Text("Equal split is unavailable because each person's share must be at least Rs 1.")
+                        .font(.caption)
+                        .foregroundStyle(Color.dmInkSoft)
+                }
+                if splitEnabled {
                         if splitMethod == "equal" {
                             Divider().overlay(Color.dmHairline)
                             HStack {
@@ -531,7 +535,6 @@ struct TransactionDetailView: View {
                             .accessibilityLabel("Your share, Rs " + model.engine.formatAmount(paise: previewPaise))
                             .accessibilityIdentifier("splitPreview")
                         }
-                    }
                 }
             }
 

@@ -364,11 +364,25 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Debit"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Credit"].exists)
 
+        let split = app.switches["splitTransaction"]
+        XCTAssertTrue(split.waitForExistence(timeout: 5))
+        XCTAssertTrue(split.isEnabled)
+
+        let income = app.buttons["transactionCreditKindOption-income"]
+        XCTAssertTrue(income.waitForExistence(timeout: 5))
+        income.tap()
+        XCTAssertFalse(split.isEnabled)
+
+        let food = app.buttons["transactionCategoryOption-Food"]
+        XCTAssertTrue(food.waitForExistence(timeout: 5))
+        food.tap()
+        XCTAssertTrue(split.isEnabled)
+
         let transfer = app.buttons["transactionCategoryOption-Own account transfer"]
         XCTAssertTrue(transfer.waitForExistence(timeout: 5))
         transfer.tap()
         XCTAssertTrue(transfer.isSelected)
-        XCTAssertFalse(app.switches["splitTransaction"].exists)
+        XCTAssertFalse(split.isEnabled)
         app.buttons["saveImportedTransaction"].tap()
 
         app.buttons["Home"].tap()
