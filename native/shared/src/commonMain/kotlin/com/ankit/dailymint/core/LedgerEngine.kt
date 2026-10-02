@@ -67,6 +67,11 @@ object CreditKind {
     }
 }
 
+object DebitKind {
+    const val OWN_TRANSFER = "Own account transfer"
+    fun isOwnTransfer(category: String): Boolean = category == OWN_TRANSFER
+}
+
 @Serializable
 data class ReviewRow(val id: String, val entry: Entry? = null, val status: String, val rawText: String = "", val reason: String = "")
 
@@ -227,12 +232,19 @@ class LedgerEngine(private val store: LedgerStore) {
     fun editReview(id: String, name: String, amount: String, category: String): SaveResult {
         val row = snapshot.review.find { it.id == id && it.status == "new" } ?: return SaveResult(false, "This record is already recorded.")
         val entry = row.entry ?: return SaveResult(false, "This message could not be parsed.")
-        val error = validateEntry(name, amount, category, entry.date, entry.type == "income")
+        return editReviewClassified(id, name, amount, category, entry.type == "income")
+    }
+    fun editReviewClassified(id: String, name: String, amount: String, category: String, income: Boolean): SaveResult {
+        val row = snapshot.review.find { it.id == id && it.status == "new" } ?: return SaveResult(false, "This record is already recorded.")
+        val entry = row.entry ?: return SaveResult(false, "This message could not be parsed.")
+        val error = validateEntry(name, amount, category, entry.date, income)
         if (error != null) return SaveResult(false, error)
         if (entry.source != "manual" && Money.parse(amount) != entry.paise) return SaveResult(false, "The bank's original amount cannot be changed.")
         val updated = entry.copy(name = name.trim(), paise = Money.parse(amount)!!, category = category,
-            type = entryType(entry.type == "income", category),
-            creditKind = if (entry.type == "income") CreditKind.fromLabel(category) else null)
+            type = entryType(income, category),
+            personalExpensePaise = 0L.takeIf { !income && DebitKind.isOwnTransfer(category) },
+            creditKind = CreditKind.fromLabel(category).takeIf { income },
+            splitMethod = SplitMethod.NONE, splitPeopleCount = null)
         return commit(snapshot.copy(review = snapshot.review.map { if (it.id == id) it.copy(entry = updated) else it }, learnedRules = learn(name, category)))
     }
     fun importMessages(json: String): SaveResult {
@@ -280,14 +292,22 @@ class LedgerEngine(private val store: LedgerStore) {
             review = snapshot.review.map { it.copy(entry = it.entry?.let(::remap)) }))
     }
     fun editEntry(id: String, name: String, amount: String, category: String, date: String, platform: String, nowMillis: Long): SaveResult {
+        val old = snapshot.entries.find { it.id == id }
+            ?: return SaveResult(false, "This transaction no longer exists.")
+        return editEntryClassified(id, name, amount, category, date, old.type == "income", platform, nowMillis)
+    }
+    fun editEntryClassified(id: String, name: String, amount: String, category: String, date: String, income: Boolean,
+        platform: String, nowMillis: Long): SaveResult {
         if (!canEdit(id, platform, nowMillis)) return SaveResult(false, "This transaction is no longer editable.")
         val old = snapshot.entries.first { it.id == id }
-        val error = validateEntry(name, amount, category, date, old.type == "income")
+        val error = validateEntry(name, amount, category, date, income)
         if (error != null) return SaveResult(false, error)
         if (LedgerDates.date(date) > LedgerDates.today()) return SaveResult(false, "Transaction date cannot be in the future.")
         val updated = old.copy(name = name.trim(), paise = Money.parse(amount)!!, category = category, date = date,
-            type = entryType(old.type == "income", category),
-            creditKind = if (old.type == "income") CreditKind.fromLabel(category) else null)
+            type = entryType(income, category),
+            personalExpensePaise = 0L.takeIf { !income && DebitKind.isOwnTransfer(category) },
+            creditKind = CreditKind.fromLabel(category).takeIf { income },
+            splitMethod = SplitMethod.NONE, splitPeopleCount = null)
         return commit(snapshot.copy(entries = snapshot.entries.map { if (it.id == id) updated else it }, learnedRules = learn(name, category)))
     }
     fun deleteEntry(id: String, platform: String, nowMillis: Long): SaveResult {
@@ -324,20 +344,30 @@ class LedgerEngine(private val store: LedgerStore) {
         splitMethod: String, splitPeopleCount: Int, creditKind: String): SaveResult {
         val entry = snapshot.entries.find { it.id == id && it.source != "manual" }
             ?: return SaveResult(false, "Choose an imported transaction.")
+        return updateImportedTransactionClassified(id, name, category, personalAmount, splitMethod,
+            splitPeopleCount, creditKind, entry.type == "income")
+    }
+    fun updateImportedTransactionClassified(id: String, name: String, category: String, personalAmount: String,
+        splitMethod: String, splitPeopleCount: Int, creditKind: String, income: Boolean): SaveResult {
+        val entry = snapshot.entries.find { it.id == id && it.source != "manual" }
+            ?: return SaveResult(false, "Choose an imported transaction.")
         val cleanName = name.trim()
         if (cleanName.isEmpty() || cleanName.length > 120) return SaveResult(false, "Enter a name between 1 and 120 characters.")
 
-        val updated = if (entry.type == "income") {
+        val updated = if (income) {
             if (creditKind !in CreditKind.all) return SaveResult(false, "Choose a credit kind.")
-            entry.copy(name = cleanName, category = CreditKind.label(creditKind), creditKind = creditKind,
+            entry.copy(name = cleanName, category = CreditKind.label(creditKind), type = "income", creditKind = creditKind,
                 personalExpensePaise = null, splitMethod = SplitMethod.NONE, splitPeopleCount = null)
         } else {
-            if (category !in snapshot.categories) return SaveResult(false, "Choose a valid category.")
-            val updatedType = if (category == "Investments") "investment" else "expense"
-            if (updatedType == "investment" && splitMethod != SplitMethod.NONE) {
-                return SaveResult(false, "Investments cannot be split as personal spending.")
+            if (category !in snapshot.categories && !DebitKind.isOwnTransfer(category)) {
+                return SaveResult(false, "Choose a valid category.")
             }
-            val personal = when (splitMethod) {
+            val updatedType = if (category == "Investments") "investment" else "expense"
+            val neutralTransfer = DebitKind.isOwnTransfer(category)
+            if ((updatedType == "investment" || neutralTransfer) && splitMethod != SplitMethod.NONE) {
+                return SaveResult(false, if (neutralTransfer) "Own account transfers cannot be split." else "Investments cannot be split as personal spending.")
+            }
+            val personal = if (neutralTransfer) 0L else when (splitMethod) {
                 SplitMethod.NONE -> entry.paise
                 SplitMethod.EQUAL -> {
                     if (splitPeopleCount < 2) return SaveResult(false, "Enter at least 2 people, including you.")
@@ -352,12 +382,12 @@ class LedgerEngine(private val store: LedgerStore) {
                 else -> return SaveResult(false, "Choose a valid split method.")
             }
             if (personal > entry.paise) return SaveResult(false, "Personal spending cannot exceed the bank amount.")
-            entry.copy(name = cleanName, category = category, type = updatedType,
+            entry.copy(name = cleanName, category = category, type = updatedType, creditKind = null,
                 personalExpensePaise = personal.takeIf { updatedType == "expense" && it != entry.paise },
-                splitMethod = if (updatedType == "expense") splitMethod else SplitMethod.NONE,
-                splitPeopleCount = splitPeopleCount.takeIf { updatedType == "expense" && splitMethod == SplitMethod.EQUAL })
+                splitMethod = if (updatedType == "expense" && !neutralTransfer) splitMethod else SplitMethod.NONE,
+                splitPeopleCount = splitPeopleCount.takeIf { updatedType == "expense" && !neutralTransfer && splitMethod == SplitMethod.EQUAL })
         }
-        val rules = if (entry.type == "income") snapshot.learnedRules else learn(cleanName, category)
+        val rules = if (income || DebitKind.isOwnTransfer(category)) snapshot.learnedRules else learn(cleanName, category)
         return commit(snapshot.copy(entries = snapshot.entries.map { if (it.id == id) updated else it }, learnedRules = rules))
     }
     fun classifyCredit(id: String, kind: String): SaveResult {
@@ -390,7 +420,8 @@ class LedgerEngine(private val store: LedgerStore) {
         if (Money.parse(amount) == null) return "Enter a positive amount with up to two decimal places."
         if (name.trim().isEmpty() || name.trim().length > 120) return "Enter a name between 1 and 120 characters."
         if (!validDate(date)) return "Choose a valid transaction date."
-        if (category !in (if (income) CreditKind.all.map(CreditKind::label) else snapshot.categories)) return "Choose a valid category."
+        val allowed = if (income) CreditKind.all.map(CreditKind::label) else snapshot.categories + DebitKind.OWN_TRANSFER
+        if (category !in allowed) return "Choose a valid category."
         return null
     }
     fun formatAmount(paise: Long): String = Money.display(paise)

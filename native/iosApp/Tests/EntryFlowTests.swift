@@ -348,6 +348,33 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(spent.label, "Spent: Rs 1")
     }
 
+    func testImportedDebitCanBeMarkedAsOwnAccountTransfer() {
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]
+        app.launch()
+        let spent = app.descendants(matching: .any)["spent"]
+        XCTAssertTrue(spent.waitForExistence(timeout: 5))
+        expectation(for: NSPredicate(format: "label == %@", "Spent: Rs 5"), evaluatedWith: spent)
+        waitForExpectations(timeout: 10)
+
+        app.buttons["Ledger"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "ledgerEntry-")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(app.staticTexts["Debit"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Credit"].exists)
+
+        let transfer = app.buttons["transactionCategoryOption-Own account transfer"]
+        XCTAssertTrue(transfer.waitForExistence(timeout: 5))
+        transfer.tap()
+        XCTAssertTrue(transfer.isSelected)
+        XCTAssertFalse(app.switches["splitTransaction"].exists)
+        app.buttons["saveImportedTransaction"].tap()
+
+        app.buttons["Home"].tap()
+        XCTAssertEqual(spent.label, "Spent: Rs 0")
+    }
+
     func testImportedSplitRejectsParticipantCountAboveMaximum() {
         app.terminate()
         app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]

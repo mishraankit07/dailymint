@@ -75,6 +75,42 @@ class PersonalExpenseTest {
         assertEquals(20000, engine.totals().moneyIn)
     }
 
+    @Test fun importedDebitCanBeClassifiedAsNeutralOwnAccountTransfer() {
+        val store = MemoryStore()
+        val engine = LedgerEngine(store)
+        assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(imported("transfer", 30000)))).success)
+
+        assertTrue(engine.updateImportedTransactionClassified(
+            "transfer", "Savings transfer", DebitKind.OWN_TRANSFER, "",
+            SplitMethod.NONE, 0, "", false
+        ).success)
+
+        val saved = engine.entries().single()
+        assertEquals("expense", saved.type)
+        assertEquals(DebitKind.OWN_TRANSFER, saved.category)
+        assertEquals(0, saved.personalSpent)
+        assertEquals(0, engine.totals().spent)
+        assertEquals(30000, engine.ledgerDays("2026-09-15").single().moneyOut)
+        assertEquals(DebitKind.OWN_TRANSFER, LedgerEngine(store).entries().single().category)
+    }
+
+    @Test fun importedDirectionCanBeCorrectedWithGroupedClassification() {
+        val engine = LedgerEngine(MemoryStore())
+        assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(imported("credit", 20000)))).success)
+
+        assertTrue(engine.updateImportedTransactionClassified(
+            "credit", "Account transfer", "Food", "",
+            SplitMethod.NONE, 0, CreditKind.OWN_TRANSFER, true
+        ).success)
+
+        val saved = engine.entries().single()
+        assertEquals("income", saved.type)
+        assertEquals("Own account transfer", saved.category)
+        assertEquals(0, engine.totals().moneyIn)
+        assertEquals(20000, engine.totals().neutralCredits)
+        assertEquals(20000, engine.ledgerDays("2026-09-15").single().moneyIn)
+    }
+
     @Test fun migrationKeepsOldIdentityAndReceivedIncome() {
         val old = Snapshot(schemaVersion = 1, entries = listOf(
             imported("expense", 30000), imported("old-credit", 20000, "income", "Received")

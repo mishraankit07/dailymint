@@ -137,4 +137,30 @@ class TransactionEditGuardrailTest {
         assertEquals(5000, engine.trendBuckets(today.toString(), false, 3).last().spent)
         assertNull(saved.personalExpensePaise)
     }
+
+    @Test
+    fun manualEditCanMoveBetweenDebitAndCreditClassifications() {
+        val engine = LedgerEngine(MemoryStore())
+        val now = Clock.System.now().toEpochMilliseconds()
+        val today = LedgerDates.today().toString()
+        val original = Entry("manual", "Transfer", 5000, "Food", today, "expense", capturedAtMillis = now)
+        assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(original))).success)
+
+        assertTrue(engine.editEntryClassified(
+            "manual", "Refund", "50", "Settlement", today, true, "ios", now
+        ).success)
+        assertEquals("income", engine.entries().single().type)
+        assertEquals(CreditKind.SETTLEMENT, engine.entries().single().creditKind)
+        assertEquals(0, engine.totals().moneyIn)
+        assertEquals(5000, engine.totals().neutralCredits)
+
+        assertTrue(engine.editEntryClassified(
+            "manual", "Savings transfer", "50", DebitKind.OWN_TRANSFER, today, false, "ios", now
+        ).success)
+        val debit = engine.entries().single()
+        assertEquals("expense", debit.type)
+        assertEquals(DebitKind.OWN_TRANSFER, debit.category)
+        assertEquals(0, debit.personalSpent)
+        assertEquals(5000, engine.ledgerDays(today).single().moneyOut)
+    }
 }

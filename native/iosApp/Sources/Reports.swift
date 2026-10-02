@@ -478,15 +478,13 @@ struct EntryEditSheet: View {
     @State private var name = ""
     @State private var amount = ""
     @State private var category = ""
+    @State private var creditKind = "income"
+    @State private var classificationIncome = false
     @State private var transactionDate = Date()
     @State private var error: String?
     @State private var dateError: String?
     @State private var delete = false
     private var isManualEdit: Bool { reviewId == nil && entry.source == "manual" }
-    private var categoryOptions: [String] {
-        entry.type == "income" ? ["Income", "Own account transfer", "Settlement"] : model.engine.categories()
-    }
-
     var body: some View {
         NavigationStack {
             ScreenSurface {
@@ -503,16 +501,7 @@ struct EntryEditSheet: View {
                     PaperField(placeholder: "Name", text: $name)
                         .accessibilityIdentifier("editEntryName")
 
-                    FieldLabel(text: entry.type == "income" ? "Credit kind" : "Category")
-                    ChipFlowLayout {
-                        ForEach(categoryOptions, id: \.self) { option in
-                            SelectableCategoryChip(name: option, selected: category == option) {
-                                category = option
-                            }
-                            .accessibilityIdentifier("editEntryCategoryOption-\(option)")
-                        }
-                    }
-                    .accessibilityIdentifier("editEntryCategory")
+                    classificationPicker
 
                     if isManualEdit {
                         FieldLabel(text: "Date")
@@ -546,13 +535,23 @@ struct EntryEditSheet: View {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save") {
                             let saveError = model.mutate { engine in
-                                if let reviewId { return engine.editReview(id: reviewId, name: name, amount: amount, category: category) }
-                                return engine.editEntry(
+                                let selectedCategory = classificationIncome ? creditLabel(creditKind) : category
+                                if let reviewId {
+                                    return engine.editReviewClassified(
+                                        id: reviewId,
+                                        name: name,
+                                        amount: amount,
+                                        category: selectedCategory,
+                                        income: classificationIncome
+                                    )
+                                }
+                                return engine.editEntryClassified(
                                     id: entry.id,
                                     name: name,
                                     amount: amount,
-                                    category: category,
+                                    category: selectedCategory,
                                     date: Self.transactionDateFormatter.string(from: transactionDate),
+                                    income: classificationIncome,
                                     platform: "ios",
                                     nowMillis: Int64(Date().timeIntervalSince1970 * 1000)
                                 )
@@ -568,6 +567,8 @@ struct EntryEditSheet: View {
                     name = entry.name
                     amount = model.engine.formatAmount(paise: entry.paise)
                     category = entry.category
+                    creditKind = entry.effectiveCreditKind()
+                    classificationIncome = entry.type == "income"
                     let day = model.engine.transactionDay(date: entry.date)
                     transactionDate = Self.transactionDateFormatter.date(from: day) ?? Date()
                 }
@@ -578,6 +579,42 @@ struct EntryEditSheet: View {
                     }
                 }
         }.presentationDetents([.medium, .large])
+    }
+
+    private var classificationPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FieldLabel(text: "Debit")
+            ChipFlowLayout {
+                ForEach(model.engine.categories() + ["Own account transfer"], id: \.self) { option in
+                    SelectableCategoryChip(name: option, selected: !classificationIncome && category == option) {
+                        classificationIncome = false
+                        category = option
+                    }
+                    .accessibilityIdentifier("editEntryCategoryOption-\(option)")
+                }
+            }
+
+            FieldLabel(text: "Credit")
+                .padding(.top, 4)
+            ChipFlowLayout {
+                ForEach(["income", "own_transfer", "settlement"], id: \.self) { option in
+                    SelectableCategoryChip(name: creditLabel(option), selected: classificationIncome && creditKind == option) {
+                        classificationIncome = true
+                        creditKind = option
+                    }
+                    .accessibilityIdentifier("editEntryCreditKindOption-\(option)")
+                }
+            }
+        }
+        .accessibilityIdentifier("editEntryCategory")
+    }
+
+    private func creditLabel(_ kind: String) -> String {
+        switch kind {
+        case "own_transfer": return "Own account transfer"
+        case "settlement": return "Settlement"
+        default: return "Income"
+        }
     }
 
     private static var transactionDateFormatter: DateFormatter {

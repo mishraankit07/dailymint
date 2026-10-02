@@ -104,7 +104,7 @@ struct LedgerView: View {
                     title: typeFilter == "income" ? "Filter credits" : "Filter expenses",
                     options: typeFilter == "income"
                         ? ["All", "Income", "Own account transfer", "Settlement"]
-                        : ["All"] + model.engine.categories(),
+                        : ["All"] + model.engine.categories() + ["Own account transfer"],
                     selection: $categoryFilter,
                     isPresented: $showingCategoryFilter,
                     optionIdentifierPrefix: "ledgerCategoryFilterOption"
@@ -195,6 +195,7 @@ struct TransactionDetailView: View {
     @State private var amount = ""
     @State private var category = ""
     @State private var creditKind = "income"
+    @State private var classificationIncome = false
     @State private var transactionDate = Date()
     @State private var splitEnabled = false
     @State private var splitMethod = "equal"
@@ -217,7 +218,9 @@ struct TransactionDetailView: View {
             nowMillis: Int64(Date().timeIntervalSince1970 * 1000)
         )
     }
-    private var isExpense: Bool { category != "Investments" && current.type != "income" }
+    private var isExpense: Bool {
+        !classificationIncome && category != "Investments" && category != "Own account transfer"
+    }
     private var stagedMethod: String { splitEnabled && isExpense ? splitMethod : "none" }
     private var maximumPeople: Int { Int(model.engine.maximumSplitPeople(id: current.id)) }
     private var parsedPeople: Int? {
@@ -277,15 +280,19 @@ struct TransactionDetailView: View {
             guard manualEditable else { return false }
             return name != current.name ||
                 amount != model.engine.formatAmount(paise: current.paise) ||
-                category != current.category ||
+                classificationIncome != (current.type == "income") ||
+                (classificationIncome ? creditKind != current.effectiveCreditKind() : category != current.category) ||
                 Self.transactionDateFormatter.string(from: transactionDate) != model.engine.transactionDay(date: current.date)
         }
-        let savedSplit = current.splitMethod != "none" || current.personalSpent != current.paise
+        let savedSplit = current.type == "expense" && current.category != "Own account transfer" &&
+            (current.splitMethod != "none" || current.personalSpent != current.paise)
         let savedMethod = current.splitMethod == "none" && savedSplit ? "custom" : current.splitMethod
         let savedPeople = model.engine.splitPeopleCount(id: current.id)
-        return name != current.name || category != current.category ||
-            (current.type == "income" && creditKind != current.effectiveCreditKind()) ||
-            (current.type == "expense" && (splitEnabled != savedSplit ||
+        return name != current.name ||
+            classificationIncome != (current.type == "income") ||
+            (!classificationIncome && category != current.category) ||
+            (classificationIncome && creditKind != current.effectiveCreditKind()) ||
+            (!classificationIncome && current.type == "expense" && (splitEnabled != savedSplit ||
                 (splitEnabled && splitMethod != savedMethod) ||
                 (splitEnabled && splitMethod == "equal" && Int32(people) != savedPeople) ||
                 (splitEnabled && splitMethod == "custom" && parseDisplayAmount(customShare) != current.personalSpent)))
@@ -374,16 +381,7 @@ struct TransactionDetailView: View {
                     .accessibilityIdentifier("editEntryName")
                 fieldValidationLine(manualNameError, identifier: "editEntryNameError")
 
-                FieldLabel(text: current.type == "income" ? "Credit kind" : "Category")
-                ChipFlowLayout {
-                    ForEach(manualCategoryOptions, id: \.self) { option in
-                        SelectableCategoryChip(name: option, selected: category == option) {
-                            category = option
-                        }
-                        .accessibilityIdentifier("editEntryCategoryOption-\(option)")
-                    }
-                }
-                .accessibilityIdentifier("editEntryCategory")
+                classificationPicker
 
                 FieldLabel(text: "Date")
                 DatePicker("Date", selection: $transactionDate, in: ...Date(), displayedComponents: .date)
@@ -403,10 +401,6 @@ struct TransactionDetailView: View {
                 .buttonStyle(DestructivePillButtonStyle())
                 .accessibilityIdentifier("deleteManualTransaction")
         }
-    }
-
-    private var manualCategoryOptions: [String] {
-        current.type == "income" ? ["Income", "Own account transfer", "Settlement"] : model.engine.categories()
     }
 
     private var importedEditor: some View {
@@ -433,30 +427,7 @@ struct TransactionDetailView: View {
                 PaperField(placeholder: "Merchant name", text: $name)
                     .accessibilityIdentifier("transactionName")
 
-                if current.type == "income" {
-                    FieldLabel(text: "Credit kind")
-                    ChipFlowLayout {
-                        ForEach(["income", "own_transfer", "settlement"], id: \.self) { option in
-                            SelectableCategoryChip(name: creditLabel(option), selected: creditKind == option) {
-                                creditKind = option
-                            }
-                            .accessibilityIdentifier("transactionCreditKindOption-\(option)")
-                        }
-                    }
-                    .accessibilityIdentifier("transactionCreditKind")
-                } else {
-                    FieldLabel(text: "Category")
-                    ChipFlowLayout {
-                        ForEach(model.engine.categories(), id: \.self) { option in
-                            SelectableCategoryChip(name: option, selected: category == option) {
-                                category = option
-                                if option == "Investments" { splitEnabled = false }
-                            }
-                            .accessibilityIdentifier("transactionCategoryOption-\(option)")
-                        }
-                    }
-                    .accessibilityIdentifier("transactionCategory")
-                }
+                classificationPicker
 
                 FieldLabel(text: "Captured at")
                 HStack {
@@ -473,7 +444,7 @@ struct TransactionDetailView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline))
             }
 
-            if current.type != "income" && category != "Investments" {
+            if isExpense {
                 RaisedPanel {
                     Toggle("Record your share?", isOn: $splitEnabled)
                         .tint(Color.dmFlow)
@@ -575,9 +546,11 @@ struct TransactionDetailView: View {
         amount = model.engine.formatAmount(paise: current.paise)
         category = current.category
         creditKind = current.effectiveCreditKind()
+        classificationIncome = current.type == "income"
         let day = model.engine.transactionDay(date: current.date)
         transactionDate = Self.transactionDateFormatter.date(from: day) ?? Date()
-        splitEnabled = current.splitMethod != "none" || current.personalSpent != current.paise
+        splitEnabled = current.type == "expense" && current.category != "Own account transfer" &&
+            (current.splitMethod != "none" || current.personalSpent != current.paise)
         splitMethod = current.splitMethod == "custom" ? "custom" : "equal"
         let savedPeople = model.engine.splitPeopleCount(id: current.id)
         people = savedPeople >= 2 ? String(savedPeople) : "2"
@@ -590,14 +563,15 @@ struct TransactionDetailView: View {
 
     private func saveImported() {
         error = model.mutate {
-            $0.updateImportedTransaction(
+            $0.updateImportedTransactionClassified(
                 id: current.id,
                 name: name,
-                category: category,
+                category: classificationIncome ? creditLabel(creditKind) : category,
                 personalAmount: customShare,
                 splitMethod: stagedMethod,
                 splitPeopleCount: Int32(people) ?? 0,
-                creditKind: creditKind
+                creditKind: creditKind,
+                income: classificationIncome
             )
         }
         if error == nil { dismiss() }
@@ -611,12 +585,13 @@ struct TransactionDetailView: View {
             return
         }
         let saveError = model.mutate {
-            $0.editEntry(
+            $0.editEntryClassified(
                 id: current.id,
                 name: name,
                 amount: amount,
-                category: category,
+                category: classificationIncome ? creditLabel(creditKind) : category,
                 date: Self.transactionDateFormatter.string(from: transactionDate),
+                income: classificationIncome,
                 platform: "ios",
                 nowMillis: Int64(Date().timeIntervalSince1970 * 1000)
             )
@@ -624,6 +599,38 @@ struct TransactionDetailView: View {
         error = saveError
         dateError = saveError == "Transaction date cannot be in the future." ? saveError : nil
         if saveError == nil { dismiss() }
+    }
+
+    private var classificationPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FieldLabel(text: "Debit")
+            ChipFlowLayout {
+                ForEach(model.engine.categories() + ["Own account transfer"], id: \.self) { option in
+                    SelectableCategoryChip(name: option, selected: !classificationIncome && category == option) {
+                        classificationIncome = false
+                        category = option
+                        if option == "Investments" || option == "Own account transfer" {
+                            splitEnabled = false
+                        }
+                    }
+                    .accessibilityIdentifier((imported ? "transactionCategoryOption-" : "editEntryCategoryOption-") + option)
+                }
+            }
+
+            FieldLabel(text: "Credit")
+                .padding(.top, 4)
+            ChipFlowLayout {
+                ForEach(["income", "own_transfer", "settlement"], id: \.self) { option in
+                    SelectableCategoryChip(name: creditLabel(option), selected: classificationIncome && creditKind == option) {
+                        classificationIncome = true
+                        creditKind = option
+                        splitEnabled = false
+                    }
+                    .accessibilityIdentifier((imported ? "transactionCreditKindOption-" : "editEntryCreditKindOption-") + option)
+                }
+            }
+        }
+        .accessibilityIdentifier(imported ? "transactionCategory" : "editEntryCategory")
     }
 
     private func deleteTransaction() {
