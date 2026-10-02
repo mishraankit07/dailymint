@@ -70,6 +70,9 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["settings"].tap()
         XCTAssertTrue(app.staticTexts["Start date"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.switches["reminderToggle"].exists)
+        XCTAssertTrue(app.buttons["theme-light"].exists)
+        XCTAssertTrue(app.buttons["theme-dark"].exists)
+        XCTAssertTrue(app.buttons["theme-system"].exists)
 
         let close = app.buttons["closeSettings"]
         XCTAssertTrue(close.exists)

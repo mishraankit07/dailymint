@@ -232,6 +232,24 @@ private struct AnimatedBrandSplash: View {
     }
 }
 
+enum AppTheme: String, CaseIterable, Identifiable {
+    case light
+    case dark
+    case system
+
+    static let storageKey = "appearanceTheme"
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .light: return .light
+        case .dark: return .dark
+        case .system: return nil
+        }
+    }
+}
+
 @main
 struct DailyMintApp: App {
     @UIApplicationDelegateAdaptor(DailyMintAppDelegate.self) private var appDelegate
@@ -244,6 +262,7 @@ struct DailyMintApp: App {
     @State private var showingBrandSplash: Bool
     @State private var keyboardVisible = false
     @AppStorage(OnboardingReleaseTracker.seenKey) private var onboardingSeen = false
+    @AppStorage(AppTheme.storageKey) private var appTheme = AppTheme.system.rawValue
     @Environment(\.scenePhase) private var scenePhase
     private enum AppTab: String, CaseIterable { case home, growth, add, ledger
         var title: String { rawValue.capitalized }
@@ -359,6 +378,7 @@ struct DailyMintApp: App {
                     }
                 }
             }
+            .preferredColorScheme((AppTheme(rawValue: appTheme) ?? .system).colorScheme)
         }
     }
 
@@ -467,6 +487,7 @@ struct SettingsView: View {
     @ObservedObject var model: LedgerModel
     @AppStorage(OnboardingReleaseTracker.seenKey) private var onboardingSeen = true
     @AppStorage(AutomaticImportNotification.enabledKey) private var automaticImportNotificationsEnabled = false
+    @AppStorage(AppTheme.storageKey) private var appTheme = AppTheme.system.rawValue
     @State private var showCategory = false
     @State private var deletion: String?
     @State private var error: String?
@@ -495,6 +516,7 @@ struct SettingsView: View {
                     .accessibilityLabel("Close settings")
                     .accessibilityIdentifier("closeSettings")
                 }
+                appearanceSection
                 dailyCheckInSection
                 trackingCyclePicker
                 if let error {
@@ -533,6 +555,29 @@ struct SettingsView: View {
                 } message: {
                     Text("Allow notifications for DailyMint in iPhone Settings, then enable this option again.")
                 }
+        }
+    }
+
+    private var appearanceSection: some View {
+        RaisedPanel {
+            SectionHeading(title: "Appearance")
+            HStack(spacing: 16) {
+                Text("Theme")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.dmInk)
+                Spacer(minLength: 0)
+                HStack(spacing: 2) {
+                    ForEach(AppTheme.allCases) { theme in
+                        PaperSegment(title: theme.title, value: theme.rawValue, selection: $appTheme)
+                            .accessibilityIdentifier("theme-" + theme.rawValue)
+                    }
+                }
+                .padding(3)
+                .frame(width: 220)
+                .background(Color.dmPaper)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
+            }
         }
     }
 
