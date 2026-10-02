@@ -454,7 +454,9 @@ final class EntryFlowTests: XCTestCase {
         transfer.tap()
         XCTAssertTrue(transfer.isSelected)
         XCTAssertFalse(split.isEnabled)
-        app.buttons["saveImportedTransaction"].tap()
+        let save = app.buttons["saveImportedTransaction"]
+        if !save.isHittable { app.swipeUp() }
+        save.tap()
 
         app.buttons["Home"].tap()
         XCTAssertEqual(spent.label, "Spent: Rs 0")
@@ -499,13 +501,18 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.datePickers["editEntryDate"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Edit manual entry"].exists)
         XCTAssertFalse(app.staticTexts["Captured at"].exists)
-        XCTAssertTrue(app.buttons["saveManualTransaction"].exists)
+        let editSave = app.buttons["saveManualTransaction"]
+        XCTAssertTrue(editSave.exists)
+        XCTAssertFalse(app.navigationBars.buttons["Save"].exists)
+        XCTAssertGreaterThan(editSave.frame.midY, app.buttons["deleteManualTransaction"].frame.midY)
         XCTAssertLessThan(app.buttons["editEntryCategoryOption-Food"].frame.width, app.frame.width / 2)
 
         let amount = app.textFields["editEntryAmount"]
         replaceText(in: amount, with: "")
-        app.buttons["saveManualTransaction"].tap()
+        if !editSave.isHittable { app.swipeUp() }
+        editSave.tap()
         XCTAssertTrue(app.staticTexts["editEntryAmountError"].waitForExistence(timeout: 5))
+        if !amount.isHittable { app.swipeDown() }
         amount.tap()
         amount.typeText("25")
         XCTAssertTrue(app.staticTexts["editEntryAmountError"].waitForNonExistence(timeout: 5))

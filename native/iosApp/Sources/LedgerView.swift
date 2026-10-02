@@ -333,21 +333,22 @@ struct TransactionDetailView: View {
                     Text(error).foregroundStyle(Color.dmSpend)
                         .accessibilityIdentifier("transactionError")
                 }
+
+                if imported || manualEditable {
+                    Button("Save") {
+                        if imported { saveImported() } else { saveManual() }
+                    }
+                    .buttonStyle(PrimaryPillButtonStyle())
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier(imported ? "saveImportedTransaction" : "saveManualTransaction")
+                    .disabled(imported && importedSaveDisabled)
+                }
             }
             .navigationTitle(imported || manualEditable ? "Edit transaction" : "Transaction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(imported || manualEditable ? "Cancel" : "Done", action: requestDismiss)
-                }
-                if imported || manualEditable {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            if imported { saveImported() } else { saveManual() }
-                        }
-                            .accessibilityIdentifier(imported ? "saveImportedTransaction" : "saveManualTransaction")
-                            .disabled(imported && importedSaveDisabled)
-                    }
                 }
             }
             .onAppear {
