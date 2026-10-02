@@ -586,11 +586,14 @@ struct EntryEditSheet: View {
             FieldLabel(text: "Debit")
             ChipFlowLayout {
                 ForEach(model.engine.categories() + ["Own account transfer"], id: \.self) { option in
-                    SelectableCategoryChip(name: option, selected: !classificationIncome && category == option) {
+                    SelectableCategoryChip(
+                        name: option,
+                        selected: !classificationIncome && category == option,
+                        accessibilityIdentifier: "editEntryCategoryOption-\(option)"
+                    ) {
                         classificationIncome = false
                         category = option
                     }
-                    .accessibilityIdentifier("editEntryCategoryOption-\(option)")
                 }
             }
 
@@ -598,11 +601,14 @@ struct EntryEditSheet: View {
                 .padding(.top, 4)
             ChipFlowLayout {
                 ForEach(["income", "own_transfer", "settlement"], id: \.self) { option in
-                    SelectableCategoryChip(name: creditLabel(option), selected: classificationIncome && creditKind == option) {
+                    SelectableCategoryChip(
+                        name: creditLabel(option),
+                        selected: classificationIncome && creditKind == option,
+                        accessibilityIdentifier: "editEntryCreditKindOption-\(option)"
+                    ) {
                         classificationIncome = true
                         creditKind = option
                     }
-                    .accessibilityIdentifier("editEntryCreditKindOption-\(option)")
                 }
             }
         }

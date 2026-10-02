@@ -610,14 +610,17 @@ struct TransactionDetailView: View {
             FieldLabel(text: "Debit")
             ChipFlowLayout {
                 ForEach(model.engine.categories() + ["Own account transfer"], id: \.self) { option in
-                    SelectableCategoryChip(name: option, selected: !classificationIncome && category == option) {
+                    SelectableCategoryChip(
+                        name: option,
+                        selected: !classificationIncome && category == option,
+                        accessibilityIdentifier: (imported ? "transactionCategoryOption-" : "editEntryCategoryOption-") + option
+                    ) {
                         classificationIncome = false
                         category = option
                         if option == "Investments" || option == "Own account transfer" {
                             splitEnabled = false
                         }
                     }
-                    .accessibilityIdentifier((imported ? "transactionCategoryOption-" : "editEntryCategoryOption-") + option)
                 }
             }
 
@@ -625,12 +628,15 @@ struct TransactionDetailView: View {
                 .padding(.top, 4)
             ChipFlowLayout {
                 ForEach(["income", "own_transfer", "settlement"], id: \.self) { option in
-                    SelectableCategoryChip(name: creditLabel(option), selected: classificationIncome && creditKind == option) {
+                    SelectableCategoryChip(
+                        name: creditLabel(option),
+                        selected: classificationIncome && creditKind == option,
+                        accessibilityIdentifier: (imported ? "transactionCreditKindOption-" : "editEntryCreditKindOption-") + option
+                    ) {
                         classificationIncome = true
                         creditKind = option
                         splitEnabled = false
                     }
-                    .accessibilityIdentifier((imported ? "transactionCreditKindOption-" : "editEntryCreditKindOption-") + option)
                 }
             }
         }

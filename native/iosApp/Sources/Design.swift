@@ -329,6 +329,7 @@ struct CategoryChip: View {
 struct SelectableCategoryChip: View {
     let name: String
     let selected: Bool
+    let accessibilityIdentifier: String
     let action: () -> Void
 
     var body: some View {
@@ -354,6 +355,7 @@ struct SelectableCategoryChip: View {
         }
         .buttonStyle(.plain)
         .fixedSize(horizontal: true, vertical: false)
+        .accessibilityIdentifier(accessibilityIdentifier)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }

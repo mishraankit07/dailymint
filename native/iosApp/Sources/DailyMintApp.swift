@@ -414,10 +414,13 @@ struct ManualView: View {
                     FieldLabel(text: income ? "Credit kind" : "Category")
                     ChipFlowLayout {
                         ForEach(income ? ["Income", "Own account transfer", "Settlement"] : model.engine.categories(), id: \.self) { option in
-                            SelectableCategoryChip(name: option, selected: category == option) {
+                            SelectableCategoryChip(
+                                name: option,
+                                selected: category == option,
+                                accessibilityIdentifier: "entryCategoryOption-\(option)"
+                            ) {
                                 category = option
                             }
-                            .accessibilityIdentifier("entryCategoryOption-\(option)")
                         }
                     }
                     .accessibilityIdentifier("entryCategory")
