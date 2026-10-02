@@ -245,9 +245,15 @@ struct TransactionDetailView: View {
         return model.engine.equalShare(id: current.id, people: Int32(validPeople))
     }
     private var previewPaise: Int64? {
-        guard splitEnabled && isExpense else { return current.paise }
-        if splitMethod == "equal" { return equalSharePaise >= 0 ? equalSharePaise : nil }
-        return parseDisplayAmount(customShare)
+        guard splitEnabled && isExpense && splitMethod == "equal" else { return nil }
+        return equalSharePaise >= 0 ? equalSharePaise : nil
+    }
+    private var customShareError: String? {
+        guard splitEnabled && isExpense && splitMethod == "custom", !customShare.isEmpty else { return nil }
+        guard let value = parseDisplayAmount(customShare) else {
+            return "Enter an amount with up to two decimal places."
+        }
+        return value > current.paise ? "Your share cannot exceed the original amount." : nil
     }
     private var importedSaveDisabled: Bool {
         if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
@@ -449,11 +455,15 @@ struct TransactionDetailView: View {
                 Toggle("Record your share?", isOn: $splitEnabled)
                     .tint(Color.dmFlow)
                     .accessibilityIdentifier("splitTransaction")
-                    .disabled(!isExpense || (maximumPeople < 2 && !splitEnabled))
+                    .disabled(!isExpense)
                     .onChange(of: splitEnabled) { enabled in
-                        if enabled && splitMethod == "none" {
-                            splitMethod = "equal"
-                            people = "2"
+                        if enabled {
+                            if maximumPeople < 2 {
+                                splitMethod = "custom"
+                            } else if splitMethod == "none" {
+                                splitMethod = "equal"
+                                people = "2"
+                            }
                         }
                     }
                 if !isExpense {
@@ -461,81 +471,104 @@ struct TransactionDetailView: View {
                         .font(.caption)
                         .foregroundStyle(Color.dmInkSoft)
                         .accessibilityIdentifier("splitUnavailableReason")
-                } else if maximumPeople < 2 && !splitEnabled {
-                    Text("Equal split is unavailable because each person's share must be at least Rs 1.")
-                        .font(.caption)
-                        .foregroundStyle(Color.dmInkSoft)
                 }
                 if splitEnabled {
-                        if splitMethod == "equal" {
-                            Divider().overlay(Color.dmHairline)
-                            HStack {
-                                Text("People, including you")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Color.dmInk)
-                                Spacer()
-                                HStack(spacing: 0) {
-                                    Button {
-                                        if let value = validPeople, value > 2 { people = String(value - 1) }
-                                    } label: {
-                                        Image(systemName: "minus")
-                                            .frame(width: 44, height: 44)
-                                    }
-                                    .disabled(validPeople == nil || validPeople == 2)
-                                    .accessibilityIdentifier("splitPeopleDecrement")
+                    Divider().overlay(Color.dmHairline)
+                    HStack(spacing: 6) {
+                        PaperSegment(title: "Split equally", value: "equal", selection: $splitMethod)
+                            .disabled(maximumPeople < 2)
+                            .accessibilityIdentifier("splitMethodEqual")
+                        PaperSegment(title: "Enter your share", value: "custom", selection: $splitMethod)
+                            .accessibilityIdentifier("splitMethodCustom")
+                    }
+                    .padding(4)
+                    .background(Color.dmPaperRaised)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                                    TextField("2", text: $people)
-                                        .keyboardType(.numberPad)
-                                        .multilineTextAlignment(.center)
-                                        .frame(width: 58, height: 44)
-                                        .foregroundStyle(Color.dmInk)
-                                        .accessibilityIdentifier("splitPeople")
+                    if maximumPeople < 2 {
+                        Text("Equal split requires an original amount of at least Rs 2.")
+                            .font(.caption)
+                            .foregroundStyle(Color.dmInkSoft)
+                    }
 
-                                    Button {
-                                        if let value = validPeople, value < maximumPeople { people = String(value + 1) }
-                                    } label: {
-                                        Image(systemName: "plus")
-                                            .frame(width: 44, height: 44)
-                                    }
-                                    .disabled(validPeople == nil || validPeople == maximumPeople)
-                                    .accessibilityIdentifier("splitPeopleIncrement")
+                    if splitMethod == "equal" {
+                        HStack {
+                            Text("People, including you")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.dmInk)
+                            Spacer()
+                            HStack(spacing: 0) {
+                                Button {
+                                    if let value = validPeople, value > 2 { people = String(value - 1) }
+                                } label: {
+                                    Image(systemName: "minus")
+                                        .frame(width: 44, height: 44)
                                 }
-                                .background(Color.dmPaperRaised)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            }
+                                .disabled(validPeople == nil || validPeople == 2)
+                                .accessibilityIdentifier("splitPeopleDecrement")
 
-                            if let participantError {
-                                Text(participantError)
-                                    .font(.caption)
-                                    .foregroundStyle(Color.dmSpend)
-                                    .accessibilityIdentifier("splitPeopleError")
-                            }
-                        } else {
-                            Text("This transaction has a previously saved custom share.")
-                                .font(.caption)
-                                .foregroundStyle(Color.dmInkSoft)
-                            FieldLabel(text: "Your share")
-                            PaperField(placeholder: "Amount", text: $customShare, keyboard: .decimalPad)
-                                .accessibilityIdentifier("customShare")
-                        }
-
-                        if let previewPaise {
-                            HStack {
-                                Text("Your share")
-                                    .font(.subheadline)
-                                    .foregroundStyle(Color.dmInkSoft)
-                                Spacer()
-                                Text("Rs " + model.engine.formatAmount(paise: previewPaise))
-                                    .font(.headline)
+                                TextField("2", text: $people)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.center)
+                                    .frame(width: 58, height: 44)
                                     .foregroundStyle(Color.dmInk)
+                                    .accessibilityIdentifier("splitPeople")
+
+                                Button {
+                                    if let value = validPeople, value < maximumPeople { people = String(value + 1) }
+                                } label: {
+                                    Image(systemName: "plus")
+                                        .frame(width: 44, height: 44)
+                                }
+                                .disabled(validPeople == nil || validPeople == maximumPeople)
+                                .accessibilityIdentifier("splitPeopleIncrement")
                             }
-                            .padding(14)
                             .background(Color.dmPaperRaised)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .accessibilityElement(children: .combine)
-                            .accessibilityLabel("Your share, Rs " + model.engine.formatAmount(paise: previewPaise))
-                            .accessibilityIdentifier("splitPreview")
                         }
+
+                        if let participantError {
+                            Text(participantError)
+                                .font(.caption)
+                                .foregroundStyle(Color.dmSpend)
+                                .accessibilityIdentifier("splitPeopleError")
+                        }
+                    } else {
+                        FieldLabel(text: "Your share of Rs " + model.engine.formatAmount(paise: current.paise))
+                        HStack(spacing: 8) {
+                            Text("Rs")
+                                .foregroundStyle(Color.dmInkSoft)
+                            TextField("Amount", text: $customShare)
+                                .keyboardType(.decimalPad)
+                                .foregroundStyle(Color.dmInk)
+                                .tint(Color.dmFlow)
+                                .accessibilityIdentifier("customShare")
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Color.dmPaperRaised)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline))
+                        fieldValidationLine(customShareError, identifier: "customShareError")
+                    }
+
+                    if splitMethod == "equal", let previewPaise {
+                        HStack {
+                            Text("Your share")
+                                .font(.subheadline)
+                                .foregroundStyle(Color.dmInkSoft)
+                            Spacer()
+                            Text("Rs " + model.engine.formatAmount(paise: previewPaise))
+                                .font(.headline)
+                                .foregroundStyle(Color.dmInk)
+                        }
+                        .padding(14)
+                        .background(Color.dmPaperRaised)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Your share, Rs " + model.engine.formatAmount(paise: previewPaise))
+                        .accessibilityIdentifier("splitPreview")
+                    }
                 }
             }
 
@@ -555,10 +588,12 @@ struct TransactionDetailView: View {
         transactionDate = Self.transactionDateFormatter.date(from: day) ?? Date()
         splitEnabled = current.type == "expense" && current.category != "Own account transfer" &&
             (current.splitMethod != "none" || current.personalSpent != current.paise)
-        splitMethod = current.splitMethod == "custom" ? "custom" : "equal"
+        let savedCustomShare = current.splitMethod == "custom" ||
+            (current.splitMethod == "none" && current.personalSpent != current.paise)
+        splitMethod = savedCustomShare ? "custom" : "equal"
         let savedPeople = model.engine.splitPeopleCount(id: current.id)
         people = savedPeople >= 2 ? String(savedPeople) : "2"
-        customShare = model.engine.formatAmount(paise: current.personalSpent)
+        customShare = savedCustomShare ? model.engine.formatAmount(paise: current.personalSpent) : ""
     }
 
     private func requestDismiss() {
