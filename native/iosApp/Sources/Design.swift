@@ -166,15 +166,20 @@ struct DockedTabBar<Tab: Hashable>: View {
                 } label: {
                     VStack(spacing: 2) {
                         ZStack {
-                            if isCenterAction(tab) {
-                                Circle()
-                                    .fill(Color.dmFlowSoft)
-                                    .frame(width: 36, height: 36)
-                                    .overlay(Circle().stroke(Color.dmHairline, lineWidth: 1))
-                            }
+                            Circle()
+                                .fill(selected == tab && !isCenterAction(tab) ? Color.dmFlowSoft : Color.clear)
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle().stroke(
+                                        selected == tab && !isCenterAction(tab)
+                                            ? Color.dmNavSelected.opacity(0.45)
+                                            : (isCenterAction(tab) ? Color.dmHairline : Color.clear),
+                                        lineWidth: 1
+                                    )
+                                )
                             Image(systemName: icon(tab))
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(selected == tab ? Color.dmNavSelected : Color.dmInkSoft)
+                                .foregroundStyle(selected == tab && !isCenterAction(tab) ? Color.dmNavSelected : Color.dmInkSoft)
                         }
                         .frame(height: 36)
                         Text(title(tab))
