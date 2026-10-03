@@ -247,6 +247,35 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Spent: Rs 0")
     }
 
+    func testWhereItWentBarsAreRelativeToMoneyIn() {
+        app.buttons["Add"].tap()
+        app.buttons["Credit"].tap()
+        app.textFields["entryName"].tap()
+        app.textFields["entryName"].typeText("Salary")
+        app.textFields["entryAmount"].tap()
+        app.textFields["entryAmount"].typeText("1000")
+        var save = app.buttons["saveEntry"]
+        if !save.isHittable { app.swipeUp() }
+        save.tap()
+
+        app.buttons["Add"].tap()
+        app.textFields["entryName"].tap()
+        app.textFields["entryName"].typeText("Rent")
+        app.textFields["entryAmount"].tap()
+        app.textFields["entryAmount"].typeText("200")
+        let home = app.buttons["entryCategoryOption-Home"]
+        if !home.isHittable { app.swipeUp() }
+        home.tap()
+        save = app.buttons["saveEntry"]
+        if !save.isHittable { app.swipeUp() }
+        save.tap()
+
+        let bar = app.progressIndicators["categoryShare-Home"]
+        for _ in 0..<4 where !bar.exists { app.swipeUp() }
+        XCTAssertTrue(bar.waitForExistence(timeout: 5))
+        XCTAssertEqual(bar.value as? String, "20% of money in")
+    }
+
     func testSettlementIsVisibleButNotEarnedIncome() {
         app.buttons["Add"].tap()
         app.buttons["Credit"].tap()

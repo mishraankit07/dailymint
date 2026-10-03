@@ -48,7 +48,13 @@ struct MonthView: View {
                         SectionHeading(title: "Where it went")
                         RaisedPanel {
                             ForEach(summary.categories, id: \.name) { item in
-                                CategoryLine(name: item.name, percent: item.percent, amount: "Rs " + model.engine.formatAmount(paise: item.paise))
+                                CategoryLine(
+                                    name: item.name,
+                                    percentOfMoneyIn: summary.moneyIn > 0
+                                        ? Double(item.paise) * 100 / Double(summary.moneyIn)
+                                        : 0,
+                                    amount: "Rs " + model.engine.formatAmount(paise: item.paise)
+                                )
                             }
                         }
                         if !summary.topFive.isEmpty {
@@ -178,12 +184,16 @@ struct HeroStat: View {
 
 struct CategoryLine: View {
     let name: String
-    let percent: Double
+    let percentOfMoneyIn: Double
     let amount: String
+    private var fill: Double { min(1, max(0, percentOfMoneyIn / 100)) }
     var body: some View {
         HStack(spacing: 10) {
             Text(name).font(.caption.weight(.semibold)).foregroundStyle(Color.dmInk).frame(width: 98, alignment: .leading)
-            ProgressView(value: min(1, max(0, percent / 100))).tint(categoryColor(name))
+            ProgressView(value: fill)
+                .tint(categoryColor(name))
+                .accessibilityIdentifier("categoryShare-" + name)
+                .accessibilityValue("\(Int(max(0, percentOfMoneyIn).rounded()))% of money in")
             Text(amount).font(.caption).foregroundStyle(Color.dmInkSoft).frame(width: 82, alignment: .trailing)
         }
         .padding(.vertical, 7)
