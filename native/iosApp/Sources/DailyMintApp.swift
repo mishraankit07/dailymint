@@ -443,7 +443,7 @@ struct ManualView: View {
                         .focused($focusedField, equals: .name)
                         .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
                     FieldLabel(text: "Amount")
-                    PaperField(placeholder: "Amount", text: $amount, keyboard: .decimalPad)
+                    PaperField(placeholder: "Amount", text: AmountInputFormatter.binding($amount), keyboard: .decimalPad)
                         .accessibilityIdentifier("entryAmount")
                         .focused($focusedField, equals: .amount)
                     FieldLabel(text: income ? "Credit kind" : "Category")
@@ -464,7 +464,13 @@ struct ManualView: View {
                     if let error { Text(error).foregroundStyle(Color.dmSpend).accessibilityIdentifier("entryError") }
                     Button("Save") {
                         focusedField = nil
-                        error = model.addEntry(name: name, amount: amount, category: category, date: date, income: income)
+                        error = model.addEntry(
+                            name: name,
+                            amount: AmountInputFormatter.normalized(amount),
+                            category: category,
+                            date: date,
+                            income: income
+                        )
                         if error == nil { onFinish(true) }
                     }
                     .buttonStyle(PrimaryPillButtonStyle())

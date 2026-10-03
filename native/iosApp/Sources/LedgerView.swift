@@ -274,7 +274,7 @@ struct TransactionDetailView: View {
     }
     private var manualAmountError: String? {
         guard manualValidationAttempted else { return nil }
-        let normalized = normalizedAmount(amount)
+        let normalized = AmountInputFormatter.normalized(amount)
         guard normalized.range(of: #"^[0-9]+(?:\.[0-9]{1,2})?$"#, options: .regularExpression) != nil else {
             return "Enter a positive amount with up to two decimal places."
         }
@@ -384,7 +384,7 @@ struct TransactionDetailView: View {
         Group {
             RaisedPanel {
                 FieldLabel(text: "Amount")
-                PaperField(placeholder: "Amount", text: formattedAmountBinding($amount), keyboard: .decimalPad)
+                PaperField(placeholder: "Amount", text: AmountInputFormatter.binding($amount), keyboard: .decimalPad)
                     .accessibilityIdentifier("editEntryAmount")
                 fieldValidationLine(manualAmountError, identifier: "editEntryAmountError")
 
@@ -543,7 +543,7 @@ struct TransactionDetailView: View {
                         HStack(spacing: 8) {
                             Text("Rs")
                                 .foregroundStyle(Color.dmInkSoft)
-                            TextField("Amount", text: formattedAmountBinding($customShare))
+                            TextField("Amount", text: AmountInputFormatter.binding($customShare))
                                 .keyboardType(.decimalPad)
                                 .foregroundStyle(Color.dmInk)
                                 .tint(Color.dmFlow)
@@ -613,7 +613,7 @@ struct TransactionDetailView: View {
                 id: current.id,
                 name: name,
                 category: classificationIncome ? creditLabel(creditKind) : category,
-                personalAmount: normalizedAmount(customShare),
+                personalAmount: AmountInputFormatter.normalized(customShare),
                 splitMethod: stagedMethod,
                 splitPeopleCount: Int32(people) ?? 0,
                 creditKind: creditKind,
@@ -634,7 +634,7 @@ struct TransactionDetailView: View {
             $0.editEntryClassified(
                 id: current.id,
                 name: name,
-                amount: normalizedAmount(amount),
+                amount: AmountInputFormatter.normalized(amount),
                 category: classificationIncome ? creditLabel(creditKind) : category,
                 date: Self.transactionDateFormatter.string(from: transactionDate),
                 income: classificationIncome,
@@ -702,7 +702,7 @@ struct TransactionDetailView: View {
     }
 
     private func parseDisplayAmount(_ value: String) -> Int64? {
-        let normalized = normalizedAmount(value)
+        let normalized = AmountInputFormatter.normalized(value)
         guard normalized.range(of: #"^[0-9]+(?:\.[0-9]{1,2})?$"#, options: .regularExpression) != nil else { return nil }
         let parts = normalized.split(separator: ".", omittingEmptySubsequences: false)
         guard let whole = Int64(parts[0]) else { return nil }
@@ -712,47 +712,6 @@ struct TransactionDetailView: View {
         let (base, multiplyOverflow) = whole.multipliedReportingOverflow(by: 100)
         let (total, addOverflow) = base.addingReportingOverflow(paise)
         return multiplyOverflow || addOverflow ? nil : total
-    }
-
-    private func formattedAmountBinding(_ binding: Binding<String>) -> Binding<String> {
-        Binding(
-            get: { binding.wrappedValue },
-            set: { binding.wrappedValue = self.formattedAmount($0) }
-        )
-    }
-
-    private func normalizedAmount(_ value: String) -> String {
-        value.replacingOccurrences(of: ",", with: "")
-    }
-
-    private func formattedAmount(_ value: String) -> String {
-        let normalized = normalizedAmount(value)
-        guard !normalized.isEmpty else { return "" }
-        guard normalized.range(of: #"^[0-9]*(?:\.[0-9]*)?$"#, options: .regularExpression) != nil else {
-            return value
-        }
-
-        let parts = normalized.split(separator: ".", omittingEmptySubsequences: false)
-        let integer = String(parts[0])
-        let groupedInteger = indianGroupedDigits(integer)
-        guard parts.count == 2 else { return groupedInteger }
-        return groupedInteger + "." + String(parts[1])
-    }
-
-    private func indianGroupedDigits(_ digits: String) -> String {
-        guard digits.count > 3 else { return digits }
-        let finalGroup = String(digits.suffix(3))
-        let leadingDigits = String(digits.dropLast(3))
-        var groups: [String] = []
-        var end = leadingDigits.endIndex
-
-        while end > leadingDigits.startIndex {
-            let start = leadingDigits.index(end, offsetBy: -2, limitedBy: leadingDigits.startIndex)
-                ?? leadingDigits.startIndex
-            groups.insert(String(leadingDigits[start..<end]), at: 0)
-            end = start
-        }
-        return groups.joined(separator: ",") + "," + finalGroup
     }
 
     private func detailLine(_ title: String, _ value: String) -> some View {

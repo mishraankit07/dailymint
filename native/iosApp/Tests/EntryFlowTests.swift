@@ -195,7 +195,8 @@ final class EntryFlowTests: XCTestCase {
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Lunch")
         app.textFields["entryAmount"].tap()
-        app.textFields["entryAmount"].typeText("62.88")
+        app.textFields["entryAmount"].typeText("1234.56")
+        XCTAssertEqual(app.textFields["entryAmount"].value as? String, "1,234.56")
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
@@ -211,12 +212,12 @@ final class EntryFlowTests: XCTestCase {
         waitForExpectations(timeout: 5)
         let spent = app.descendants(matching: .any)["spent"]
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        XCTAssertEqual(spent.label, "Spent: Rs 62.88")
+        XCTAssertEqual(spent.label, "Spent: Rs 1,234.56")
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
-        XCTAssertEqual(spent.label, "Spent: Rs 62.88")
+        XCTAssertEqual(spent.label, "Spent: Rs 1,234.56")
     }
     func testIncomeEntryUpdatesMoneyInOnly() {
         app.buttons["Add"].tap()
