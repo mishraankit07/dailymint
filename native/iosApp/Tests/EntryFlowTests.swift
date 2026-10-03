@@ -66,6 +66,18 @@ final class EntryFlowTests: XCTestCase {
         app.buttons["Add"].tap()
         XCTAssertFalse(app.buttons["addCategoryFromEntry"].exists)
     }
+    func testAddHintsFollowTransactionType() {
+        app.buttons["Add"].tap()
+        let name = app.textFields["entryName"]
+        let amount = app.textFields["entryAmount"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertEqual(name.value as? String, "Add restaurant or merchant name")
+        XCTAssertEqual(amount.value as? String, "Enter the value spent")
+
+        app.buttons["Credit"].tap()
+        XCTAssertEqual(name.value as? String, "Add sender or company name")
+        XCTAssertEqual(amount.value as? String, "Enter the value received")
+    }
     func testSettingsUsesStartDateLabelAndCloses() {
         app.buttons["settings"].tap()
         XCTAssertTrue(app.staticTexts["Start date"].waitForExistence(timeout: 5))

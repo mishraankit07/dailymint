@@ -438,12 +438,19 @@ struct ManualView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     FieldLabel(text: "Name")
-                    PaperField(placeholder: "Name", text: $name)
+                    PaperField(
+                        placeholder: income ? "Add sender or company name" : "Add restaurant or merchant name",
+                        text: $name
+                    )
                         .accessibilityIdentifier("entryName")
                         .focused($focusedField, equals: .name)
                         .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
                     FieldLabel(text: "Amount")
-                    PaperField(placeholder: "Amount", text: AmountInputFormatter.binding($amount), keyboard: .decimalPad)
+                    PaperField(
+                        placeholder: income ? "Enter the value received" : "Enter the value spent",
+                        text: AmountInputFormatter.binding($amount),
+                        keyboard: .decimalPad
+                    )
                         .accessibilityIdentifier("entryAmount")
                         .focused($focusedField, equals: .amount)
                     FieldLabel(text: income ? "Credit kind" : "Category")
