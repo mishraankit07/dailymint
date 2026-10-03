@@ -10,6 +10,7 @@ struct SMSOnboardingView: View {
         SetupStep(title: "Open Automation", detail: "In Shortcuts, open Automation and tap +.", imageName: "SMSSetup01Automation"),
         SetupStep(title: "Choose Message", detail: "Create a Personal Automation, then choose Message.", imageName: "SMSSetup02Message"),
         SetupStep(title: "Set the trigger", detail: "Tap Message Contains and enter a short bank name, such as HDFC, ICICI, Axis, BOB, or SBI. Choose Run Immediately, then tap Next.", imageName: "SMSSetup03Trigger"),
+        SetupStep(title: "Create a shortcut", detail: "Tap Create New Shortcut", imageName: "SMSSetup05Create"),
         SetupStep(title: "Find DailyMint", detail: "Search for DailyMint and choose Import Bank SMS.", imageName: "SMSSetup06Search"),
         SetupStep(title: "Tap Message", detail: "Tap the blue Message field in the Import action.", imageName: "SMSSetup07MessageInput"),
         SetupStep(title: "Choose Shortcut Input", detail: "Swipe the variable suggestions to the right, then tap Shortcut Input.", imageName: "SMSSetup08SenderInput"),

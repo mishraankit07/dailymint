@@ -148,6 +148,7 @@ final class EntryFlowTests: XCTestCase {
         for title in [
             "Choose Message",
             "Set the trigger",
+            "Create a shortcut",
             "Find DailyMint",
             "Tap Message",
             "Choose Shortcut Input",
@@ -160,6 +161,9 @@ final class EntryFlowTests: XCTestCase {
                 XCTAssertTrue(
                     app.staticTexts["Tap Message Contains and enter a short bank name, such as HDFC, ICICI, Axis, BOB, or SBI. Choose Run Immediately, then tap Next."].exists
                 )
+            }
+            if title == "Create a shortcut" {
+                XCTAssertTrue(app.staticTexts["Tap Create New Shortcut"].exists)
             }
         }
         XCTAssertTrue(app.staticTexts["Save and repeat"].exists)
