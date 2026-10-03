@@ -146,7 +146,7 @@ struct MonthHero: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ZStack(alignment: .topTrailing) {
+            ZStack(alignment: .trailing) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("This cycle").font(.caption.weight(.semibold)).foregroundStyle(Color.dmHeroMuted)
                     Text(cycleRange).font(.caption).foregroundStyle(Color.dmHeroMuted)
