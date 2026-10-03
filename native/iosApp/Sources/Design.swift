@@ -407,7 +407,11 @@ struct PaperAmountField: View {
     @Binding var text: String
 
     var body: some View {
-        FormattedAmountTextField(placeholder: placeholder, text: $text)
+        FormattedAmountTextField(
+            placeholder: placeholder,
+            text: $text,
+            enforcesTransactionLimits: true
+        )
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .background(Color.dmPaperRaised)
@@ -419,6 +423,7 @@ struct PaperAmountField: View {
 struct FormattedAmountTextField: UIViewRepresentable {
     let placeholder: String
     @Binding var text: String
+    var enforcesTransactionLimits = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -460,7 +465,10 @@ struct FormattedAmountTextField: UIViewRepresentable {
             guard let swiftRange = Range(range, in: current) else { return false }
 
             let candidate = current.replacingCharacters(in: swiftRange, with: string)
-            guard AmountInputFormatter.acceptsEditingValue(candidate) else { return false }
+            if parent.enforcesTransactionLimits,
+               !AmountInputFormatter.acceptsEditingValue(candidate) {
+                return false
+            }
             let candidateCaretOffset = range.location + string.utf16.count
             let candidatePrefix = (candidate as NSString).substring(to: min(candidateCaretOffset, candidate.utf16.count))
             let logicalCaretOffset = candidatePrefix.filter { $0 != "," }.count

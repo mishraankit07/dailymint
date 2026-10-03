@@ -35,6 +35,11 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed)
         button.tap()
     }
+    private func typeTextReliably(_ text: String, into field: XCUIElement) {
+        for character in text {
+            field.typeText(String(character))
+        }
+    }
     func testSaveCategoryWithKeyboardAndRelaunch() {
         openCategory()
         let field = app.textFields["categoryName"]
@@ -506,7 +511,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["editEntryAmountError"].waitForExistence(timeout: 5))
         if !amount.isHittable { app.swipeDown() }
         amount.tap()
-        amount.typeText("123456.78")
+        typeTextReliably("123456.78", into: amount)
         XCTAssertEqual(amount.value as? String, "1,23,456.78")
         XCTAssertTrue(app.staticTexts["editEntryAmountError"].waitForNonExistence(timeout: 5))
         amount.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 7))
