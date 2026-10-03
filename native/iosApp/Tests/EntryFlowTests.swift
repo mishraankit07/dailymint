@@ -475,8 +475,13 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["editEntryAmountError"].waitForExistence(timeout: 5))
         if !amount.isHittable { app.swipeDown() }
         amount.tap()
-        amount.typeText("25")
+        amount.typeText("123456.78")
+        XCTAssertEqual(amount.value as? String, "1,23,456.78")
         XCTAssertTrue(app.staticTexts["editEntryAmountError"].waitForNonExistence(timeout: 5))
+        amount.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 7))
+        XCTAssertEqual(amount.value as? String, "12")
+        amount.typeText("3456")
+        XCTAssertEqual(amount.value as? String, "1,23,456")
     }
 
     func testImportedTransactionCanBeDeletedAfterConfirmation() {
