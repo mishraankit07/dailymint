@@ -150,8 +150,7 @@ final class EntryFlowTests: XCTestCase {
             "Set the trigger",
             "Create a shortcut",
             "Find DailyMint",
-            "Tap Message",
-            "Choose Shortcut Input",
+            "Connect Shortcut Input",
             "Confirm the connection",
             "Save and repeat"
         ] {
@@ -164,6 +163,11 @@ final class EntryFlowTests: XCTestCase {
             }
             if title == "Create a shortcut" {
                 XCTAssertTrue(app.staticTexts["Tap Create New Shortcut"].exists)
+            }
+            if title == "Connect Shortcut Input" {
+                XCTAssertTrue(
+                    app.staticTexts["Tap Message, swipe the suggestions to the right, choose Shortcut Input, then tap the blue checkmark."].exists
+                )
             }
         }
         XCTAssertTrue(app.staticTexts["Save and repeat"].exists)
