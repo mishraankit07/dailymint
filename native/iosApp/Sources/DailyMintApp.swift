@@ -190,28 +190,32 @@ private struct AnimatedBrandSplash: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let designWidth: CGFloat = 1290
-            let designHeight: CGFloat = 2796
-            let scale = min(proxy.size.width / designWidth, proxy.size.height / designHeight)
-            let renderedWidth = designWidth * scale
-            let renderedHeight = designHeight * scale
-            let originY = (proxy.size.height - renderedHeight) / 2
+            let logoSize = min(proxy.size.width * 0.74, 320)
+            let titleSize = min(proxy.size.width * 0.11, 48)
 
             ZStack {
-                Color(red: 1 / 255, green: 102 / 255, blue: 61 / 255)
-                Image("SplashScreen")
+                Image("SplashBackground")
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: renderedWidth, height: renderedHeight)
-                    .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+                    .scaledToFill()
 
-                Text("Know your flow")
-                    .font(.system(size: 58 * scale, weight: .medium))
-                    .foregroundStyle(Color(red: 245 / 255, green: 247 / 255, blue: 236 / 255).opacity(0.9))
-                    .tracking(0.5 * scale)
-                    .position(x: proxy.size.width / 2, y: originY + (1950 * scale))
-                    .opacity(taglineVisible ? 1 : 0)
-                    .offset(y: taglineVisible ? 0 : 8)
+                VStack(spacing: 0) {
+                    Image("SplashLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: logoSize, height: logoSize)
+
+                    Text("DailyMint")
+                        .font(.system(size: titleSize, weight: .bold))
+                        .foregroundStyle(Color(red: 245 / 255, green: 247 / 255, blue: 236 / 255))
+                        .offset(y: -18)
+
+                    Text("Know your flow")
+                        .font(.system(size: min(proxy.size.width * 0.045, 20), weight: .medium))
+                        .foregroundStyle(Color(red: 245 / 255, green: 247 / 255, blue: 236 / 255).opacity(0.9))
+                        .opacity(taglineVisible ? 1 : 0)
+                        .offset(y: taglineVisible ? -8 : 0)
+                }
+                .position(x: proxy.size.width / 2, y: proxy.size.height * 0.47)
             }
         }
         .ignoresSafeArea()
