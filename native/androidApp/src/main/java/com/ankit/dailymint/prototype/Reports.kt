@@ -66,9 +66,9 @@ fun MonthContent(engine: LedgerEngine, revision: Int, onOpenLedger: () -> Unit, 
 }
 
 internal fun homeGreeting(hour: Int = LocalTime.now(ZoneId.of("Asia/Kolkata")).hour): String = when (hour.coerceIn(0, 23)) {
-    in 5..11 -> "Good morning"
-    in 12..16 -> "Good afternoon"
-    else -> "Good evening"
+    in 5..11 -> "Good Morning!"
+    in 12..16 -> "Good Afternoon!"
+    else -> "Good Evening!"
 }
 
 @Composable

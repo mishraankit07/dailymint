@@ -16,9 +16,9 @@ struct MonthView: View {
             .map { max(0, min(23, $0)) }
             ?? Calendar.current.component(.hour, from: date)
         switch hour {
-        case 5..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        default: return "Good evening"
+        case 5..<12: return "Good Morning!"
+        case 12..<17: return "Good Afternoon!"
+        default: return "Good Evening!"
         }
     }
 
