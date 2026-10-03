@@ -336,7 +336,10 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
                                         if (enabled) requestNotifications()
                                         ReminderScheduler.apply(context, engine)
                                     }
-                                }, modifier = Modifier.testTag("reminderToggle"))
+                                }, modifier = Modifier.testTag("reminderToggle"), colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Paper,
+                                    checkedTrackColor = IncomeGreen
+                                ))
                             }
                             Spacer(Modifier.height(10.dp))
                             ReminderTimeEditor(

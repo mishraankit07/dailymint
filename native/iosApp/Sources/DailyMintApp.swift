@@ -740,7 +740,7 @@ struct SettingsView: View {
                     .accessibilityIdentifier(statusIdentifier ?? "\(identifier)Status")
             }
         }
-        .tint(Color.dmFlow)
+        .tint(Color.dmIncome)
         .accessibilityIdentifier(identifier)
     }
 
