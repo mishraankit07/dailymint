@@ -494,7 +494,6 @@ struct SettingsView: View {
     @State private var reminderEnabled = false
     @State private var reminderTime = "21:30"
     @State private var unrecognizedText: String?
-    @State private var shortcutReceiptText: String?
     @State private var reminderDigits = ReminderDigits.from24Hour("21:30")
     @State private var focusedReminderDigit: ReminderDigit?
     @State private var notificationPermissionDenied = false
@@ -525,7 +524,6 @@ struct SettingsView: View {
                 categoriesSection
                 shortcutSetupSection
                 automaticImportNotificationSection
-                shortcutReceiptsSection
                 unrecognizedSection
             }
             .navigationTitle("")
@@ -545,17 +543,13 @@ struct SettingsView: View {
                 } message: {
                     Text(unrecognizedText ?? "")
                 }
-                .alert("Shortcut import", isPresented: Binding(get: { shortcutReceiptText != nil }, set: { if !$0 { shortcutReceiptText = nil } })) {
-                    Button("Close") { shortcutReceiptText = nil }
-                } message: {
-                    Text(shortcutReceiptText ?? "")
-                }
                 .alert("Notifications are off", isPresented: $notificationPermissionDenied) {
                     Button("OK", role: .cancel) {}
                 } message: {
                     Text("Allow notifications for DailyMint in iPhone Settings, then enable this option again.")
                 }
         }
+        .preferredColorScheme((AppTheme(rawValue: appTheme) ?? .system).colorScheme)
     }
 
     private var appearanceSection: some View {
@@ -715,22 +709,6 @@ struct SettingsView: View {
         }
         .tint(Color.dmFlow)
         .accessibilityIdentifier(identifier)
-    }
-
-    @ViewBuilder
-    private var shortcutReceiptsSection: some View {
-        let receipts = ShortcutImportLog.recent()
-        if !receipts.isEmpty {
-            RaisedPanel {
-                SectionHeading(title: "Shortcut imports", trailing: String(receipts.count))
-                ForEach(receipts) { receipt in
-                    Button(receipt.title) {
-                        shortcutReceiptText = "Status: \(receipt.status)\nSender: \(receipt.sender)\n\n\(receipt.preview)"
-                    }
-                    .buttonStyle(SecondaryPillButtonStyle())
-                }
-            }
-        }
     }
 
     @ViewBuilder

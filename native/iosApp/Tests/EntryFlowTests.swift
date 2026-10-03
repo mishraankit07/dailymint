@@ -299,7 +299,7 @@ final class EntryFlowTests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
-    func testShortcutImportReceiptShowsReceivedMessage() {
+    func testShortcutImportAddsReceivedMessage() {
         app.terminate()
         app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]
         app.launch()
@@ -308,15 +308,6 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
         expectation(for: NSPredicate(format: "label == %@", "Spent: Rs 5"), evaluatedWith: spent)
         waitForExpectations(timeout: 10)
-
-        app.buttons["settings"].tap()
-        let receipt = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "transaction added")).firstMatch
-        for _ in 0..<6 where !receipt.isHittable { app.swipeUp() }
-        XCTAssertTrue(receipt.waitForExistence(timeout: 5))
-        receipt.tap()
-
-        XCTAssertTrue(app.alerts["Shortcut import"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "APPLE MEDIA")).firstMatch.exists)
     }
 
     func testShortcutImportRecoversMessagePlacedInSender() {
@@ -328,11 +319,6 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
         expectation(for: NSPredicate(format: "label == %@", "Spent: Rs 5"), evaluatedWith: spent)
         waitForExpectations(timeout: 10)
-
-        app.buttons["settings"].tap()
-        let receipt = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "recovered sender input")).firstMatch
-        for _ in 0..<6 where !receipt.isHittable { app.swipeUp() }
-        XCTAssertTrue(receipt.waitForExistence(timeout: 5))
     }
 
     func testImportedPersonalShareUpdatesHomeAndSurvivesRelaunch() {
