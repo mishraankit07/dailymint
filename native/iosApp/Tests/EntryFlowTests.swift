@@ -484,6 +484,34 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(amount.value as? String, "1,23,456")
     }
 
+    func testManualEditorFormatsZerosAppendedToExistingAmount() {
+        app.buttons["Add"].tap()
+        app.textFields["entryName"].tap()
+        app.textFields["entryName"].typeText("Laptop")
+        app.textFields["entryAmount"].tap()
+        app.textFields["entryAmount"].typeText("2000")
+        let save = app.buttons["saveEntry"]
+        if !save.isHittable { app.swipeUp() }
+        save.tap()
+
+        app.buttons["Ledger"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "ledgerEntry-")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+
+        let amount = app.textFields["editEntryAmount"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 5))
+        XCTAssertEqual(amount.value as? String, "2,000")
+        amount.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        amount.typeText("000")
+        XCTAssertEqual(amount.value as? String, "20,00,000")
+
+        let editSave = app.buttons["saveManualTransaction"]
+        if !editSave.isHittable { app.swipeUp() }
+        editSave.tap()
+        XCTAssertTrue(amount.waitForNonExistence(timeout: 5))
+    }
+
     func testImportedTransactionCanBeDeletedAfterConfirmation() {
         app.terminate()
         app.launchArguments = ["--ui-testing", "--reset-test-data", "--simulate-sms-after-launch"]

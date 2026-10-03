@@ -273,9 +273,13 @@ struct TransactionDetailView: View {
         return !trimmed.isEmpty && trimmed.count <= 120
     }
     private var manualAmountError: String? {
-        manualValidationAttempted && !manualAmountIsValid
-            ? "Enter a positive amount with up to two decimal places."
-            : nil
+        guard manualValidationAttempted else { return nil }
+        let normalized = normalizedAmount(amount)
+        guard normalized.range(of: #"^[0-9]+(?:\.[0-9]{1,2})?$"#, options: .regularExpression) != nil else {
+            return "Enter a positive amount with up to two decimal places."
+        }
+        guard let value = parseDisplayAmount(amount) else { return "Amount is too large." }
+        return value > 0 ? nil : "Enter a positive amount."
     }
     private var manualNameError: String? {
         manualValidationAttempted && !manualNameIsValid
