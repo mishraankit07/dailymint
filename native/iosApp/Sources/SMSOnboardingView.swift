@@ -13,8 +13,7 @@ struct SMSOnboardingView: View {
         SetupStep(title: "Create a shortcut", detail: "Tap Create New Shortcut", imageName: "SMSSetup05Create"),
         SetupStep(title: "Find DailyMint", detail: "Search for DailyMint and choose Import Bank SMS.", imageName: "SMSSetup06Search"),
         SetupStep(title: "Connect Shortcut Input", detail: "Tap Message, swipe the suggestions to the right, choose Shortcut Input, then tap the blue checkmark.", imageName: "SMSSetup07MessageInput"),
-        SetupStep(title: "Confirm the connection", detail: "The Import action should now show Shortcut Input.", imageName: "SMSSetup09ShortcutInput"),
-        SetupStep(title: "Save and repeat", detail: "Tap the blue checkmark, then repeat these steps for each bank.", imageName: "SMSSetup09Complete")
+        SetupStep(title: "Save and repeat", detail: "Your automation is ready. Repeat these steps for each bank.", imageName: "SMSSetup09Complete")
     ]
 
     var body: some View {
