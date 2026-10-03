@@ -26,6 +26,17 @@ enum AmountInputFormatter {
         return parts.count == 2 && parts[1].contains(where: { $0 != "0" })
     }
 
+    static func acceptsEditingValue(_ value: String) -> Bool {
+        let normalizedValue = normalized(value)
+        guard normalizedValue.range(
+            of: #"^[0-9]*(?:\.[0-9]{0,2})?$"#,
+            options: .regularExpression
+        ) != nil else {
+            return false
+        }
+        return !exceedsTransactionLimit(normalizedValue)
+    }
+
     static func formatted(_ value: String) -> String {
         let normalizedValue = normalized(value)
         guard !normalizedValue.isEmpty else { return "" }

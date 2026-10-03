@@ -460,6 +460,7 @@ struct FormattedAmountTextField: UIViewRepresentable {
             guard let swiftRange = Range(range, in: current) else { return false }
 
             let candidate = current.replacingCharacters(in: swiftRange, with: string)
+            guard AmountInputFormatter.acceptsEditingValue(candidate) else { return false }
             let candidateCaretOffset = range.location + string.utf16.count
             let candidatePrefix = (candidate as NSString).substring(to: min(candidateCaretOffset, candidate.utf16.count))
             let logicalCaretOffset = candidatePrefix.filter { $0 != "," }.count

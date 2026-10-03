@@ -215,6 +215,8 @@ final class EntryFlowTests: XCTestCase {
         app.textFields["entryAmount"].tap()
         app.textFields["entryAmount"].typeText("1234.56")
         XCTAssertEqual(app.textFields["entryAmount"].value as? String, "1,234.56")
+        app.textFields["entryAmount"].typeText("7")
+        XCTAssertEqual(app.textFields["entryAmount"].value as? String, "1,234.56")
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
@@ -236,6 +238,16 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
         XCTAssertEqual(spent.label, "Spent: Rs 1,234.56")
+    }
+
+    func testAddAmountRejectsInputAboveTransactionLimit() {
+        app.buttons["Add"].tap()
+        let amount = app.textFields["entryAmount"]
+        amount.tap()
+        amount.typeText("1000000")
+        XCTAssertEqual(amount.value as? String, "10,00,000")
+        amount.typeText("0")
+        XCTAssertEqual(amount.value as? String, "10,00,000")
     }
     func testIncomeEntryUpdatesMoneyInOnly() {
         app.buttons["Add"].tap()
@@ -524,6 +536,11 @@ final class EntryFlowTests: XCTestCase {
         amount.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         amount.typeText("000")
         XCTAssertEqual(amount.value as? String, "10,00,000")
+        amount.typeText("0")
+        XCTAssertEqual(amount.value as? String, "10,00,000")
+        replaceText(in: amount, with: "12.34")
+        amount.typeText("5")
+        XCTAssertEqual(amount.value as? String, "12.34")
 
         let editSave = app.buttons["saveManualTransaction"]
         if !editSave.isHittable { app.swipeUp() }
