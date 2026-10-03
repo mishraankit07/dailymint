@@ -146,8 +146,25 @@ struct MonthHero: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("This cycle").font(.caption.weight(.semibold)).foregroundStyle(Color.dmHeroMuted)
-            Text(cycleRange).font(.caption).foregroundStyle(Color.dmHeroMuted)
+            ZStack(alignment: .topTrailing) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("This cycle").font(.caption.weight(.semibold)).foregroundStyle(Color.dmHeroMuted)
+                    Text(cycleRange).font(.caption).foregroundStyle(Color.dmHeroMuted)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 66)
+
+                ZStack {
+                    Circle()
+                        .fill(Color.dmIncome.opacity(0.13))
+                    Image(systemName: "leaf.fill")
+                        .font(.system(size: 25, weight: .semibold))
+                        .foregroundStyle(Color.dmIncome)
+                        .rotationEffect(.degrees(-18))
+                }
+                .frame(width: 52, height: 52)
+                .accessibilityHidden(true)
+            }
             HStack(alignment: .top, spacing: 12) {
                 HeroStat(label: "Money in", value: "Rs " + model.engine.formatAmount(paise: summary.moneyIn), color: .dmIncome)
                     .accessibilityIdentifier("moneyIn")

@@ -5,9 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -33,11 +37,29 @@ fun MonthContent(engine: LedgerEngine, revision: Int, onOpenLedger: () -> Unit, 
         colors = CardDefaults.cardColors(containerColor = NavColor)
     ) {
         Column(Modifier.padding(20.dp)) {
-            Text("Spent this cycle", color = Color(0xffb9c6bc), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            Text("Rs " + engine.formatAmount(summary.spent), color = HeroText, fontFamily = FontFamily.Serif,
-                fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.testTag("spent"))
-            Text(summary.label, color = Color(0xffb9c6bc), fontSize = 12.sp)
+            Box(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(end = 66.dp)) {
+                    Text("Spent this cycle", color = Color(0xffb9c6bc), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Rs " + engine.formatAmount(summary.spent), color = HeroText, fontFamily = FontFamily.Serif,
+                        fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.testTag("spent"))
+                    Text(summary.label, color = Color(0xffb9c6bc), fontSize = 12.sp)
+                }
+                Box(
+                    Modifier
+                        .size(52.dp)
+                        .align(Alignment.TopEnd)
+                        .background(IncomeGreen.copy(alpha = 0.13f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Eco,
+                        contentDescription = null,
+                        tint = IncomeGreen,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 if (summary.moneyIn > 0) HeroStat("Money in", "Rs " + engine.formatAmount(summary.moneyIn), IncomeGreen, Modifier.testTag("moneyIn"))
