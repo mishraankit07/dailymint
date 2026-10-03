@@ -71,7 +71,7 @@ fun SectionTitle(title: String, modifier: Modifier = Modifier, trailing: String?
 }
 
 @Composable
-fun BrandHeader(title: String, subtitle: String = "Know your flow") {
+fun BrandHeader(title: String, subtitle: String = "Money made clear") {
     Text(subtitle, color = InkFaint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     Text(
         title,

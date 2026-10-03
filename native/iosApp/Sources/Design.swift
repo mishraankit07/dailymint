@@ -218,7 +218,7 @@ struct HairlineBlock<Content: View>: View {
 
 struct BrandHeader: View {
     let title: String
-    var subtitle = "Know your flow"
+    var subtitle = "Money made clear"
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(subtitle).font(.caption.weight(.semibold)).foregroundStyle(Color.dmInkFaint)

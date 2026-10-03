@@ -211,7 +211,7 @@ private struct AnimatedBrandSplash: View {
                     .frame(width: proxy.size.width, height: 58)
                     .position(x: proxy.size.width / 2, y: titleTop + 29)
 
-                Text("Know your flow")
+                Text("Money made clear")
                     .font(.system(size: min(proxy.size.width * 0.045, 20), weight: .medium))
                     .foregroundStyle(Color(red: 245 / 255, green: 247 / 255, blue: 236 / 255).opacity(0.9))
                     .opacity(taglineVisible ? 1 : 0)
