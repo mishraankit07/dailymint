@@ -190,10 +190,16 @@ struct CategoryLine: View {
     var body: some View {
         HStack(spacing: 10) {
             Text(name).font(.caption.weight(.semibold)).foregroundStyle(Color.dmInk).frame(width: 98, alignment: .leading)
-            ProgressView(value: fill)
-                .tint(categoryColor(name))
-                .accessibilityIdentifier("categoryShare-" + name)
-                .accessibilityValue("\(Int(max(0, percentOfMoneyIn).rounded()))% of money in")
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.dmHairline)
+                    Capsule()
+                        .fill(categoryColor(name))
+                        .frame(width: proxy.size.width * fill)
+                }
+            }
+            .frame(height: 6)
+            .accessibilityHidden(true)
             Text(amount).font(.caption).foregroundStyle(Color.dmInkSoft).frame(width: 82, alignment: .trailing)
         }
         .padding(.vertical, 7)
