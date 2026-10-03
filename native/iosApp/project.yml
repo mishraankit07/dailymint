@@ -18,9 +18,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ankit.dailymint.prototype
         PRODUCT_NAME: DailyMint
+        TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_CFBundleDisplayName: DailyMint
         INFOPLIST_KEY_CFBundleName: DailyMint
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
