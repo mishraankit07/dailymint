@@ -10,10 +10,10 @@ struct SMSOnboardingView: View {
         SetupStep(title: "Open Automation", detail: "In Shortcuts, open Automation and tap +.", imageName: "SMSSetup01Automation"),
         SetupStep(title: "Choose Message", detail: "Create a Personal Automation, then choose Message.", imageName: "SMSSetup02Message"),
         SetupStep(title: "Set the trigger", detail: "Tap Message Contains and enter a short bank name, such as HDFC, ICICI, Axis, BOB, or SBI. Choose Run Immediately, then tap Next.", imageName: "SMSSetup03Trigger"),
-        SetupStep(title: "Create a shortcut", detail: "Tap Create New Shortcut", imageName: "SMSSetup05Create"),
-        SetupStep(title: "Find DailyMint", detail: "Search for DailyMint and choose Import Bank SMS.", imageName: "SMSSetup06Search"),
-        SetupStep(title: "Connect Shortcut Input", detail: "Tap Message, swipe the suggestions to the right, choose Shortcut Input, then tap the blue checkmark.", imageName: "SMSSetup07MessageInput"),
-        SetupStep(title: "Save and repeat", detail: "Your automation is ready. Repeat these steps for each bank.", imageName: "SMSSetup09Complete")
+        SetupStep(title: "Create a shortcut", detail: "Tap Create New Shortcut", imageName: "SMSSetup04Create"),
+        SetupStep(title: "Find DailyMint", detail: "Search for DailyMint and choose Import Bank SMS.", imageName: "SMSSetup05Search"),
+        SetupStep(title: "Connect Shortcut Input", detail: "Tap Message, swipe the suggestions to the right, choose Shortcut Input, then tap the blue checkmark.", imageName: "SMSSetup06ShortcutInput"),
+        SetupStep(title: "Save and repeat", detail: "Your automation is ready. Repeat these steps for each bank.", imageName: "SMSSetup07Complete")
     ]
 
     var body: some View {
