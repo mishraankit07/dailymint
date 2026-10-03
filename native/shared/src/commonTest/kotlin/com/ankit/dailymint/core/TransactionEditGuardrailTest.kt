@@ -139,6 +139,22 @@ class TransactionEditGuardrailTest {
     }
 
     @Test
+    fun manualEditAmountCannotExceedTenLakhRupees() {
+        val engine = LedgerEngine(MemoryStore())
+        val now = Clock.System.now().toEpochMilliseconds()
+        val today = LedgerDates.today().toString()
+        val original = Entry("manual", "Laptop", 5000, "Miscellaneous", today, "expense", capturedAtMillis = now)
+        assertTrue(engine.commit(engine.snapshot.copy(entries = listOf(original))).success)
+        assertTrue(engine.editEntry("manual", "Laptop", "1000000", "Miscellaneous", today, "ios", now).success)
+
+        val rejected = engine.editEntry("manual", "Laptop", "1000000.01", "Miscellaneous", today, "ios", now)
+
+        assertFalse(rejected.success)
+        assertEquals("Amount cannot exceed Rs 10,00,000.", rejected.message)
+        assertEquals(100_000_000L, engine.entries().single().paise)
+    }
+
+    @Test
     fun manualEditCanMoveBetweenDebitAndCreditClassifications() {
         val engine = LedgerEngine(MemoryStore())
         val now = Clock.System.now().toEpochMilliseconds()

@@ -423,6 +423,11 @@ struct ManualView: View {
     @State private var error: String?
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case name, amount }
+    private var amountLimitError: String? {
+        AmountInputFormatter.exceedsTransactionLimit(amount)
+            ? AmountInputFormatter.transactionLimitMessage
+            : nil
+    }
     var body: some View {
         NavigationStack {
             ScreenSurface {
@@ -453,6 +458,17 @@ struct ManualView: View {
                     )
                         .accessibilityIdentifier("entryAmount")
                         .focused($focusedField, equals: .amount)
+                        .onChange(of: amount) { _ in
+                            if error == AmountInputFormatter.transactionLimitMessage {
+                                error = nil
+                            }
+                        }
+                    Text(amountLimitError ?? " ")
+                        .font(.caption)
+                        .foregroundStyle(amountLimitError == nil ? Color.clear : Color.dmSpend)
+                        .frame(maxWidth: .infinity, minHeight: 16, alignment: .leading)
+                        .accessibilityHidden(amountLimitError == nil)
+                        .accessibilityIdentifier("entryAmountError")
                     FieldLabel(text: income ? "Credit kind" : "Category")
                     ChipFlowLayout {
                         ForEach(income ? ["Income", "Own account transfer", "Settlement"] : model.engine.categories(), id: \.self) { option in
@@ -483,7 +499,7 @@ struct ManualView: View {
                     .buttonStyle(PrimaryPillButtonStyle())
                     .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("saveEntry")
-                    .disabled(model.engine.loadError != nil)
+                    .disabled(model.engine.loadError != nil || amountLimitError != nil)
                 }
             }
             .navigationTitle("")

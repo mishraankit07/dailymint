@@ -101,6 +101,7 @@ data class Totals(val moneyIn: Long, val spent: Long, val invested: Long, val ne
 object Money {
     // Integer paise avoids floating-point rounding; bounded values keep aggregate arithmetic safe.
     private const val MAX_PAISE = 100_000_000_000L
+    const val MAX_MANUAL_TRANSACTION_PAISE = 100_000_000L
     fun parse(value: String): Long? = parseAmount(value, false)
     fun parseShare(value: String): Long? = parseAmount(value, true)
     private fun parseAmount(value: String, allowZero: Boolean): Long? {
@@ -302,6 +303,9 @@ class LedgerEngine(private val store: LedgerStore) {
         val old = snapshot.entries.first { it.id == id }
         val error = validateEntry(name, amount, category, date, income)
         if (error != null) return SaveResult(false, error)
+        if (old.source == "manual" && Money.parse(amount)!! > Money.MAX_MANUAL_TRANSACTION_PAISE) {
+            return SaveResult(false, "Amount cannot exceed Rs 10,00,000.")
+        }
         if (LedgerDates.date(date) > LedgerDates.today()) return SaveResult(false, "Transaction date cannot be in the future.")
         val updated = old.copy(name = name.trim(), paise = Money.parse(amount)!!, category = category, date = date,
             type = entryType(income, category),
@@ -444,6 +448,7 @@ class LedgerEngine(private val store: LedgerStore) {
     fun addEntryWithSplit(id: String, name: String, amount: String, category: String, date: String, income: Boolean,
         splitMethod: String, splitPeopleCount: Int, personalAmount: String): SaveResult {
         val paise = Money.parse(amount) ?: return SaveResult(false, "Enter a positive amount with up to two decimal places.")
+        if (paise > Money.MAX_MANUAL_TRANSACTION_PAISE) return SaveResult(false, "Amount cannot exceed Rs 10,00,000.")
         if (id.isBlank() || snapshot.entries.any { it.id == id }) return SaveResult(false, "This record already exists.")
         if (name.trim().isEmpty() || name.trim().length > 120) return SaveResult(false, "Enter a name between 1 and 120 characters.")
         if (!validDate(date)) return SaveResult(false, "Choose a valid transaction date.")

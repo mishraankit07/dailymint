@@ -266,13 +266,16 @@ struct TransactionDetailView: View {
     }
     private var manualAmountIsValid: Bool {
         guard let value = parseDisplayAmount(amount) else { return false }
-        return value > 0
+        return value > 0 && value <= AmountInputFormatter.maximumTransactionPaise
     }
     private var manualNameIsValid: Bool {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return !trimmed.isEmpty && trimmed.count <= 120
     }
     private var manualAmountError: String? {
+        if AmountInputFormatter.exceedsTransactionLimit(amount) {
+            return AmountInputFormatter.transactionLimitMessage
+        }
         guard manualValidationAttempted else { return nil }
         let normalized = AmountInputFormatter.normalized(amount)
         guard normalized.range(of: #"^[0-9]+(?:\.[0-9]{1,2})?$"#, options: .regularExpression) != nil else {
@@ -345,7 +348,7 @@ struct TransactionDetailView: View {
                     .buttonStyle(PrimaryPillButtonStyle())
                     .frame(maxWidth: .infinity)
                     .accessibilityIdentifier(imported ? "saveImportedTransaction" : "saveManualTransaction")
-                    .disabled(imported && importedSaveDisabled)
+                    .disabled(imported ? importedSaveDisabled : AmountInputFormatter.exceedsTransactionLimit(amount))
                 }
             }
             .navigationTitle(imported || manualEditable ? "Edit transaction" : "Transaction")

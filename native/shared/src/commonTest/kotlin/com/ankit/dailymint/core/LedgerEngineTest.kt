@@ -88,6 +88,16 @@ class LedgerEngineTest {
         assertFalse(engine.addEntry("1", "Pay", "10", "Salary", "2026-09-13", false).success)
         assertTrue(engine.entries().isEmpty())
     }
+    @Test fun manualEntryAmountCannotExceedTenLakhRupees() {
+        val engine = LedgerEngine(MemoryStore())
+        assertTrue(engine.addEntry("limit", "Laptop", "1000000", "Miscellaneous", "2026-09-13", false).success)
+
+        val rejected = engine.addEntry("over", "Car", "1000000.01", "Miscellaneous", "2026-09-13", false)
+
+        assertFalse(rejected.success)
+        assertEquals("Amount cannot exceed Rs 10,00,000.", rejected.message)
+        assertEquals(100_000_000L, engine.entries().single().paise)
+    }
     @Test fun duplicateIdentityCannotChangeTotals() {
         val engine = LedgerEngine(MemoryStore())
         assertTrue(engine.addEntry("1", "Lunch", "10", "Food", "2026-09-13", false).success)
