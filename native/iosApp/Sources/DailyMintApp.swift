@@ -446,10 +446,9 @@ struct ManualView: View {
                         .focused($focusedField, equals: .name)
                         .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
                     FieldLabel(text: "Amount")
-                    PaperField(
+                    PaperAmountField(
                         placeholder: income ? "Enter the value received" : "Enter the value spent",
-                        text: AmountInputFormatter.binding($amount),
-                        keyboard: .decimalPad
+                        text: $amount
                     )
                         .accessibilityIdentifier("entryAmount")
                         .focused($focusedField, equals: .amount)

@@ -397,6 +397,98 @@ struct PaperField: View {
     }
 }
 
+struct PaperAmountField: View {
+    let placeholder: String
+    @Binding var text: String
+
+    var body: some View {
+        FormattedAmountTextField(placeholder: placeholder, text: $text)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color.dmPaperRaised)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
+    }
+}
+
+struct FormattedAmountTextField: UIViewRepresentable {
+    let placeholder: String
+    @Binding var text: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIView(context: Context) -> UITextField {
+        let field = UITextField()
+        field.delegate = context.coordinator
+        field.keyboardType = .decimalPad
+        field.font = .preferredFont(forTextStyle: .body)
+        field.adjustsFontForContentSizeCategory = true
+        field.borderStyle = .none
+        return field
+    }
+
+    func updateUIView(_ field: UITextField, context: Context) {
+        context.coordinator.parent = self
+        field.placeholder = placeholder
+        field.textColor = UIColor(Color.dmInk)
+        field.tintColor = UIColor(Color.dmFlow)
+        if field.text != text {
+            field.text = text
+        }
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: FormattedAmountTextField
+
+        init(parent: FormattedAmountTextField) {
+            self.parent = parent
+        }
+
+        func textField(
+            _ textField: UITextField,
+            shouldChangeCharactersIn range: NSRange,
+            replacementString string: String
+        ) -> Bool {
+            let current = textField.text ?? ""
+            guard let swiftRange = Range(range, in: current) else { return false }
+
+            let candidate = current.replacingCharacters(in: swiftRange, with: string)
+            let candidateCaretOffset = range.location + string.utf16.count
+            let candidatePrefix = (candidate as NSString).substring(to: min(candidateCaretOffset, candidate.utf16.count))
+            let logicalCaretOffset = candidatePrefix.filter { $0 != "," }.count
+            let formatted = AmountInputFormatter.formatted(candidate)
+
+            textField.text = formatted
+            parent.text = formatted
+
+            let visualCaretOffset = Self.visualCaretOffset(
+                in: formatted,
+                afterLogicalCharacters: logicalCaretOffset
+            )
+            if let position = textField.position(from: textField.beginningOfDocument, offset: visualCaretOffset) {
+                textField.selectedTextRange = textField.textRange(from: position, to: position)
+            }
+            return false
+        }
+
+        private static func visualCaretOffset(in value: String, afterLogicalCharacters target: Int) -> Int {
+            guard target > 0 else { return 0 }
+            var logicalOffset = 0
+            for (offset, character) in value.enumerated() {
+                if character != "," {
+                    logicalOffset += 1
+                }
+                if logicalOffset == target {
+                    return offset + 1
+                }
+            }
+            return value.count
+        }
+    }
+}
+
 struct PaperSegment<Selection: Hashable>: View {
     let title: String
     let value: Selection

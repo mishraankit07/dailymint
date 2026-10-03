@@ -384,7 +384,7 @@ struct TransactionDetailView: View {
         Group {
             RaisedPanel {
                 FieldLabel(text: "Amount")
-                PaperField(placeholder: "Amount", text: AmountInputFormatter.binding($amount), keyboard: .decimalPad)
+                PaperAmountField(placeholder: "Amount", text: $amount)
                     .accessibilityIdentifier("editEntryAmount")
                 fieldValidationLine(manualAmountError, identifier: "editEntryAmountError")
 
@@ -543,8 +543,7 @@ struct TransactionDetailView: View {
                         HStack(spacing: 8) {
                             Text("Rs")
                                 .foregroundStyle(Color.dmInkSoft)
-                            TextField("Amount", text: AmountInputFormatter.binding($customShare))
-                                .keyboardType(.decimalPad)
+                            FormattedAmountTextField(placeholder: "Amount", text: $customShare)
                                 .foregroundStyle(Color.dmInk)
                                 .tint(Color.dmFlow)
                                 .accessibilityIdentifier("customShare")

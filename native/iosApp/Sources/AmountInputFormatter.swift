@@ -1,13 +1,6 @@
-import SwiftUI
+import Foundation
 
 enum AmountInputFormatter {
-    static func binding(_ binding: Binding<String>) -> Binding<String> {
-        Binding(
-            get: { binding.wrappedValue },
-            set: { binding.wrappedValue = Self.formatted($0) }
-        )
-    }
-
     static func normalized(_ value: String) -> String {
         value.replacingOccurrences(of: ",", with: "")
     }
