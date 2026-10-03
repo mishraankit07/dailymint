@@ -502,7 +502,7 @@ final class EntryFlowTests: XCTestCase {
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Laptop")
         app.textFields["entryAmount"].tap()
-        app.textFields["entryAmount"].typeText("2000")
+        app.textFields["entryAmount"].typeText("1000")
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
@@ -514,10 +514,10 @@ final class EntryFlowTests: XCTestCase {
 
         let amount = app.textFields["editEntryAmount"]
         XCTAssertTrue(amount.waitForExistence(timeout: 5))
-        XCTAssertEqual(amount.value as? String, "2,000")
+        XCTAssertEqual(amount.value as? String, "1,000")
         amount.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         amount.typeText("000")
-        XCTAssertEqual(amount.value as? String, "20,00,000")
+        XCTAssertEqual(amount.value as? String, "10,00,000")
 
         let editSave = app.buttons["saveManualTransaction"]
         if !editSave.isHittable { app.swipeUp() }
