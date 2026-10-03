@@ -274,7 +274,7 @@ struct DailyMintApp: App {
             switch self {
             case .home: return "house"
             case .growth: return "chart.xyaxis.line"
-            case .add: return "plus.circle.fill"
+            case .add: return "plus"
             case .ledger: return "list.bullet.rectangle"
             }
         }

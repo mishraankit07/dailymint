@@ -25,8 +25,6 @@ extension Color {
     static let dmNavSelected = adaptive(light: 0x1F6F78, dark: 0x81CDD0)
     static let dmActionFill = adaptive(light: 0x17261F, dark: 0x81CDD0)
     static let dmActionText = adaptive(light: 0xF8F9F3, dark: 0x111B18)
-    static let dmCenterActionFill = adaptive(light: 0x17261F, dark: 0xF0F4EB)
-    static let dmCenterActionIcon = adaptive(light: 0xF8F9F3, dark: 0x111B18)
     static let dmHeroText = adaptive(light: 0x17261F, dark: 0xF8F9F3)
     static let dmHeroMuted = adaptive(light: 0x4B594E, dark: 0xB9C6BC)
     static let dmCategoryHome = adaptive(light: 0x5E7FA3, dark: 0x9BBDE0)
@@ -170,12 +168,13 @@ struct DockedTabBar<Tab: Hashable>: View {
                         ZStack {
                             if isCenterAction(tab) {
                                 Circle()
-                                    .fill(Color.dmCenterActionFill)
+                                    .fill(Color.dmFlowSoft)
                                     .frame(width: 36, height: 36)
+                                    .overlay(Circle().stroke(Color.dmHairline, lineWidth: 1))
                             }
                             Image(systemName: icon(tab))
-                                .font(.system(size: isCenterAction(tab) ? 20 : 18, weight: .semibold))
-                                .foregroundStyle(isCenterAction(tab) ? Color.dmCenterActionIcon : (selected == tab ? Color.dmNavSelected : Color.dmInkSoft))
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(selected == tab ? Color.dmNavSelected : Color.dmInkSoft)
                         }
                         .frame(height: 36)
                         Text(title(tab))
