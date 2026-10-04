@@ -178,7 +178,7 @@ final class EntryFlowTests: XCTestCase {
             }
             if title == "Connect Shortcut Input" {
                 XCTAssertTrue(
-                    app.staticTexts["Tap Message, swipe the suggestions to the right, choose Shortcut Input, then tap the blue checkmark."].exists
+                    app.staticTexts["1. Tap Message.\n\n2. Swipe the suggestions above keyboard to the right.\n\n3. Choose Shortcut Input.\n\n4. Tap the blue checkmark."].exists
                 )
             }
         }
