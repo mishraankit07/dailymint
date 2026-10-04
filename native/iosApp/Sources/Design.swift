@@ -407,24 +407,77 @@ struct PaperNameField: View {
     @Binding var text: String
     @Binding var validationError: String?
 
-    private var limitedText: Binding<String> {
-        Binding(
-            get: { text },
-            set: { candidate in
-                guard candidate.count <= 120 else {
-                    validationError = "Name cannot exceed 120 characters."
-                    return
-                }
-                text = candidate
-                validationError = candidate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? "Enter a name."
-                    : nil
-            }
+    var body: some View {
+        LimitedNameTextField(
+            placeholder: placeholder,
+            text: $text,
+            onValidationError: { validationError = $0 }
         )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color.dmPaperRaised)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.dmHairline, lineWidth: 1))
+    }
+}
+
+private struct LimitedNameTextField: UIViewRepresentable {
+    let placeholder: String
+    @Binding var text: String
+    let onValidationError: (String?) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
     }
 
-    var body: some View {
-        PaperField(placeholder: placeholder, text: limitedText)
+    func makeUIView(context: Context) -> UITextField {
+        let field = UITextField()
+        field.delegate = context.coordinator
+        field.font = .preferredFont(forTextStyle: .body)
+        field.adjustsFontForContentSizeCategory = true
+        field.borderStyle = .none
+        return field
+    }
+
+    func updateUIView(_ field: UITextField, context: Context) {
+        context.coordinator.parent = self
+        field.placeholder = placeholder
+        field.textColor = UIColor(Color.dmInk)
+        field.tintColor = UIColor(Color.dmFlow)
+        if field.text != text {
+            field.text = text
+        }
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: LimitedNameTextField
+
+        init(parent: LimitedNameTextField) {
+            self.parent = parent
+        }
+
+        func textField(
+            _ textField: UITextField,
+            shouldChangeCharactersIn range: NSRange,
+            replacementString string: String
+        ) -> Bool {
+            let current = textField.text ?? ""
+            guard let swiftRange = Range(range, in: current) else { return false }
+
+            let candidate = current.replacingCharacters(in: swiftRange, with: string)
+            guard candidate.count <= 120 else {
+                parent.onValidationError("Name cannot exceed 120 characters.")
+                return false
+            }
+
+            parent.text = candidate
+            parent.onValidationError(
+                candidate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? "Enter a name."
+                    : nil
+            )
+            return true
+        }
     }
 }
 

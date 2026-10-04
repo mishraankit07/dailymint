@@ -40,6 +40,9 @@ final class EntryFlowTests: XCTestCase {
             field.typeText(String(character))
         }
     }
+    private func staticText(withLabel label: String) -> XCUIElement {
+        app.staticTexts.matching(NSPredicate(format: "label == %@", label)).firstMatch
+    }
     func testSaveCategoryWithKeyboardAndRelaunch() {
         openCategory()
         let field = app.textFields["categoryName"]
@@ -167,7 +170,7 @@ final class EntryFlowTests: XCTestCase {
             }
             if title == "Set the trigger" {
                 XCTAssertTrue(
-                    app.staticTexts["1. Tap Message Contains, enter your bank name in short, ex: HDFC, ICICI, Axis, BOB, SBI or Kotak\n\n2. Choose Run Immediately.\n\n3. Tap Next."].exists
+                    staticText(withLabel: "1. Tap Message Contains, enter your bank name in short, ex: HDFC, ICICI, Axis, BOB, SBI or Kotak\n\n2. Choose Run Immediately.\n\n3. Tap Next.").exists
                 )
             }
             if title == "Create a shortcut" {
@@ -175,12 +178,12 @@ final class EntryFlowTests: XCTestCase {
             }
             if title == "Find DailyMint" {
                 XCTAssertTrue(
-                    app.staticTexts["1. Search for DailyMint.\n\n2. Choose Import Bank SMS.\n\n3. Tap on the blue checkmark."].exists
+                    staticText(withLabel: "1. Search for DailyMint.\n\n2. Choose Import Bank SMS.\n\n3. Tap on the blue checkmark.").exists
                 )
             }
             if title == "Connect Shortcut Input" {
                 XCTAssertTrue(
-                    app.staticTexts["1. Tap Message.\n\n2. Swipe the suggestions above keyboard to the right.\n\n3. Choose Shortcut Input.\n\n4. Tap the blue checkmark."].exists
+                    staticText(withLabel: "1. Tap Message.\n\n2. Swipe the suggestions above keyboard to the right.\n\n3. Choose Shortcut Input.\n\n4. Tap the blue checkmark.").exists
                 )
             }
         }
