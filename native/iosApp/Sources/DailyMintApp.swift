@@ -420,14 +420,32 @@ struct ManualView: View {
     @State private var income = false
     @State private var category = "Miscellaneous"
     @State private var date = Date()
-    @State private var error: String?
+    @State private var formError: String?
     @State private var nameInputError: String?
     @State private var amountInputError: String?
+    @State private var validationAttempted = false
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case name, amount }
     private var amountLimitError: String? {
         AmountInputFormatter.exceedsTransactionLimit(amount)
             ? AmountInputFormatter.transactionLimitMessage
+            : nil
+    }
+    private var nameIsValid: Bool {
+        model.engine.manualNameValidationError(name: name) == nil
+    }
+    private var amountIsValid: Bool {
+        model.engine.manualAmountValidationError(amount: AmountInputFormatter.normalized(amount)) == nil
+    }
+    private var nameValidationError: String? {
+        if let nameInputError { return nameInputError }
+        return validationAttempted ? model.engine.manualNameValidationError(name: name) : nil
+    }
+    private var amountValidationError: String? {
+        if let amountInputError { return amountInputError }
+        if let amountLimitError { return amountLimitError }
+        return validationAttempted
+            ? model.engine.manualAmountValidationError(amount: AmountInputFormatter.normalized(amount))
             : nil
     }
     var body: some View {
@@ -436,6 +454,11 @@ struct ManualView: View {
                 BrandHeader(title: "Add transaction")
                 RaisedPanel {
                     if let loadError = model.engine.loadError { Text(loadError).foregroundStyle(Color.dmSpend) }
+                    if let formError {
+                        Text(formError)
+                            .foregroundStyle(Color.dmSpend)
+                            .accessibilityIdentifier("entryError")
+                    }
                     HStack(spacing: 6) {
                         PaperSegment(title: "Expense", value: false, selection: $income)
                         PaperSegment(title: "Credit", value: true, selection: $income)
@@ -454,11 +477,11 @@ struct ManualView: View {
                         .accessibilityIdentifier("entryName")
                         .focused($focusedField, equals: .name)
                         .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
-                    Text(nameInputError ?? " ")
+                    Text(nameValidationError ?? " ")
                         .font(.caption)
-                        .foregroundStyle(nameInputError == nil ? Color.clear : Color.dmSpend)
+                        .foregroundStyle(nameValidationError == nil ? Color.clear : Color.dmSpend)
                         .frame(maxWidth: .infinity, minHeight: 16, alignment: .leading)
-                        .accessibilityHidden(nameInputError == nil)
+                        .accessibilityHidden(nameValidationError == nil)
                         .accessibilityIdentifier("entryNameError")
                     FieldLabel(text: "Amount")
                     PaperAmountField(
@@ -468,16 +491,11 @@ struct ManualView: View {
                     )
                         .accessibilityIdentifier("entryAmount")
                         .focused($focusedField, equals: .amount)
-                        .onChange(of: amount) { _ in
-                            if error == AmountInputFormatter.transactionLimitMessage {
-                                error = nil
-                            }
-                        }
-                    Text(amountInputError ?? amountLimitError ?? " ")
+                    Text(amountValidationError ?? " ")
                         .font(.caption)
-                        .foregroundStyle(amountInputError == nil && amountLimitError == nil ? Color.clear : Color.dmSpend)
+                        .foregroundStyle(amountValidationError == nil ? Color.clear : Color.dmSpend)
                         .frame(maxWidth: .infinity, minHeight: 16, alignment: .leading)
-                        .accessibilityHidden(amountInputError == nil && amountLimitError == nil)
+                        .accessibilityHidden(amountValidationError == nil)
                         .accessibilityIdentifier("entryAmountError")
                     FieldLabel(text: income ? "Credit kind" : "Category")
                     ChipFlowLayout {
@@ -494,17 +512,19 @@ struct ManualView: View {
                     DatePicker("Date", selection: $date, in: ...Date(), displayedComponents: .date)
                         .foregroundStyle(Color.dmInk)
 
-                    if let error { Text(error).foregroundStyle(Color.dmSpend).accessibilityIdentifier("entryError") }
                     Button("Save") {
+                        validationAttempted = true
+                        formError = nil
+                        guard nameIsValid, amountIsValid else { return }
                         focusedField = nil
-                        error = model.addEntry(
+                        formError = model.addEntry(
                             name: name,
                             amount: AmountInputFormatter.normalized(amount),
                             category: category,
                             date: date,
                             income: income
                         )
-                        if error == nil { onFinish(true) }
+                        if formError == nil { onFinish(true) }
                     }
                     .buttonStyle(PrimaryPillButtonStyle())
                     .frame(maxWidth: .infinity)

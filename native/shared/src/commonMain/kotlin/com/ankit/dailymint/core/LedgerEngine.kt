@@ -420,9 +420,15 @@ class LedgerEngine(private val store: LedgerStore) {
         return if (key.isNotEmpty() && category in snapshot.categories && category != "Miscellaneous") snapshot.learnedRules + (key to category) else snapshot.learnedRules
     }
     private fun entryType(income: Boolean, category: String): String = if (income) "income" else if (category == "Investments") "investment" else "expense"
+    fun manualAmountValidationError(amount: String): String? {
+        val paise = Money.parse(amount) ?: return "Enter a positive amount with up to two decimal places."
+        return if (paise > Money.MAX_MANUAL_TRANSACTION_PAISE) "Amount cannot exceed Rs 10,00,000." else null
+    }
+    fun manualNameValidationError(name: String): String? =
+        if (name.trim().isEmpty() || name.trim().length > 120) "Enter a name between 1 and 120 characters." else null
     private fun validateEntry(name: String, amount: String, category: String, date: String, income: Boolean): String? {
-        if (Money.parse(amount) == null) return "Enter a positive amount with up to two decimal places."
-        if (name.trim().isEmpty() || name.trim().length > 120) return "Enter a name between 1 and 120 characters."
+        manualAmountValidationError(amount)?.let { return it }
+        manualNameValidationError(name)?.let { return it }
         if (!validDate(date)) return "Choose a valid transaction date."
         val allowed = if (income) CreditKind.all.map(CreditKind::label) else snapshot.categories + DebitKind.OWN_TRANSFER
         if (category !in allowed) return "Choose a valid category."
@@ -447,10 +453,10 @@ class LedgerEngine(private val store: LedgerStore) {
     }
     fun addEntryWithSplit(id: String, name: String, amount: String, category: String, date: String, income: Boolean,
         splitMethod: String, splitPeopleCount: Int, personalAmount: String): SaveResult {
-        val paise = Money.parse(amount) ?: return SaveResult(false, "Enter a positive amount with up to two decimal places.")
-        if (paise > Money.MAX_MANUAL_TRANSACTION_PAISE) return SaveResult(false, "Amount cannot exceed Rs 10,00,000.")
+        manualAmountValidationError(amount)?.let { return SaveResult(false, it) }
+        val paise = Money.parse(amount)!!
         if (id.isBlank() || snapshot.entries.any { it.id == id }) return SaveResult(false, "This record already exists.")
-        if (name.trim().isEmpty() || name.trim().length > 120) return SaveResult(false, "Enter a name between 1 and 120 characters.")
+        manualNameValidationError(name)?.let { return SaveResult(false, it) }
         if (!validDate(date)) return SaveResult(false, "Choose a valid transaction date.")
         if (LedgerDates.date(date) > LedgerDates.today()) return SaveResult(false, "Transaction date cannot be in the future.")
         val allowed = if (income) CreditKind.all.map(CreditKind::label) else snapshot.categories

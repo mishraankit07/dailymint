@@ -98,6 +98,17 @@ class LedgerEngineTest {
         assertEquals("Amount cannot exceed Rs 10,00,000.", rejected.message)
         assertEquals(100_000_000L, engine.entries().single().paise)
     }
+    @Test fun manualFieldValidationUsesTheSameRulesAsSaving() {
+        val engine = LedgerEngine(MemoryStore())
+        assertEquals(
+            "Enter a positive amount with up to two decimal places.",
+            engine.manualAmountValidationError("")
+        )
+        assertEquals("Amount cannot exceed Rs 10,00,000.", engine.manualAmountValidationError("1000000.01"))
+        assertNull(engine.manualAmountValidationError("1000000"))
+        assertEquals("Enter a name between 1 and 120 characters.", engine.manualNameValidationError("  "))
+        assertNull(engine.manualNameValidationError("Lunch"))
+    }
     @Test fun duplicateIdentityCannotChangeTotals() {
         val engine = LedgerEngine(MemoryStore())
         assertTrue(engine.addEntry("1", "Lunch", "10", "Food", "2026-09-13", false).success)

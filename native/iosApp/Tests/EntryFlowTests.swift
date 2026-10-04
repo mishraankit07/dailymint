@@ -273,6 +273,20 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(error.waitForExistence(timeout: 5))
         XCTAssertEqual(error.label, "Name cannot exceed 120 characters.")
     }
+    func testAddSaveShowsValidationBelowNameAndAmount() {
+        app.buttons["Add"].tap()
+        let save = app.buttons["saveEntry"]
+        if !save.isHittable { app.swipeUp() }
+        save.tap()
+
+        let nameError = app.staticTexts["entryNameError"]
+        XCTAssertTrue(nameError.waitForExistence(timeout: 5))
+        XCTAssertEqual(nameError.label, "Enter a name between 1 and 120 characters.")
+        let amountError = app.staticTexts["entryAmountError"]
+        XCTAssertTrue(amountError.waitForExistence(timeout: 5))
+        XCTAssertEqual(amountError.label, "Enter a positive amount with up to two decimal places.")
+        XCTAssertFalse(app.staticTexts["entryError"].exists)
+    }
     func testIncomeEntryUpdatesMoneyInOnly() {
         app.buttons["Add"].tap()
         app.buttons["Credit"].tap()
