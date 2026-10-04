@@ -105,26 +105,10 @@ struct SMSOnboardingView: View {
 
     private var controls: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "lock.shield.fill")
-                Text("Only matching messages are sent by Shortcuts and processed on this iPhone.")
-            }
-            .font(.caption2)
-            .foregroundStyle(Color.dmInkFaint)
-            .frame(maxWidth: .infinity, alignment: .leading)
             if page == steps.count - 1 {
                 Button("Finish setup", action: onContinue)
                     .buttonStyle(PrimaryPillButtonStyle())
                     .accessibilityIdentifier("continueWithoutSMS")
-            } else {
-                Button {
-                    withAnimation { page += 1 }
-                } label: {
-                    Label("Next step", systemImage: "arrow.right")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(PrimaryPillButtonStyle())
-                .accessibilityIdentifier("onboardingNext")
             }
             Button(action: launchShortcuts) {
                 Label("Open Shortcuts", systemImage: "arrow.up.right.square")

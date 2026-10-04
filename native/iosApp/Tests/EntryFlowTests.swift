@@ -150,6 +150,8 @@ final class EntryFlowTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["openShortcuts"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Open Automation"].exists)
+        XCTAssertFalse(app.buttons["onboardingNext"].exists)
+        XCTAssertFalse(app.staticTexts["Only matching messages are sent by Shortcuts and processed on this iPhone."].exists)
         for title in [
             "Choose Message",
             "Set the trigger",
@@ -158,7 +160,7 @@ final class EntryFlowTests: XCTestCase {
             "Connect Shortcut Input",
             "Save and repeat"
         ] {
-            app.buttons["onboardingNext"].tap()
+            app.swipeLeft()
             XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
             if title == "Choose Message" {
                 XCTAssertFalse(app.staticTexts["Create a Personal Automation, then choose Message."].exists)
