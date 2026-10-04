@@ -171,6 +171,11 @@ final class EntryFlowTests: XCTestCase {
             if title == "Create a shortcut" {
                 XCTAssertTrue(app.staticTexts["Tap Create New Shortcut"].exists)
             }
+            if title == "Find DailyMint" {
+                XCTAssertTrue(
+                    app.staticTexts["1. Search for DailyMint.\n\n2. Choose Import Bank SMS.\n\n3. Tap on the blue checkmark."].exists
+                )
+            }
             if title == "Connect Shortcut Input" {
                 XCTAssertTrue(
                     app.staticTexts["Tap Message, swipe the suggestions to the right, choose Shortcut Input, then tap the blue checkmark."].exists
