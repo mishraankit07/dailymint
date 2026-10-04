@@ -423,6 +423,10 @@ final class EntryFlowTests: XCTestCase {
         let split = app.switches["splitTransaction"]
         XCTAssertTrue(split.waitForExistence(timeout: 5))
         XCTAssertEqual(split.label, "Split this expense?")
+        XCTAssertEqual(
+            app.staticTexts["splitTransactionHint"].label,
+            "Track only the amount that belongs to you."
+        )
         split.tap()
         let people = app.textFields["splitPeople"]
         XCTAssertTrue(people.waitForExistence(timeout: 5))

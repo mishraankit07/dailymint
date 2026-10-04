@@ -486,6 +486,10 @@ struct TransactionDetailView: View {
                             }
                         }
                     }
+                Text("Track only the amount that belongs to you.")
+                    .font(.caption)
+                    .foregroundStyle(Color.dmInkSoft)
+                    .accessibilityIdentifier("splitTransactionHint")
                 if !isExpense {
                     Text("Available for debit spending categories.")
                         .font(.caption)
