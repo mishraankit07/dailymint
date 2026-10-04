@@ -3,6 +3,8 @@ import Foundation
 enum AmountInputFormatter {
     static let maximumTransactionPaise: Int64 = 100_000_000
     static let transactionLimitMessage = "Amount cannot exceed Rs 10,00,000."
+    static let decimalPlacesMessage = "Amount can have up to two decimal places."
+    static let invalidAmountMessage = "Enter a valid amount."
 
     static func normalized(_ value: String) -> String {
         value.replacingOccurrences(of: ",", with: "")
@@ -27,14 +29,22 @@ enum AmountInputFormatter {
     }
 
     static func acceptsEditingValue(_ value: String) -> Bool {
+        editingError(value) == nil
+    }
+
+    static func editingError(_ value: String) -> String? {
         let normalizedValue = normalized(value)
         guard normalizedValue.range(
-            of: #"^[0-9]*(?:\.[0-9]{0,2})?$"#,
+            of: #"^[0-9]*(?:\.[0-9]*)?$"#,
             options: .regularExpression
         ) != nil else {
-            return false
+            return invalidAmountMessage
         }
-        return !exceedsTransactionLimit(normalizedValue)
+        let parts = normalizedValue.split(separator: ".", omittingEmptySubsequences: false)
+        if parts.count == 2, parts[1].count > 2 {
+            return decimalPlacesMessage
+        }
+        return exceedsTransactionLimit(normalizedValue) ? transactionLimitMessage : nil
     }
 
     static func formatted(_ value: String) -> String {

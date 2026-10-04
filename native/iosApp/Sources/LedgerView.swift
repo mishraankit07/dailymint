@@ -204,6 +204,8 @@ struct TransactionDetailView: View {
     @State private var customShare = ""
     @State private var error: String?
     @State private var dateError: String?
+    @State private var amountInputError: String?
+    @State private var nameInputError: String?
     @State private var manualValidationAttempted = false
     @State private var confirmingDelete = false
     @State private var confirmingDiscard = false
@@ -273,6 +275,7 @@ struct TransactionDetailView: View {
         return !trimmed.isEmpty && trimmed.count <= 120
     }
     private var manualAmountError: String? {
+        if let amountInputError { return amountInputError }
         if AmountInputFormatter.exceedsTransactionLimit(amount) {
             return AmountInputFormatter.transactionLimitMessage
         }
@@ -285,7 +288,8 @@ struct TransactionDetailView: View {
         return value > 0 ? nil : "Enter a positive amount."
     }
     private var manualNameError: String? {
-        manualValidationAttempted && !manualNameIsValid
+        if let nameInputError { return nameInputError }
+        return manualValidationAttempted && !manualNameIsValid
             ? "Enter a name between 1 and 120 characters."
             : nil
     }
@@ -387,12 +391,20 @@ struct TransactionDetailView: View {
         Group {
             RaisedPanel {
                 FieldLabel(text: "Amount")
-                PaperAmountField(placeholder: "Amount", text: $amount)
+                PaperAmountField(
+                    placeholder: "Amount",
+                    text: $amount,
+                    validationError: $amountInputError
+                )
                     .accessibilityIdentifier("editEntryAmount")
                 fieldValidationLine(manualAmountError, identifier: "editEntryAmountError")
 
                 FieldLabel(text: "Name")
-                PaperField(placeholder: "Name", text: $name)
+                PaperNameField(
+                    placeholder: "Name",
+                    text: $name,
+                    validationError: $nameInputError
+                )
                     .accessibilityIdentifier("editEntryName")
                 fieldValidationLine(manualNameError, identifier: "editEntryNameError")
 

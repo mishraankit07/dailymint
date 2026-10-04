@@ -421,6 +421,8 @@ struct ManualView: View {
     @State private var category = "Miscellaneous"
     @State private var date = Date()
     @State private var error: String?
+    @State private var nameInputError: String?
+    @State private var amountInputError: String?
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case name, amount }
     private var amountLimitError: String? {
@@ -444,17 +446,25 @@ struct ManualView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     FieldLabel(text: "Name")
-                    PaperField(
+                    PaperNameField(
                         placeholder: income ? "Add sender or company name" : "Add restaurant or merchant name",
-                        text: $name
+                        text: $name,
+                        validationError: $nameInputError
                     )
                         .accessibilityIdentifier("entryName")
                         .focused($focusedField, equals: .name)
                         .onChange(of: name) { value in category = model.engine.suggestCategory(name: value, income: income) }
+                    Text(nameInputError ?? " ")
+                        .font(.caption)
+                        .foregroundStyle(nameInputError == nil ? Color.clear : Color.dmSpend)
+                        .frame(maxWidth: .infinity, minHeight: 16, alignment: .leading)
+                        .accessibilityHidden(nameInputError == nil)
+                        .accessibilityIdentifier("entryNameError")
                     FieldLabel(text: "Amount")
                     PaperAmountField(
                         placeholder: income ? "Enter the value received" : "Enter the value spent",
-                        text: $amount
+                        text: $amount,
+                        validationError: $amountInputError
                     )
                         .accessibilityIdentifier("entryAmount")
                         .focused($focusedField, equals: .amount)
@@ -463,11 +473,11 @@ struct ManualView: View {
                                 error = nil
                             }
                         }
-                    Text(amountLimitError ?? " ")
+                    Text(amountInputError ?? amountLimitError ?? " ")
                         .font(.caption)
-                        .foregroundStyle(amountLimitError == nil ? Color.clear : Color.dmSpend)
+                        .foregroundStyle(amountInputError == nil && amountLimitError == nil ? Color.clear : Color.dmSpend)
                         .frame(maxWidth: .infinity, minHeight: 16, alignment: .leading)
-                        .accessibilityHidden(amountLimitError == nil)
+                        .accessibilityHidden(amountInputError == nil && amountLimitError == nil)
                         .accessibilityIdentifier("entryAmountError")
                     FieldLabel(text: income ? "Credit kind" : "Category")
                     ChipFlowLayout {

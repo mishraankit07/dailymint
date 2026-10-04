@@ -402,15 +402,43 @@ struct PaperField: View {
     }
 }
 
+struct PaperNameField: View {
+    let placeholder: String
+    @Binding var text: String
+    @Binding var validationError: String?
+
+    private var limitedText: Binding<String> {
+        Binding(
+            get: { text },
+            set: { candidate in
+                guard candidate.count <= 120 else {
+                    validationError = "Name cannot exceed 120 characters."
+                    return
+                }
+                text = candidate
+                validationError = candidate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? "Enter a name."
+                    : nil
+            }
+        )
+    }
+
+    var body: some View {
+        PaperField(placeholder: placeholder, text: limitedText)
+    }
+}
+
 struct PaperAmountField: View {
     let placeholder: String
     @Binding var text: String
+    @Binding var validationError: String?
 
     var body: some View {
         FormattedAmountTextField(
             placeholder: placeholder,
             text: $text,
-            enforcesTransactionLimits: true
+            enforcesTransactionLimits: true,
+            onValidationError: { validationError = $0 }
         )
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
@@ -424,6 +452,7 @@ struct FormattedAmountTextField: UIViewRepresentable {
     let placeholder: String
     @Binding var text: String
     var enforcesTransactionLimits = false
+    var onValidationError: ((String?) -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -465,9 +494,12 @@ struct FormattedAmountTextField: UIViewRepresentable {
             guard let swiftRange = Range(range, in: current) else { return false }
 
             let candidate = current.replacingCharacters(in: swiftRange, with: string)
-            if parent.enforcesTransactionLimits,
-               !AmountInputFormatter.acceptsEditingValue(candidate) {
-                return false
+            if parent.enforcesTransactionLimits {
+                if let error = AmountInputFormatter.editingError(candidate) {
+                    parent.onValidationError?(error)
+                    return false
+                }
+                parent.onValidationError?(nil)
             }
             let candidateCaretOffset = range.location + string.utf16.count
             let candidatePrefix = (candidate as NSString).substring(to: min(candidateCaretOffset, candidate.utf16.count))
@@ -485,6 +517,10 @@ struct FormattedAmountTextField: UIViewRepresentable {
                 textField.selectedTextRange = textField.textRange(from: position, to: position)
             }
             return false
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            parent.onValidationError?(nil)
         }
 
         private static func visualCaretOffset(in value: String, afterLogicalCharacters target: Int) -> Int {

@@ -222,6 +222,9 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(app.textFields["entryAmount"].value as? String, "1,234.56")
         app.textFields["entryAmount"].typeText("7")
         XCTAssertEqual(app.textFields["entryAmount"].value as? String, "1,234.56")
+        let amountError = app.staticTexts["entryAmountError"]
+        XCTAssertTrue(amountError.waitForExistence(timeout: 5))
+        XCTAssertEqual(amountError.label, "Amount can have up to two decimal places.")
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
@@ -253,6 +256,22 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(amount.value as? String, "10,00,000")
         amount.typeText("0")
         XCTAssertEqual(amount.value as? String, "10,00,000")
+        let error = app.staticTexts["entryAmountError"]
+        XCTAssertTrue(error.waitForExistence(timeout: 5))
+        XCTAssertEqual(error.label, "Amount cannot exceed Rs 10,00,000.")
+    }
+
+    func testAddNameRejectsInputBeyondMaximumLength() {
+        app.buttons["Add"].tap()
+        let name = app.textFields["entryName"]
+        let maximumName = String(repeating: "A", count: 120)
+        name.tap()
+        name.typeText(maximumName)
+        name.typeText("B")
+        XCTAssertEqual(name.value as? String, maximumName)
+        let error = app.staticTexts["entryNameError"]
+        XCTAssertTrue(error.waitForExistence(timeout: 5))
+        XCTAssertEqual(error.label, "Name cannot exceed 120 characters.")
     }
     func testIncomeEntryUpdatesMoneyInOnly() {
         app.buttons["Add"].tap()
@@ -543,9 +562,13 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(amount.value as? String, "10,00,000")
         amount.typeText("0")
         XCTAssertEqual(amount.value as? String, "10,00,000")
+        let amountError = app.staticTexts["editEntryAmountError"]
+        XCTAssertTrue(amountError.waitForExistence(timeout: 5))
+        XCTAssertEqual(amountError.label, "Amount cannot exceed Rs 10,00,000.")
         replaceText(in: amount, with: "12.34")
         amount.typeText("5")
         XCTAssertEqual(amount.value as? String, "12.34")
+        XCTAssertEqual(amountError.label, "Amount can have up to two decimal places.")
 
         let editSave = app.buttons["saveManualTransaction"]
         if !editSave.isHittable { app.swipeUp() }
