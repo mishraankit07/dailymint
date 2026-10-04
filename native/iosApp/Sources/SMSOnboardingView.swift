@@ -9,7 +9,11 @@ struct SMSOnboardingView: View {
     private let steps = [
         SetupStep(title: "Open Automation", detail: "In Shortcuts, open Automation and tap +.", imageName: "SMSSetup01Automation"),
         SetupStep(title: "Choose Message", detail: nil, imageName: "SMSSetup02Message"),
-        SetupStep(title: "Set the trigger", detail: "Tap Message Contains and enter a short bank name, such as HDFC, ICICI, Axis, BOB, or SBI. Choose Run Immediately, then tap Next.", imageName: "SMSSetup03Trigger"),
+        SetupStep(
+            title: "Set the trigger",
+            detail: "1. Tap Message Contains, enter your bank name in short, ex: HDFC, ICICI, Axis, BOB, SBI or Kotak\n\n2. Choose Run Immediately.\n\n3. Tap Next.",
+            imageName: "SMSSetup03Trigger"
+        ),
         SetupStep(title: "Create a shortcut", detail: "Tap Create New Shortcut", imageName: "SMSSetup04Create"),
         SetupStep(title: "Find DailyMint", detail: "Search for DailyMint and choose Import Bank SMS.", imageName: "SMSSetup05Search"),
         SetupStep(title: "Connect Shortcut Input", detail: "Tap Message, swipe the suggestions to the right, choose Shortcut Input, then tap the blue checkmark.", imageName: "SMSSetup06ShortcutInput"),

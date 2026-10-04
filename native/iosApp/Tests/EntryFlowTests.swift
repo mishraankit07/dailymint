@@ -165,7 +165,7 @@ final class EntryFlowTests: XCTestCase {
             }
             if title == "Set the trigger" {
                 XCTAssertTrue(
-                    app.staticTexts["Tap Message Contains and enter a short bank name, such as HDFC, ICICI, Axis, BOB, or SBI. Choose Run Immediately, then tap Next."].exists
+                    app.staticTexts["1. Tap Message Contains, enter your bank name in short, ex: HDFC, ICICI, Axis, BOB, SBI or Kotak\n\n2. Choose Run Immediately.\n\n3. Tap Next."].exists
                 )
             }
             if title == "Create a shortcut" {
