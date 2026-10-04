@@ -8,7 +8,7 @@ struct SMSOnboardingView: View {
 
     private let steps = [
         SetupStep(title: "Open Automation", detail: "In Shortcuts, open Automation and tap +.", imageName: "SMSSetup01Automation"),
-        SetupStep(title: "Choose Message", detail: "Create a Personal Automation, then choose Message.", imageName: "SMSSetup02Message"),
+        SetupStep(title: "Choose Message", detail: nil, imageName: "SMSSetup02Message"),
         SetupStep(title: "Set the trigger", detail: "Tap Message Contains and enter a short bank name, such as HDFC, ICICI, Axis, BOB, or SBI. Choose Run Immediately, then tap Next.", imageName: "SMSSetup03Trigger"),
         SetupStep(title: "Create a shortcut", detail: "Tap Create New Shortcut", imageName: "SMSSetup04Create"),
         SetupStep(title: "Find DailyMint", detail: "Search for DailyMint and choose Import Bank SMS.", imageName: "SMSSetup05Search"),
@@ -26,9 +26,11 @@ struct SMSOnboardingView: View {
                             Text(steps[index].title)
                                 .font(.system(size: 30, weight: .semibold, design: .serif))
                                 .foregroundStyle(Color.dmInk)
-                            Text(steps[index].detail)
-                                .font(.subheadline)
-                                .foregroundStyle(Color.dmInkSoft)
+                            if let detail = steps[index].detail {
+                                Text(detail)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color.dmInkSoft)
+                            }
                         }
                         ShortcutScreenshot(name: steps[index].imageName)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -143,7 +145,7 @@ struct SMSOnboardingView: View {
 
 private struct SetupStep {
     let title: String
-    let detail: String
+    let detail: String?
     let imageName: String
 }
 

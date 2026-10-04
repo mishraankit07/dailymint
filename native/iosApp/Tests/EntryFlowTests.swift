@@ -160,6 +160,9 @@ final class EntryFlowTests: XCTestCase {
         ] {
             app.buttons["onboardingNext"].tap()
             XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
+            if title == "Choose Message" {
+                XCTAssertFalse(app.staticTexts["Create a Personal Automation, then choose Message."].exists)
+            }
             if title == "Set the trigger" {
                 XCTAssertTrue(
                     app.staticTexts["Tap Message Contains and enter a short bank name, such as HDFC, ICICI, Axis, BOB, or SBI. Choose Run Immediately, then tap Next."].exists
