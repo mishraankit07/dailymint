@@ -472,7 +472,7 @@ struct TransactionDetailView: View {
             }
 
             RaisedPanel {
-                Toggle("Record your share?", isOn: $splitEnabled)
+                Toggle("Split this expense?", isOn: $splitEnabled)
                     .tint(Color.dmFlow)
                     .accessibilityIdentifier("splitTransaction")
                     .disabled(!isExpense)
