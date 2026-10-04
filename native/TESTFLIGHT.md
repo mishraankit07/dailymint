@@ -1,7 +1,7 @@
 # Native prototype to TestFlight from Windows
 
 This workflow builds SwiftUI/Kotlin, not Expo. It is manual-only and uploads only
-`com.ankit.dailymint.prototype` (version 0.1.0). Existing DailyMint data and its
+`com.ankit.dailymint.prototype` (version 1.0.0). Existing DailyMint data and its
 TestFlight listing are not replaced. Apple signing/upload has not been validated
 until a run with your credentials succeeds.
 
@@ -59,6 +59,24 @@ uploads. It never submits to App Review or automatically adds external testers.
 After Apple processing, open DailyMint Prototype > TestFlight, answer any export
 compliance questions, and add the build to your internal tester group. External
 testing may require beta review. TestFlight builds are not ad-hoc IPA installs.
+
+## App Store candidate
+
+Use the separate, manual-only production workflow after approving a TestFlight
+build. It verifies that build in App Store Connect, resolves the exact successful
+TestFlight workflow commit, queries Apple for every existing build number, and
+rejects the requested production build number if it is already in use.
+
+```powershell
+gh workflow run native-app-store.yml --repo mishraankit07/dailymint --ref main `
+  -f tested_build=34.1 -f release_version=1.0.0 -f production_build=1
+```
+
+The workflow uploads a new App Store candidate but does not submit it for review.
+An uploaded binary cannot be renamed from `0.1.0` to `1.0.0`; selecting an older
+TestFlight build therefore rebuilds its source commit with the requested release
+version and a new build number. Complete metadata, select the processed build,
+and submit it manually in App Store Connect.
 
 ## Troubleshooting
 

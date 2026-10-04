@@ -52,13 +52,18 @@ security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$
 security list-keychains -d user -s "$KEYCHAIN" "$HOME/Library/Keychains/login.keychain-db"
 
 mkdir -p iosApp/build
-BUILD_NUMBER="${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+BUILD_NUMBER="${IOS_BUILD_NUMBER:-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}}"
+VERSION_SETTINGS=()
+if [ -n "${IOS_MARKETING_VERSION:-}" ]; then
+  VERSION_SETTINGS+=(MARKETING_VERSION="$IOS_MARKETING_VERSION")
+fi
 xcodebuild archive -project iosApp/DailyMint.xcodeproj -scheme DailyMint \
   -configuration Release -destination 'generic/platform=iOS' \
   -archivePath iosApp/build/DailyMint.xcarchive \
   DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Manual \
   CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
-  PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+  PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+  "${VERSION_SETTINGS[@]}"
 xcodebuild -exportArchive -archivePath iosApp/build/DailyMint.xcarchive \
   -exportOptionsPlist "$SIGNING_DIR/ExportOptions.plist" -exportPath iosApp/build/export
 
