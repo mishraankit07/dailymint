@@ -4,6 +4,10 @@ This is an in-progress migration, not a replacement for the Expo app.
 It uses a separate identifier, com.ankit.dailymint.prototype, and separate storage.
 It does not read or overwrite the existing DailyMint ledger.
 
+Reusable decisions for input behavior, validation, keyboard handling, navigation,
+themes, accessibility, testing, and releases are documented in
+[`docs/MOBILE_APP_IMPLEMENTATION_GUIDELINES.md`](../docs/MOBILE_APP_IMPLEMENTATION_GUIDELINES.md).
+
 ## Implemented
 
 - Kotlin Multiplatform core shared by Android and iOS: manual-entry validation,
