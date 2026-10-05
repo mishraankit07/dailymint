@@ -188,7 +188,6 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
     var entryError by remember { mutableStateOf("") }
     var edited by remember { mutableStateOf<Entry?>(null) }
     var detailId by rememberSaveable { mutableStateOf<String?>(null) }
-    var unrecognizedDebug by remember { mutableStateOf<ReviewRow?>(null) }
     var deletingCategory by remember { mutableStateOf<String?>(null) }
     var monthMenu by remember { mutableStateOf(false) }
     var settingsError by remember { mutableStateOf("") }
@@ -247,7 +246,7 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (tab == 3) {
                 LedgerContent(engine, revision + externalRevision, smsError,
-                    onDetail = { detailId = it.id }, onUnrecognized = { unrecognizedDebug = it })
+                    onDetail = { detailId = it.id })
             } else Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 engine.loadError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -406,9 +405,6 @@ fun DailyMint(engine: LedgerEngine, externalRevision: Int = 0, smsError: String 
     edited?.let { EntryEditor(it, engine, onDismiss = { edited = null }, onChanged = { revision++ }) }
     detailId?.let { id -> TransactionDetail(id, engine, revision + externalRevision,
         onDismiss = { detailId = null }, onChanged = { revision++ }, onManualEdit = { edited = it }) }
-    unrecognizedDebug?.let { row -> AlertDialog(onDismissRequest = { unrecognizedDebug = null }, title = { Text("Unrecognized message") },
-        text = { Text((if (row.reason.isNotEmpty()) "Reason: " + row.reason + "\n\n" else "") + row.rawText) },
-        confirmButton = { TextButton(onClick = { unrecognizedDebug = null }) { Text("Close") } }) }
     deletingCategory?.let { categoryName -> AlertDialog(onDismissRequest = { deletingCategory = null },
         title = { Text("Delete " + categoryName + "?") }, text = { Text("Transactions in this category will move to Miscellaneous.") },
         confirmButton = { TextButton(onClick = {

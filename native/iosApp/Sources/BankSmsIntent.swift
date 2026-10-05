@@ -27,7 +27,6 @@ actor ShortcutSMSProcessor {
 
     private struct ImportOutcome {
         let response: String
-        let status: String
         let addedTransaction: Bool
     }
 
@@ -37,7 +36,6 @@ actor ShortcutSMSProcessor {
         let recoveredFromSender = suppliedMessage.isEmpty && !suppliedSender.isEmpty
         let text = recoveredFromSender ? suppliedSender : suppliedMessage
         guard !text.isEmpty else {
-            ShortcutImportLog.record(status: "empty input", sender: "Shortcut", message: "")
             return "DailyMint did not receive a message. Check the Message field in Shortcuts."
         }
 
@@ -49,14 +47,11 @@ actor ShortcutSMSProcessor {
             let outcome = try store.withExclusiveLock {
                 importLocked(text: text, sender: normalizedSender, timestamp: timestamp, sourceId: sourceId, store: store)
             }
-            let status = recoveredFromSender ? outcome.status + " (recovered sender input)" : outcome.status
-            ShortcutImportLog.record(status: status, sender: normalizedSender, message: text)
             if outcome.addedTransaction {
                 await AutomaticImportNotification.sendTransactionAdded()
             }
             return outcome.response
         } catch {
-            ShortcutImportLog.record(status: "ledger access failed", sender: normalizedSender, message: text)
             return "DailyMint could not access its local data. Try again."
         }
     }
@@ -66,12 +61,10 @@ actor ShortcutSMSProcessor {
         if let loadError = engine.loadError {
             return ImportOutcome(
                 response: "DailyMint could not open its ledger: \(loadError)",
-                status: "ledger load failed",
                 addedTransaction: false
             )
         }
         let entryCount = engine.entries().count
-        let unrecognizedCount = engine.unrecognizedMessages().count
         let result = engine.importSingleMessage(
             id: sourceId,
             body: text,
@@ -81,22 +74,14 @@ actor ShortcutSMSProcessor {
 
         if result.success {
             if engine.entries().count > entryCount {
-                return ImportOutcome(response: "DailyMint added this transaction.", status: "transaction added", addedTransaction: true)
-            }
-            if engine.unrecognizedMessages().count > unrecognizedCount {
-                return ImportOutcome(
-                    response: "DailyMint received this SMS, but could not recognize it yet.",
-                    status: "unrecognized",
-                    addedTransaction: false
-                )
+                return ImportOutcome(response: "DailyMint added this transaction.", addedTransaction: true)
             }
             return ImportOutcome(
                 response: "DailyMint received this SMS. It was ignored or already recorded.",
-                status: "ignored or already recorded",
                 addedTransaction: false
             )
         }
-        return ImportOutcome(response: "DailyMint could not save this message.", status: "save failed", addedTransaction: false)
+        return ImportOutcome(response: "DailyMint could not save this message.", addedTransaction: false)
     }
 
     private func stableHash(_ text: String) -> String {

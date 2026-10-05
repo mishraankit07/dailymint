@@ -146,13 +146,13 @@ The current snapshot schema version is 3.
 | `type` | `expense`, `investment`, or `income` | Derived from classification |
 | `source` | Origin such as `manual` or platform message import | Immutable |
 | `capturedAtMillis` | Time at which DailyMint captured the record | Immutable |
-| `rawSms` | Original transaction message | Protected evidence; never ordinary UI |
-| `sender` | Source sender identifier | Protected evidence; never ordinary UI |
+| `rawSms` | Original message for a recognized imported transaction | Retained with the ledger entry; Android's current detail screen can reveal it |
+| `sender` | Source sender identifier for a recognized import | Retained with the ledger entry; Android's current detail screen can reveal it |
 | `referenceId` | Bank reference identifier when available | Protected evidence; never ordinary UI |
 | `bank` | Parsed bank name when available | Protected evidence |
 | `personalExpensePaise` | Optional amount counted as personal spending | Editable for expenses within bounds |
 | `creditKind` | Shared credit classification | Editable for credits |
-| `ignored` | Whether analytics exclude the record | Editable for imported records |
+| `ignored` | Legacy compatibility flag | New entries use `false`; older ignored entries are removed during load |
 | `originalName` | Initial parsed display name | Immutable audit value |
 | `originalCategory` | Initial parsed category | Immutable audit value |
 | `splitMethod` | `none`, `equal`, or `custom` | Editable through the split flow |
@@ -169,9 +169,8 @@ The snapshot contains:
 - Tracking-cycle start day
 - Reminder enabled state and time
 - Message-import watermark
-- Up to 50 unrecognized transaction-message records for local diagnostics
 
-The shared core still contains deprecated staging structures for historical compatibility in code. They are not a product surface and must not be connected to any screen or file picker.
+The shared core still decodes deprecated staging and unrecognized-message fields for historical compatibility. They are not product surfaces. Unrecognized message content is cleared when an older snapshot loads and is not retained by new imports.
 
 ### Default categories
 
@@ -642,16 +641,9 @@ Turning split off stages:
 
 Nothing changes in analytics until Done succeeds.
 
-### Ignore
+### Delete
 
-`Ignore this transaction` is a separate destructive action.
-
-- It asks for confirmation.
-- It explains that the record remains in local diagnostic history.
-- If draft edits exist, the confirmation explains they will not be applied.
-- On success, the transaction is excluded from Home, Growth, category totals, earned income, and investment totals.
-- The record remains in Ledger and can be restored.
-- Restoration returns the transaction to analytics exactly once.
+Deleting an imported transaction removes it from the ledger and all analytics. It is not copied to diagnostic history and cannot be restored. The shared `setIgnored` method remains only as a deprecated compatibility entry point; setting it to true performs deletion, while restoration is rejected.
 
 ## 14. Plan Screen
 
@@ -726,20 +718,9 @@ Settings provides a route to set up or review the platform's automatic message-d
 
 The setup surface must explain how to pass the full transaction message into DailyMint and how to verify delivery.
 
-### Recent import receipts
+### Import result handling
 
-Recent platform-delivery receipts may be shown with:
-
-- Timestamp
-- Status
-
-Do not show raw message text or sender. Receipt logging is diagnostic only and must not make an otherwise successful import fail.
-
-### Unrecognized messages
-
-When the parser receives a transaction-like message but cannot parse it, Settings may list a local diagnostic item and reason.
-
-The ordinary UI shows only the reason/status, not raw message text, sender, or reference ID.
+Recognized messages create ledger transactions. The source message and sender may be retained with that transaction so the user can review the imported record. Ignored and unrecognized messages do not create entries, are not listed in Settings, and are not retained as diagnostic history.
 
 ## 16. Automatic Transaction-Message Flow
 
@@ -761,8 +742,8 @@ Load current schema snapshot
         |
 KMP parser classifies message
         |
-Ignored non-transaction? -> receipt only
-Unrecognized transaction? -> diagnostic queue
+Ignored non-transaction? -> no ledger entry; content is not retained
+Unrecognized transaction? -> no ledger entry; content is not retained
 Recognized transaction? -> deterministic transaction identity
         |
 Reject duplicate identity
@@ -833,12 +814,12 @@ Identity uses:
 
 Reprocessing the same transaction must not create another entry or change totals.
 
-### Unrecognized retention
+### Unrecognized messages
 
-- Retain at most the latest 50 unrecognized transaction-like messages in protected local storage.
-- Do not add them to ledger totals.
-- Repeated deliveries with the same source ID do not duplicate the diagnostic item.
-- Promotional and OTP messages are ignored instead of retained as unrecognized.
+- Do not retain unrecognized message content or expose a diagnostic-history screen.
+- Do not add unrecognized messages to ledger totals.
+- Promotional and OTP messages are ignored and are not retained.
+- Older snapshots may contain the former `unrecognized` compatibility field; loading them clears and rewrites that field.
 
 ## 17. Accounting and Analytics Contract
 
@@ -1023,7 +1004,6 @@ Important read APIs:
 - `monthStartDay()`
 - `reminderEnabled()`
 - `reminderTime()`
-- `unrecognizedMessages()`
 - `today()`
 - `transactionDay(date)`
 - `monthSummary(today)`

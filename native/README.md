@@ -19,7 +19,8 @@ themes, accessibility, testing, and releases are documented in
 - iOS Shortcuts/App Intent action for sending a bank SMS directly to DailyMint.
 - Capture-time-limited editing/deletion and category deletion with reassignment.
 - Daily reminder settings and native reminder scheduling on both platforms.
-- Raw SMS/debug details for parsed entries and recent unrecognized SMS diagnostics.
+- Source SMS details for recognized imported entries; ignored and unrecognized message
+  content is not retained as diagnostic history.
 - Native Add Category dialogs; native input controls and keyboard handling.
 - Shared tests for decimals, totals, invalid inputs, duplicate IDs, persistence,
   corrupt storage, failed writes, import idempotency, reminder settings,

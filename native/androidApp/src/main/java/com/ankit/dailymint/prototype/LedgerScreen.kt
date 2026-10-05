@@ -23,7 +23,6 @@ fun LedgerContent(
     revision: Int,
     smsError: String,
     onDetail: (Entry) -> Unit,
-    onUnrecognized: (ReviewRow) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var search by rememberSaveable { mutableStateOf("") }
@@ -83,15 +82,6 @@ fun LedgerContent(
             RaisedCard {
                 SectionTitle("Automatic SMS scan")
                 Text(if (smsError.isNotEmpty()) smsError else "Bank messages are scanned when SMS access is available.", color = InkSoft)
-                val unrecognized = engine.unrecognizedMessages()
-                if (unrecognized.isNotEmpty()) {
-                    SectionTitle("Unrecognized", trailing = unrecognized.size.toString())
-                    unrecognized.takeLast(20).forEachIndexed { index, row ->
-                        TextButton(onClick = { onUnrecognized(row) }, modifier = Modifier.fillMaxWidth()) {
-                            Text("View message ${index + 1}")
-                        }
-                    }
-                }
             }
         }
         if (all.isEmpty()) {
@@ -155,7 +145,7 @@ fun TransactionDetail(
         text = {
             Column(Modifier.heightIn(max = 500.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Date: ${entry.date.take(10)}")
-                Text("Source: ${if (entry.source == "manual") "Manual" else "Bank SMS / file"}")
+                Text("Source: ${if (entry.source == "manual") "Manual" else "Bank SMS"}")
                 Text("Original amount: Rs ${engine.formatAmount(entry.paise)}", modifier = Modifier.testTag("originalAmount"))
                 if (entry.type == "expense") Text("Personal spending: Rs ${engine.formatAmount(entry.personalSpent)}",
                     modifier = Modifier.testTag("personalAmount"))

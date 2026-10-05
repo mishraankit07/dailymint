@@ -557,7 +557,6 @@ struct SettingsView: View {
     @State private var error: String?
     @State private var reminderEnabled = false
     @State private var reminderTime = "21:30"
-    @State private var unrecognizedText: String?
     @State private var reminderDigits = ReminderDigits.from24Hour("21:30")
     @State private var focusedReminderDigit: ReminderDigit?
     @State private var notificationPermissionDenied = false
@@ -589,7 +588,6 @@ struct SettingsView: View {
                 shortcutSetupSection
                 automaticImportNotificationSection
                 privacySection
-                unrecognizedSection
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
@@ -602,11 +600,6 @@ struct SettingsView: View {
                     reminderTime = model.engine.reminderTime()
                     reminderDigits = ReminderDigits.from24Hour(reminderTime)
                     refreshAutomaticImportNotificationPermission()
-                }
-                .alert("Unrecognized message", isPresented: Binding(get: { unrecognizedText != nil }, set: { if !$0 { unrecognizedText = nil } })) {
-                    Button("Close") { unrecognizedText = nil }
-                } message: {
-                    Text(unrecognizedText ?? "")
                 }
                 .alert("Notifications are off", isPresented: $notificationPermissionDenied) {
                     Button("OK", role: .cancel) {}
@@ -793,22 +786,6 @@ struct SettingsView: View {
         }
     }
 
-    @ViewBuilder
-    private var unrecognizedSection: some View {
-        let messages = model.engine.unrecognizedMessages()
-        if !messages.isEmpty {
-            RaisedPanel {
-                SectionHeading(title: "Unrecognized messages", trailing: String(messages.count))
-                ForEach(Array(messages.suffix(10).enumerated()), id: \.element.id) { index, row in
-                    Button(unrecognizedTitle(index: index, reason: row.reason)) {
-                        unrecognizedText = row.reason.isEmpty ? "This message could not be parsed." : "Reason: \(row.reason)"
-                    }
-                    .buttonStyle(SecondaryPillButtonStyle())
-                }
-            }
-        }
-    }
-
     private var reminderTimeBinding: Binding<String> {
         Binding(
             get: { reminderTime },
@@ -937,9 +914,6 @@ struct SettingsView: View {
         }
     }
 
-    private func unrecognizedTitle(index: Int, reason: String) -> String {
-        "View message " + String(index + 1) + (reason.isEmpty ? "" : " · " + reason)
-    }
 }
 
 private enum ReminderDigit: String, Hashable {

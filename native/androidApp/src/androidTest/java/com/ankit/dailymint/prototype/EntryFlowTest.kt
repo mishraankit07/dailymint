@@ -10,6 +10,9 @@ import org.junit.Test
 import org.junit.Assert.*
 import org.junit.runner.RunWith
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @RunWith(AndroidJUnit4::class)
 class EntryFlowTest {
@@ -100,7 +103,7 @@ class EntryFlowTest {
         compose.onNodeWithTag("entryAmount").performTextInput("1234.00")
         compose.onNodeWithTag("saveEntry").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Home", useUnmergedTree = true).assertExists()
-        compose.onNodeWithTag("moneyIn").assertTextContains("Rs 1234", substring = true)
+        compose.onNodeWithTag("moneyIn").assertTextContains("Rs 1,234", substring = true)
         compose.onNodeWithTag("spent").assertTextContains("Rs 0", substring = true)
         val totals = LedgerEngine(store).totals()
         assertEquals(123400L, totals.moneyIn)
@@ -150,7 +153,7 @@ class EntryFlowTest {
         compose.onNodeWithTag("personalAmount").assertTextContains("Rs 100", substring = true)
     }
     @Test fun settlementCreditStaysInLedgerButNotMoneyIn() {
-        assertTrue(engine.addEntry("credit-1", "Roommate paid back", "200", "Income", "2026-09-14", true).success)
+        assertTrue(engine.addEntry("credit-1", "Roommate paid back", "200", "Income", LocalDate.now().toString(), true).success)
         launch()
         compose.onNodeWithTag("moneyIn").assertTextContains("Rs 200", substring = true)
         compose.onNodeWithTag("navLedger").performClick()
@@ -165,9 +168,12 @@ class EntryFlowTest {
         compose.onNodeWithTag("moneyIn").assertDoesNotExist()
         compose.onNodeWithTag("spent").assertTextContains("Rs 0", substring = true)
     }
-    @Test fun ignoredImportedTransactionLeavesAnalyticsAndCanBeRestored() {
-        val sms = "Sent Rs.500.00 From HDFC Bank A/C *5678 To PROMO SHOP On 10/08/26 Ref 900000000017 Not You? Call 18002586161"
-        assertTrue(engine.importSingleMessage("fixture-ignore", sms, "HDFC", 1789299000000).success)
+    @Test fun importedFalsePositiveCanBeRemovedFromAnalytics() {
+        val today = LocalDate.now()
+        val smsDate = today.format(DateTimeFormatter.ofPattern("dd/MM/yy"))
+        val timestamp = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val sms = "Sent Rs.500.00 From HDFC Bank A/C *5678 To PROMO SHOP On $smsDate Ref 900000000017 Not You? Call 18002586161"
+        assertTrue(engine.importSingleMessage("fixture-ignore", sms, "HDFC", timestamp).success)
         val imported = engine.entries().single()
         launch()
         compose.onNodeWithTag("spent").assertTextContains("Rs 500", substring = true)
@@ -175,15 +181,8 @@ class EntryFlowTest {
         compose.onNodeWithTag("ledgerRow-${imported.id}").performScrollTo().performClick()
         compose.onNodeWithTag("toggleIgnored").performScrollTo().performClick()
         assertEquals(0L, engine.totals().spent)
-        assertTrue(engine.entries().single().ignored)
-        compose.onNodeWithText("Ignored: excluded from all totals").assertExists()
-        compose.onNodeWithText("Close").performClick()
+        assertTrue(engine.entries().isEmpty())
         compose.onNodeWithTag("navHome").performClick()
         compose.onNodeWithTag("spent").assertTextContains("Rs 0", substring = true)
-        compose.onNodeWithTag("navLedger").performClick()
-        compose.onNodeWithTag("ledgerRow-${imported.id}").performScrollTo().performClick()
-        compose.onNodeWithTag("toggleIgnored").performScrollTo().performClick()
-        assertEquals(50000L, engine.totals().spent)
-        assertFalse(engine.entries().single().ignored)
     }
 }

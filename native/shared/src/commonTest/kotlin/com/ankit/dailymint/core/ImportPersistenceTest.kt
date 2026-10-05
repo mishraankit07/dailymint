@@ -60,17 +60,26 @@ class ImportPersistenceTest {
         assertEquals("bank-sms", engine.entries().single().source)
         assertEquals(1789299005000, engine.smsWatermark())
         assertEquals(0, engine.reviewRows().size)
-        assertEquals(0, engine.unrecognizedMessages().size)
     }
-    @Test fun automaticImportKeepsUnrecognizedTransactionMessagesForDiagnostics() {
-        val engine = LedgerEngine(MemoryStore())
+    @Test fun automaticImportDoesNotRetainUnrecognizedMessageContent() {
+        val store = MemoryStore()
+        val engine = LedgerEngine(store)
         val unknown = "Rs.10.00 debited."
         val promo = "Get 25 Reward points on every Rs.100 spent with SBI Credit Card."
         assertTrue(engine.importSingleMessage("unknown-1", unknown, "BANK", 1789299000000).success)
         assertTrue(engine.importSingleMessage("promo-1", promo, "SBI", 1789299001000).success)
         assertTrue(engine.entries().isEmpty())
-        assertEquals(1, engine.unrecognizedMessages().size)
-        assertEquals("unknown-1", engine.unrecognizedMessages().first().id)
-        assertEquals(unknown, engine.unrecognizedMessages().first().rawText)
+        assertFalse(store.value.orEmpty().contains(unknown))
+        assertFalse(store.value.orEmpty().contains(promo))
+    }
+    @Test fun loadingOlderDataPurgesRetainedUnrecognizedMessages() {
+        val sensitive = "Rs.10.00 debited from account 1234."
+        val store = MemoryStore().apply {
+            value = Json.encodeToString(Snapshot(unrecognized = listOf(
+                ReviewRow("unknown-1", status = "unrecognized", rawText = sensitive)
+            )))
+        }
+        LedgerEngine(store)
+        assertFalse(store.value.orEmpty().contains(sensitive))
     }
 }

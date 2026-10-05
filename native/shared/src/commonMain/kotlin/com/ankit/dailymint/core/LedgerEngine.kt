@@ -184,9 +184,7 @@ class LedgerEngine(private val store: LedgerStore) {
                     review = loaded.review.map { row ->
                         row.copy(entry = row.entry?.let { entry -> migrateEntry(entry, loaded.schemaVersion) })
                     },
-                    unrecognized = loaded.unrecognized.map { row ->
-                        row.copy(entry = row.entry?.let { entry -> migrateEntry(entry, loaded.schemaVersion) })
-                    }
+                    unrecognized = emptyList()
                 )
                 require(migrated.entries.size <= 100_000)
                 require(migrated.entries.map { entry -> entry.id }.distinct().size == migrated.entries.size)
@@ -203,6 +201,9 @@ class LedgerEngine(private val store: LedgerStore) {
                         (entry.splitMethod != SplitMethod.NONE || entry.splitPeopleCount == null)
                 })
                 snapshot = migrated
+                if (loaded.unrecognized.isNotEmpty()) {
+                    store.save(Json.encodeToString(migrated))
+                }
             }
         } catch (_: Exception) {
             loadError = "Could not read your saved ledger. Your data has not been replaced."
@@ -217,7 +218,6 @@ class LedgerEngine(private val store: LedgerStore) {
     fun reminderTime(): String = snapshot.reminderTime
     fun reminderQuote(daySeed: Int): String = ReminderCopy.quoteForDay(daySeed)
     fun smsWatermark(): Long = snapshot.smsWatermark
-    fun unrecognizedMessages(): List<ReviewRow> = snapshot.unrecognized
     fun stageWal(text: String, fileName: String): SaveResult {
         if (snapshot.review.any { it.status == "new" }) return SaveResult(false, "Save or discard the current import first.")
         if (text.length > 5_000_000) return SaveResult(false, "This file is too large. Import a daily transaction file.")
@@ -257,16 +257,14 @@ class LedgerEngine(private val store: LedgerStore) {
     private fun importMessages(messages: List<IncomingSms>): SaveResult {
         val ids = snapshot.entries.map { it.id }.toMutableSet()
         val entries = snapshot.entries.toMutableList()
-        val unknown = snapshot.unrecognized.toMutableList()
         var watermark = snapshot.smsWatermark
         for (message in messages.sortedBy { it.timestamp }) {
             val date = try { kotlinx.datetime.Instant.fromEpochMilliseconds(message.timestamp).toString() } catch (_: Exception) { return SaveResult(false, "Invalid message date.") }
             val row = TransactionImport.sms(message.body, message.sender, date, Clock.System.now().toEpochMilliseconds(), snapshot)
             row.entry?.let { if (ids.add(it.id)) entries.add(it) }
-            if (row.status == "unrecognized" && unknown.none { it.id == message.id }) unknown.add(row.copy(id = message.id))
             watermark = maxOf(watermark, message.timestamp)
         }
-        return commit(snapshot.copy(entries = entries, smsWatermark = watermark, unrecognized = unknown.takeLast(50)))
+        return commit(snapshot.copy(entries = entries, smsWatermark = watermark, unrecognized = emptyList()))
     }
     fun today(): String = LedgerDates.today().toString()
     fun transactionDay(date: String): String = LedgerDates.date(date).toString()
