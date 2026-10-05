@@ -99,6 +99,15 @@ final class EntryFlowTests: XCTestCase {
         close.tap()
         XCTAssertTrue(close.waitForNonExistence(timeout: 5))
     }
+    func testSettingsIncludesPrivacyPolicy() {
+        app.buttons["settings"].tap()
+        let privacyPolicy = app.buttons["privacyPolicy"]
+        for _ in 0..<5 where !privacyPolicy.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(privacyPolicy.waitForExistence(timeout: 5))
+        XCTAssertEqual(privacyPolicy.label, "View privacy policy")
+    }
     func testEveryTabOpens() {
         let tabButtons = ["Home", "Growth", "Add", "Ledger"].map { app.buttons["tab-" + $0] }
         tabButtons.forEach { XCTAssertTrue($0.waitForExistence(timeout: 5)) }

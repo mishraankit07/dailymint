@@ -547,6 +547,7 @@ struct ManualView: View {
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @ObservedObject var model: LedgerModel
     @AppStorage(OnboardingReleaseTracker.seenKey) private var onboardingSeen = true
     @AppStorage(AutomaticImportNotification.enabledKey) private var automaticImportNotificationsEnabled = false
@@ -587,6 +588,7 @@ struct SettingsView: View {
                 categoriesSection
                 shortcutSetupSection
                 automaticImportNotificationSection
+                privacySection
                 unrecognizedSection
             }
             .navigationTitle("")
@@ -772,6 +774,23 @@ struct SettingsView: View {
         }
         .tint(Color.dmIncome)
         .accessibilityIdentifier(identifier)
+    }
+
+    private var privacySection: some View {
+        RaisedPanel {
+            SectionHeading(title: "Privacy")
+            Text("Your financial data stays on this device.")
+                .font(.subheadline)
+                .foregroundStyle(Color.dmInkSoft)
+            Button {
+                guard let url = URL(string: "https://mishraankit07.github.io/dailymint-privacy/") else { return }
+                openURL(url)
+            } label: {
+                Label("View privacy policy", systemImage: "arrow.up.right.square")
+            }
+            .buttonStyle(SecondaryPillButtonStyle())
+            .accessibilityIdentifier("privacyPolicy")
+        }
     }
 
     @ViewBuilder
