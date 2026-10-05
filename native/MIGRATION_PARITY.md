@@ -34,13 +34,17 @@ Goal: migrate the current Expo app functionality into a Kotlin Multiplatform cor
 ## Native iOS
 
 - [x] Persistent ledger store
-- [x] Manual file import and review staging
 - [x] Manual entry
 - [x] Month/Growth/Plan/Settings surfaces
 - [x] Edit/delete recent eligible ledger entries
 - [x] Daily reminder scheduling from shared settings
 - [x] App Intent / Shortcut action for automated transaction ingest
 - [ ] Polished DailyMint UI
+
+## Retired scope
+
+- Manual file import and review staging were removed. iOS bank-message imports use the
+  user-configured Shortcuts automation.
 
 ## Remaining Expo-only or weaker native areas
 

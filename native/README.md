@@ -14,8 +14,7 @@ themes, accessibility, testing, and releases are documented in
   exact integer-paise amounts, categories, learned tagging, bank SMS parsing,
   import staging, deduplication, period analytics, and versioned JSON snapshots.
 - Persistence: Android SharedPreferences and an atomically written iOS app-private file.
-- Jetpack Compose and SwiftUI screens for Month, Growth, Manual, Plan, Import,
-  and Settings; SwiftUI file import and staged review.
+- Jetpack Compose and SwiftUI screens for Home, Growth, Add, Ledger, and Settings.
 - Android foreground SMS reading with permission handling and inbox observation.
 - iOS Shortcuts/App Intent action for sending a bank SMS directly to DailyMint.
 - Capture-time-limited editing/deletion and category deletion with reassignment.
@@ -68,7 +67,7 @@ local Xcode or a local iOS simulator as their verification workflow.
 3. Produce a signed archive on a cloud macOS runner and upload it to TestFlight.
    Native signing and upload configuration still need to be established.
 4. Install the checkpoint through TestFlight and verify launch, category Save/Cancel,
-   keyboard handling, file import, Shortcut/App Intent import, editing,
+   keyboard handling, Shortcut/App Intent import, editing,
    persistence after relaunch, and chart totals.
 5. Record device results and address failures before advancing the release checkpoint.
 
@@ -121,6 +120,6 @@ same shared KMP import pipeline as Android SMS ingestion.
    after TestFlight install.
 2. Validate Android SMS ingestion on a physical device with the direct-to-ledger
    flow.
-3. Validate iOS file import and Shortcut import on a physical iPhone.
+3. Validate iOS Shortcut import on a physical iPhone.
 4. Run final device regression checks before replacing the Expo app.
 5. Redesign the Android and iOS UI once functionality parity is stable.
