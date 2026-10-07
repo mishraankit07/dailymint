@@ -4,6 +4,10 @@ This guide is intentionally project agnostic. It explains how to register an iOS
 app, create signing credentials, store them as GitHub Actions secrets, and upload
 the first signed build to App Store Connect.
 
+The developer workstation may be Windows or macOS. A local Mac is not required
+when a GitHub-hosted macOS runner performs every Xcode-only build, signing,
+archive, and upload step.
+
 The example uses:
 
 - A native Xcode project or workspace.
@@ -33,6 +37,75 @@ are pending.
 As of October 2026, Apple requires iOS uploads to be built with Xcode 26 or later.
 Requirements change, so check [Apple's supported Xcode versions](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds)
 before pinning a runner or Xcode version.
+
+## Windows and macOS responsibilities
+
+### Windows development with macOS CI
+
+From Windows you can:
+
+- Develop and test all code supported by the project's Windows toolchain.
+- Register the App ID and create the app record in Apple's web portals.
+- Generate a signing key and certificate request with OpenSSL.
+- Download the Apple certificate, provisioning profile, and API key.
+- Create the `.p12` and configure GitHub Actions secrets.
+- Commit, push, dispatch, and monitor the release workflow.
+- Manage TestFlight and App Store metadata in a browser.
+
+Windows cannot run Xcode, the iOS simulator, `xcodebuild`, `codesign`, or Apple's
+Keychain tools. The macOS Actions job must therefore run iOS compilation and tests,
+import the signing identity into a temporary keychain, archive the app, export the
+IPA, and upload it.
+
+Recommended Windows tools:
+
+- Git for Windows.
+- PowerShell 7 or Windows PowerShell 5.1.
+- GitHub CLI (`gh`).
+- OpenSSL 3.x when creating the distribution identity without a Mac.
+
+Verify them before handling credentials:
+
+```powershell
+git --version
+gh --version
+openssl version
+gh auth login
+gh auth status
+```
+
+Keep shell scripts in LF format so they execute correctly on the macOS runner. A
+repository-level `.gitattributes` can enforce this:
+
+```gitattributes
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.plist text eol=lf
+```
+
+Do not put absolute `C:\...` paths into CI scripts or Xcode settings. Release
+scripts should resolve paths from the checked-out repository.
+
+### Local Mac development
+
+A Mac can perform every step above and can additionally run Xcode builds,
+simulator/device tests, local archives, Keychain-based signing, and Transporter.
+The same GitHub Actions workflow is still useful because it provides a repeatable,
+ephemeral release environment.
+
+On macOS, install the current supported Xcode, select its command-line tools, and
+verify the active version:
+
+```bash
+xcode-select -p
+xcodebuild -version
+swift --version
+gh --version
+```
+
+Whether development happens on Windows or macOS, treat the macOS CI result as the
+release gate. A Windows build cannot prove that the iOS target compiles or signs.
 
 ## 2. Decide the permanent identifiers
 
@@ -88,6 +161,80 @@ record. See [Add a new app](https://developer.apple.com/help/app-store-connect/c
 The CI runner needs a distribution certificate **and its private key**. A `.cer`
 file by itself is not sufficient.
 
+### Windows: create the identity with OpenSSL
+
+Apple's documented CSR workflow uses Keychain Access on a Mac. A Windows-only
+developer can instead create the RSA private key and standard PKCS#10 certificate
+request with OpenSSL, then upload that request to the same Apple Developer portal.
+Keep all generated files outside the repository.
+
+In PowerShell:
+
+```powershell
+$signingDirectory = 'C:\secure\ios-signing'
+New-Item -ItemType Directory -Force -Path $signingDirectory | Out-Null
+Set-Location -LiteralPath $signingDirectory
+
+# OpenSSL asks for a password that protects the long-lived private key.
+openssl genrsa -aes256 -out ios-distribution-private-key.pem 2048
+
+# Replace the subject values. Keep the leading slash syntax.
+openssl req -new -sha256 `
+  -key ios-distribution-private-key.pem `
+  -out ios-distribution.certSigningRequest `
+  -subj "/emailAddress=developer@example.com/CN=Example Distribution/C=IN"
+
+openssl req -in ios-distribution.certSigningRequest -text -verify -noout
+```
+
+Then:
+
+1. In Apple Developer, open **Certificates** and select **+**.
+2. Choose **Apple Distribution**.
+3. Upload `ios-distribution.certSigningRequest`.
+4. Download the generated certificate as `distribution.cer` into the secure directory.
+5. Convert Apple's DER certificate to PEM:
+
+```powershell
+openssl x509 -inform DER `
+  -in distribution.cer `
+  -out distribution-certificate.pem
+```
+
+If Apple supplied a PEM-formatted certificate, omit `-inform DER`.
+
+Confirm the certificate matches the private key. The two SHA-256 values must be
+identical:
+
+```powershell
+openssl rsa -noout -modulus -in ios-distribution-private-key.pem | openssl sha256
+openssl x509 -noout -modulus -in distribution-certificate.pem | openssl sha256
+```
+
+Export the matching key and certificate as a password-protected PKCS#12 file:
+
+```powershell
+openssl pkcs12 -export `
+  -inkey ios-distribution-private-key.pem `
+  -in distribution-certificate.pem `
+  -name "Apple Distribution" `
+  -out distribution.p12
+
+openssl pkcs12 -in distribution.p12 -info -noout
+```
+
+OpenSSL prompts for the private-key password and a new `.p12` export password.
+Use the `.p12` export password as `IOS_CERTIFICATE_PASSWORD`. Do not place either
+password in the command itself, PowerShell history, or a checked-in script.
+
+The OpenSSL commands follow the standard [`req`](https://docs.openssl.org/3.4/man1/openssl-req/)
+and [`pkcs12`](https://docs.openssl.org/3.5/man1/openssl-pkcs12/) flows. If an
+organization requires Apple's documented Keychain procedure, use the Mac route
+below or have an authorized Mac administrator create and securely transfer the
+password-protected `.p12`.
+
+### macOS: create the identity with Keychain Access
+
 Recommended process on a trusted Mac:
 
 1. Open **Keychain Access > Certificate Assistant > Request a Certificate From a Certificate Authority**.
@@ -107,6 +254,10 @@ can break other release pipelines using it.
 
 Apple treats distribution certificates as sensitive identity material. Keep the
 `.p12`, its password, and any unencrypted private key outside the repository.
+
+Do not generate the only copy of the private key on an ephemeral CI runner. The
+runner may disappear before the key and issued certificate are combined into the
+`.p12`.
 
 ## 6. Create the App Store Connect provisioning profile
 
@@ -250,6 +401,44 @@ Every upload for a given marketing version needs a build string not previously
 uploaded for that app. Apple does not rename an uploaded binary. Changing either
 the version or build number requires creating and uploading another archive.
 
+### Windows preflight
+
+Windows cannot open or compile the Xcode project, but it can still catch many
+release failures before consuming a macOS runner:
+
+1. Run every shared, backend, Android, JavaScript, or other cross-platform test
+   available on Windows.
+2. Confirm the Xcode project/workspace, shared scheme, assets, entitlements, and
+   release scripts are committed.
+3. Search project configuration files for the expected bundle ID, marketing
+   version, build-number setting, deployment target, and device family.
+4. Confirm every shell script has LF line endings and no absolute Windows paths.
+5. Push the exact commit before dispatching CI; never release uncommitted files.
+6. Let the macOS workflow run an unsigned simulator build and tests before it
+   imports production signing credentials.
+
+### macOS local preflight
+
+On a Mac, run the project's actual scheme before CI:
+
+```bash
+xcodebuild -list -project ios/ExampleApp.xcodeproj
+
+xcodebuild test \
+  -project ios/ExampleApp.xcodeproj \
+  -scheme ExampleApp \
+  -destination 'platform=iOS Simulator,name=iPhone 17'
+
+xcodebuild build \
+  -project ios/ExampleApp.xcodeproj \
+  -scheme ExampleApp \
+  -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+Replace the simulator with one installed by the active Xcode. A local green build
+is useful, but CI must still rebuild the committed revision.
+
 ## 10. Minimal GitHub Actions workflow
 
 This skeleton intentionally runs only when manually dispatched. Replace the
@@ -385,6 +574,37 @@ For a workspace, use `-workspace "$IOS_WORKSPACE"`; for a project, use
 7. In App Store Connect, open the app's **TestFlight** page and inspect the build.
 8. Resolve export-compliance questions or processing warnings.
 9. Add the build to an internal testing group and complete a device smoke test.
+
+### Dispatch and monitor from Windows
+
+```powershell
+$repo = 'YOUR_ORG/YOUR_REPOSITORY'
+$workflow = 'upload-ios.yml'
+
+gh workflow run $workflow --repo $repo --ref main `
+  -f marketing_version=1.0.0 `
+  -f build_number=1
+
+gh run list --repo $repo --workflow $workflow --limit 5
+gh run watch RUN_ID --repo $repo --exit-status
+```
+
+Replace `RUN_ID` with the newly created workflow run ID. These commands only
+dispatch and monitor the job; all Xcode work still executes on the macOS runner.
+
+### Dispatch and monitor from macOS
+
+```bash
+repo='YOUR_ORG/YOUR_REPOSITORY'
+workflow='upload-ios.yml'
+
+gh workflow run "$workflow" --repo "$repo" --ref main \
+  -f marketing_version=1.0.0 \
+  -f build_number=1
+
+gh run list --repo "$repo" --workflow "$workflow" --limit 5
+gh run watch RUN_ID --repo "$repo" --exit-status
+```
 
 Apple creates the initial beta version after the first upload, but processing can
 take time. See [Upload builds](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds).
