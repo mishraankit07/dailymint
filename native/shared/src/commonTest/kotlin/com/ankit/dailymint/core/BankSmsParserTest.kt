@@ -32,6 +32,28 @@ class BankSmsParserTest {
         assertEquals("merchant", MerchantTagger.learningKey("merchant.123@bank"))
     }
 
+    @Test fun pluxeeMealWalletLoadAndSpendCreateExpectedLedgerEntries() {
+        val load = SmsFixtures.values.first { it.id == "pluxee-meal-wallet-credit-001" }.sms
+        val spend = SmsFixtures.values.first { it.id == "pluxee-meal-wallet-debit-001" }.sms
+
+        val loadEntry = TransactionImport.sms(
+            load, "PLUXEE", "2026-10-07T04:00:31Z", 1, Snapshot()
+        ).entry!!
+        assertEquals(880000L, loadEntry.paise)
+        assertEquals("income", loadEntry.type)
+        assertEquals("Income", loadEntry.category)
+        assertEquals(CreditKind.INCOME, loadEntry.creditKind)
+        assertEquals("Pluxee Card", loadEntry.name)
+
+        val spendEntry = TransactionImport.sms(
+            spend, "PLUXEE", "2026-10-07T09:36:18Z", 2, Snapshot()
+        ).entry!!
+        assertEquals(38700L, spendEntry.paise)
+        assertEquals("expense", spendEntry.type)
+        assertEquals("Groceries", spendEntry.category)
+        assertEquals("BLINKIT", spendEntry.name)
+    }
+
     @Test fun indusIndMaskedFormatsKeepReferencesAndSafeLedgerNames() {
         val debitSms = "Your IndusInd Account 15XXXXX1234 has been debited for INR 501 towards IMPS/900000000023. Call 18602677777 to report issue-IndusInd Bank"
         val creditSms = "IndusInd A/C Credited; INR 500.00 Ref-SAOAO900000000000000001.Bal INR 500.00.Dispute-Call 18602677777-IndusInd Bank"

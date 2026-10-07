@@ -46,7 +46,9 @@ internal object ParserData {
         Regex("\\blandmark\\s+rewards?\\b[\\s\\S]*\\b(?:sbi\\s+)?(?:credit|debit)\\s+card\\b[\\s\\S]*\\b(?:switch\\s+now|apply\\s+now|offer|t&c|terms)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b(?:credit|debit)\\s+card\\b[\\s\\S]*\\blandmark\\s+rewards?\\b[\\s\\S]*\\b(?:switch\\s+now|apply\\s+now|offer|t&c|terms)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b(?:get|earn)\\s+cashback\\s+on\\s+every\\s+(?:rs\\.?|inr)\\s*[\\d,.]+\\s+spent\\b", RegexOption.IGNORE_CASE))
-    val accountRules = listOf(Regex("\\bAxis Bank\\b.{0,60}?\\b((?:A\\/c|A\\/C|Acct|Account)\\s+no\\.?\\s*[Xx*.]*\\d+)\\b", RegexOption.IGNORE_CASE),
+    val accountRules = listOf(Regex("\\b(Pluxee\\s+Meal\\s+wallet,?\\s*card\\s+no\\.?\\s*[Xx*.]*\\d+)\\b", RegexOption.IGNORE_CASE),
+        Regex("\\b(Pluxee\\s+Card)\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bAxis Bank\\b.{0,60}?\\b((?:A\\/c|A\\/C|Acct|Account)\\s+no\\.?\\s*[Xx*.]*\\d+)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b(Kotak Bank\\s+AC\\s+[Xx*.\\d]+)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b(IndusInd\\s+(?:A\\/C|Account)\\s+[Xx*.\\d]+)\\b", RegexOption.IGNORE_CASE),
         Regex("\\bfrom\\s+((?:[A-Z]+\\s+)?(?:Bank\\s+)?(?:A\\/c|A\\/C|Acct|Account|Card|Credit Card)\\s*[Xx*.\\d]+)\\b", RegexOption.IGNORE_CASE),
@@ -54,7 +56,8 @@ internal object ParserData {
         Regex("\\b((?:[A-Z][A-Za-z&.]+(?:\\s+[A-Z][A-Za-z&.]+){0,5}\\s+Bank|Bank\\s+of\\s+[A-Z][A-Za-z]+(?:\\s+[A-Z][A-Za-z]+){0,4}|[A-Z]{2,8})[A-Z\\s]*\\s+(?:A\\/c|A\\/C|Acct|Account|Card|Credit Card)\\s*[Xx*.]*\\d*)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b((?:A\\/c|A\\/C|Acct|Account)\\s*[Xx*.]+\\d+)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b((?:Card|Credit Card|Debit Card)\\s*[Xx*.]+\\d*)\\b", RegexOption.IGNORE_CASE))
-    val debitToRules = listOf(Regex("\\b(UPI\\/P2M\\/\\d{12,13}\\/[A-Z0-9 .@_*/:-]{2,80}?)(?=\\s+Not you\\?|\\s+SMS\\s+BLOCK|\\s+-?\\s*Axis Bank|$)", RegexOption.IGNORE_CASE),
+    val debitToRules = listOf(Regex("\\bspent\\s+from\\s+Pluxee\\s+Meal\\s+wallet,?\\s*card\\s+no\\.?\\s*[Xx*.]*\\d+\\s+on\\s+\\d{1,2}[\\/-]\\d{1,2}[\\/-]\\d{2,4}\\s+\\d{1,2}:\\d{2}:\\d{2}\\s+at\\s+([A-Z0-9 .@_*/:-]{2,80}?)(?=\\s*\\.\\s*Avl\\s+bal\\b|$)", RegexOption.IGNORE_CASE),
+        Regex("\\b(UPI\\/P2M\\/\\d{12,13}\\/[A-Z0-9 .@_*/:-]{2,80}?)(?=\\s+Not you\\?|\\s+SMS\\s+BLOCK|\\s+-?\\s*Axis Bank|$)", RegexOption.IGNORE_CASE),
         Regex("\\btowards\\s+(IMPS|NEFT|RTGS)\\/[A-Z0-9]+\\b", RegexOption.IGNORE_CASE),
         Regex("\\bRef\\s+No\\.?\\s*(FD Booking)\\s+\\d+", RegexOption.IGNORE_CASE),
         Regex("\\b(FD Booking)\\s+\\d+", RegexOption.IGNORE_CASE),
@@ -80,6 +83,7 @@ internal object ParserData {
         Regex("\\bby\\s+([A-Z0-9 .@_*/:-]{2,80}?)(?:\\s+thru|\\s+through|\\s+UPI|\\s+Ref|\\.|;|\$)", RegexOption.IGNORE_CASE),
         Regex("\\bfor\\s+([A-Z0-9 .@_*/:-]{2,80}?)(?:\\.?Avl|\\s+Avl|\$)", RegexOption.IGNORE_CASE))
     val banks = listOf(
+        "Pluxee" to listOf(Regex("\\bPluxee\\b", RegexOption.IGNORE_CASE)),
         "SBI" to listOf(Regex("\\bSBI\\b", RegexOption.IGNORE_CASE),
         Regex("\\bState Bank of India\\b", RegexOption.IGNORE_CASE),
         Regex("\\bSBIN\\b", RegexOption.IGNORE_CASE)),

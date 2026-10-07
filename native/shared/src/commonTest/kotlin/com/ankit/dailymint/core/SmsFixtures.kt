@@ -3,6 +3,8 @@ package com.ankit.dailymint.core
 // Generated from masked regression fixtures; do not add real customer details.
 internal object SmsFixtures {
     val values = listOf(
+        SmsFixture("pluxee-meal-wallet-credit-001", "Your Pluxee Card has been successfully credited with Rs.8800 towards Meal Wallet on Wed Oct 07 2026 04:00:31. Your current Meal Wallet balance is Rs.8800.00.", true, 880000L, "credit", null, "Pluxee Card", "Pluxee", null),
+        SmsFixture("pluxee-meal-wallet-debit-001", "Rs. 387.00 spent from Pluxee Meal wallet, card no.xx1234 on 7-10-2026 15:06:18 at BLINKIT . Avl bal Rs.8413.00. Not you call 18000000000", true, 38700L, "debit", "Pluxee Meal wallet, card no.xx1234", "BLINKIT", "Pluxee", null),
         SmsFixture("bob-transfer-debit-001", "Rs.8751 transferred from A/c ...1234 to:ACHDR/WESTERN CA. Total Bal:Rs.1733.5CR. Avlbl Amt:Rs.1733.5(05-08-2026 12:17:43) - Bank of Baroda", true, 875100L, "debit", "A/c ...1234", "ACHDR/WESTERN CA", "Bank of Baroda", null),
         SmsFixture("bob-upi-dr-cr-001", "Rs.100.00 Dr. from A/C XXXXXX1234 and Cr. to bigbasket.payu@hdfcbank. Ref:900000000018. AvlBal:Rs5783.36(2026:08:25 03:28:19). Not you? Call 18005700/5000-BOB", true, 10000L, "debit", "A/C XXXXXX1234", "bigbasket.payu@hdfcbank", "Bank of Baroda", null),
         SmsFixture("bob-upi-hyphenated-payee-debit-001", "Rs.2.00 Dr. from A/C XXXXXX1234 and Cr. to sample.payee-10@waicici. Ref:900000000180. AvlBal:Rs12441.38(2026:09:25 01:49:28). Not you? Call 18005700/5000-BOB", true, 200L, "debit", "A/C XXXXXX1234", "sample.payee-10@waicici", "Bank of Baroda", null),
