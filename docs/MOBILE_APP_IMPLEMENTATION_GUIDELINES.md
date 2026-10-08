@@ -1,8 +1,54 @@
-# Mobile App Implementation Guidelines
+# Mobile Product, Design, Validation, and Delivery Principles
 
-This document captures reusable product and engineering decisions for form-heavy
-mobile applications. Treat these as default implementation rules unless a product
-requirement explicitly calls for different behavior.
+This document captures reusable product, design, engineering, testing, and release
+decisions learned while building a cross-platform, form-heavy mobile application. It is
+project-agnostic: treat these as default rules for future apps unless a product requirement
+explicitly calls for different behavior.
+
+The goal is not to make every app look identical. The goal is to preserve the qualities
+that repeatedly require the most care: predictable interaction, immediate and accurate
+feedback, accessible light and dark themes, exact data handling, platform parity, and a
+release pipeline that proves what it ships.
+
+## Foundations
+
+### Start from the user's mental model
+
+- Name screens, metrics, categories, and actions in the language the user naturally uses.
+- Explain the purpose of an unfamiliar control with one short supporting sentence.
+- Do not expose storage, parser, pipeline, or debugging terminology in ordinary UI.
+- Remove debug-only screens, controls, logs, and import paths before release.
+- Prefer a small complete workflow over several partially implemented options.
+- When requirements change, remove stale UI, assets, tests, documentation, and persisted
+  diagnostics together. Dead surfaces create false expectations and privacy risk.
+
+### Make the important state obvious
+
+- A user should be able to tell which screen, filter, theme, category, or mode is active
+  without relying on memory.
+- Use hierarchy, color, weight, and spacing consistently; do not make every element compete
+  for attention.
+- Reserve strong emphasis for the current destination and the primary action.
+- Use secondary text for context, not for essential values that need high contrast.
+
+### Keep one source of truth
+
+- Put business rules, accounting, parsing, limits, and date calculations in the domain
+  layer shared by every presentation surface.
+- Let platform UI own presentation, focus, keyboard, safe areas, accessibility, and native
+  integration.
+- Do not duplicate a rule in Add, Edit, import, and persistence code. Provide one domain
+  definition and reusable UI adapters around it.
+- Render only committed state after a write succeeds. Never show a successful result for a
+  failed persistence operation.
+
+### Prefer consistency over novelty
+
+- Similar inputs should format, validate, and report errors in the same way everywhere.
+- Add and Edit should share field components and validation semantics.
+- Primary actions should occupy a consistent location across related forms.
+- Native behavior is the baseline. Custom controls need a clear product benefit and the
+  same accessibility and interaction quality as their platform equivalents.
 
 ## 1. Input behavior
 
@@ -169,6 +215,28 @@ Track only the amount that belongs to you.
 - Use stable dimensions for toolbars, chips, counters, charts, and navigation items so
   content changes do not shift the layout.
 
+### Respect presentation models
+
+- A persistent destination belongs in bottom navigation and preserves destination state.
+- A create flow may be a modal form when it represents a temporary task rather than a
+  place. Its animation, close behavior, and accessibility should make that distinction
+  clear.
+- Do not accidentally mix the models, such as presenting Add modally but styling it as a
+  permanently selected destination.
+- A modal form must have an obvious cancel path, dismiss the keyboard correctly, and return
+  to the previous destination after a successful save.
+
+### Build for safe areas and real content
+
+- Apply system insets once at the correct container. Avoid compensating with device-specific
+  magic numbers.
+- Test short and long screens, an open keyboard, validation errors, large text, and the
+  smallest supported phone.
+- Decorative images must not push labels, totals, or actions out of alignment.
+- Align related labels and values to a shared visual axis. A value such as `Left` should
+  align with the heading and date it summarizes, not float according to its text length.
+- Bottom bars must distribute destinations evenly even when labels and icon shapes differ.
+
 ## 7. Themes and visual semantics
 
 - Support Light, Dark, and System when theme choice is exposed.
@@ -183,6 +251,55 @@ Track only the amount that belongs to you.
 - Enabled toggles should use the product's positive or accent color consistently.
 - Verify all supplied visual assets in both themes when separate variants exist.
 
+### Use a semantic design system
+
+Define tokens by purpose rather than by raw appearance. At minimum, provide:
+
+- App background, grouped background, raised surface, input surface, and divider.
+- Primary, secondary, muted, and inverse text.
+- Accent, selected, positive, warning, destructive, and disabled states.
+- Border, focus, chart-grid, and scrim colors.
+- Standard spacing, corner radii, icon sizes, touch targets, and typography roles.
+
+Components should consume semantic tokens. A literal gray that works in dark mode can be
+too faint in light mode, and a hard-coded green may fail against a different surface.
+
+### Design light and dark themes independently
+
+- Dark mode is not light mode with colors inverted.
+- Check borders, disabled states, placeholders, chart labels, numeric values, destructive
+  actions, and selection indicators in each theme.
+- Keep hierarchy comparable across themes even when the actual colors differ.
+- Prefer contrast and legibility over subtle styling. In light mode especially, body text
+  and absolute values should not fade into the background.
+- Test System mode while the app is open and while it resumes after the system appearance
+  changes.
+
+### Treat assets as part of the system
+
+- Keep separate light and dark assets only when a semantic color cannot produce the right
+  result at runtime.
+- Name assets by screen and sequence so their order remains understandable after steps are
+  inserted or removed.
+- Delete superseded asset sets and verify no build configuration or documentation still
+  references them.
+- Preserve an asset's aspect ratio and transparent bounds. Size it by its visible content,
+  not only by the dimensions of its canvas.
+- Use the same source artwork for the app icon, splash identity, and in-app brand mark when
+  they are intended to match. Account for platform masks and safe margins separately.
+- Avoid scaling a splash mark during the transition to the first screen unless motion is an
+  intentional part of the brand experience.
+
+### Keep compact interfaces human
+
+- Use content-sized, wrapping chips instead of rigid equal-width category grids.
+- Keep gaps consistent but modest so related options read as a group.
+- Do not over-emphasize a center navigation action solely because it is centered.
+- Use familiar icons with accessible labels; add visible text only when the command would
+  otherwise be ambiguous.
+- Avoid cards inside cards. Group related controls with spacing, dividers, and typography
+  before adding another container.
+
 ## 8. Accessibility
 
 - Give interactive elements stable accessibility identifiers that describe their role,
@@ -194,6 +311,13 @@ Track only the amount that belongs to you.
 - Test larger text sizes and long localized strings for clipping and overlap.
 - For XCTest, direct string subscripts are limited to identifiers of 128 characters. Query
   long visible text with a predicate on `label` instead.
+- Do not encode state using color alone. Pair active, error, success, and disabled colors
+  with shape, text, symbols, or accessibility state.
+- Respect Reduce Motion for decorative transitions and avoid animation that changes the
+  hit target while a user is interacting with it.
+- Announce saves, validation failures, toasts, and modal presentation changes where the
+  platform does not do so automatically.
+- Keep source order, focus order, and visual order aligned.
 
 ## 9. Data and persistence
 
@@ -207,7 +331,51 @@ Track only the amount that belongs to you.
   edited.
 - Refresh all affected screens after background, shortcut, or external imports.
 
-## 10. Testing expectations
+### Minimize private data
+
+- Collect and retain only data required by a current user-facing feature.
+- Process sensitive input on-device when server processing is unnecessary.
+- Do not retain unrecognized raw input merely for possible future debugging.
+- Keep privacy documentation synchronized with the actual shipping code, including data
+  sources, retention, sharing, diagnostics, and deletion behavior.
+- A removed feature must also be removed from privacy claims; a planned feature must not be
+  described as already present.
+- Never place signing keys, API keys, personal data, or raw customer content in source
+  control or CI artifacts.
+
+## 10. Content and onboarding
+
+- Write instructions as short, numbered actions that correspond to visible annotations in
+  the supplied image.
+- Use the exact current platform labels so users can find the control.
+- One screenshot may explain several tightly connected taps when annotations establish a
+  clear order.
+- Split a step when it requires a screen transition or when the next action is not visible.
+- Keep light and dark screenshot sequences in lockstep.
+- Remove redundant Next buttons when the pages are discoverably swipeable and have a clear
+  page indicator and exit path.
+- Supporting copy should answer a real concern. Remove text that merely restates the
+  mechanism or makes an unsupported privacy claim.
+- When a platform workflow changes, update step count, copy, assets, tests, and asset names
+  in one change.
+
+## 11. Testing strategy
+
+### Use a test pyramid with explicit ownership
+
+Each behavior should be tested at the lowest layer that can prove it, then covered by a
+small number of end-to-end tests for critical workflows.
+
+| Layer | Proves | Typical examples |
+| --- | --- | --- |
+| Pure/domain unit tests | Rules and edge cases | Money parsing, limits, splits, dates, categorization |
+| Persistence/integration tests | Components work together | Migration, atomic writes, deduplication, parser-to-ledger flow |
+| Native component tests | Presentation state | Error placement, enabled state, formatting, theme tokens |
+| Native interaction tests | User workflow | Add, edit, delete, keyboard dismissal, navigation, settings |
+| Physical-device smoke tests | Hardware and OS reality | Keyboard geometry, notifications, shortcuts, deep links, launch |
+
+Avoid proving domain arithmetic repeatedly through slow UI tests. Avoid relying only on
+unit tests for behavior that depends on native focus, scrolling, safe areas, or lifecycle.
 
 Cover rules at the lowest reliable layer and important workflows at the UI layer.
 
@@ -241,10 +409,96 @@ Cover rules at the lowest reliable layer and important workflows at the UI layer
   requirements change.
 - Report any platform that could not be executed as unverified.
 
-## 11. Build and release safeguards
+### Keep interaction tests resilient
 
-- Keep verification, TestFlight, and production workflows manual when automatic runs would
-  waste limited CI capacity.
+- Query stable accessibility identifiers, not coordinates, row indexes, or incidental copy.
+- Wait for meaningful state, not arbitrary sleep durations.
+- Reset or seed state explicitly so test ordering cannot affect results.
+- Keep navigation elements outside scroll containers so accessibility actions can reach
+  them reliably.
+- A retry can identify platform flakiness, but a test that passes only on retry still needs
+  investigation.
+- When a test fails, preserve the result bundle, screenshots, logs, and exact source commit.
+- Remove a test only when its product behavior has intentionally been removed. Record that
+  decision in the same change.
+
+### Maintain a focused regression suite
+
+Every fixed regression should leave behind the cheapest reliable test that would have
+caught it. High-value regression areas include:
+
+- Formatting and validation disagreement.
+- Picker overlays moving with scroll content.
+- Keyboard-induced bottom-navigation movement.
+- Theme changes that apply only after a sheet closes.
+- Safe-area clipping and unreachable final content.
+- Incorrect accounting labels or totals.
+- Import parser confusion between transaction amounts and balances.
+- Release jobs that report success after a failed command.
+
+## 12. CI pipeline design
+
+### Separate pipeline intent
+
+Use distinct workflows for distinct questions:
+
+1. **Verification:** Does this source commit pass shared, Android, and iOS checks?
+2. **Beta distribution:** Can this verified source be signed and uploaded for internal or
+   external testing?
+3. **Production candidate:** Can a specifically approved beta source be rebuilt with the
+   requested release version and an unused build number?
+
+Do not combine these into a stack of dependent automatic runs when CI capacity is limited
+or failures become difficult to diagnose. Manual dispatch makes cost and intent explicit.
+
+### Verification pipeline
+
+- Run shared/domain tests on every supported runtime, not only the easiest host.
+- Compile each native app and its test target.
+- Run Android unit and device interaction tests.
+- Run iOS shared-runtime tests plus native Swift/SwiftUI interaction tests on macOS.
+- Upload reports and result bundles even on failure.
+- Name jobs by platform so one failure does not hide the status of another.
+- Pin or explicitly select toolchain versions required by the stores and project.
+
+### Beta pipeline
+
+- Accept or derive a unique build number using a documented format.
+- Validate all required secrets before spending time on a release build.
+- Rerun release-relevant tests on the signing toolchain.
+- Generate projects deterministically when generated native projects are not committed.
+- Archive, export, validate, and upload in separate named steps.
+- Record source SHA, marketing version, build number, toolchain version, and workflow run.
+- Serialize uploads when the store or project should have only one in flight.
+
+### Production pipeline
+
+- Require both the approved beta version/build identity and the desired release version.
+- Resolve the approved beta back to its exact source SHA; do not release whatever happens
+  to be at the branch head.
+- Check out that source and rerun the full release gate.
+- Confirm the target build number is unused before starting the expensive archive.
+- Changing a marketing version creates a new binary. Store metadata cannot rename an
+  already uploaded binary.
+- Keep beta and production numbering conventions distinguishable if that simplifies human
+  review, while still satisfying store uniqueness rules.
+
+### Pipeline safety
+
+- Keep verification, beta, and production workflows manual when automatic runs would waste
+  limited CI capacity.
+- Use least-privilege repository or environment secrets and protect production environments
+  with approval when available.
+- Use a separate signing directory per app or project. A team distribution certificate and
+  API key may be reused when policy permits, but provisioning profiles and repository
+  secrets remain app-specific.
+- Never echo secret contents. Use temporary keychains/files and clean them up after the job.
+- Preserve the original exit code when collecting artifacts or running cleanup.
+- Add workflow concurrency rules to avoid duplicate uploads and queued release runs.
+- Set artifact retention deliberately, especially for signed binaries and verbose logs.
+
+## 13. Build and release safeguards
+
 - A release job must preserve and report the real exit status of every build, signing, and
   upload command.
 - Treat the marketing version and build number as separate values.
@@ -256,9 +510,35 @@ Cover rules at the lowest reliable layer and important workflows at the UI layer
 - Upload artifacts and logs on failure, but never let artifact cleanup mask the original
   failure.
 
+### Versioning and release provenance
+
+- Treat the customer-facing marketing version and monotonically unique build number as
+  separate values.
+- Start a public product at an intentional release version such as `1.0.0`; do not expose a
+  prototype version by accident.
+- Record which tested beta was approved, which source SHA produced it, and which production
+  binary was rebuilt from that SHA.
+- A release checklist should include privacy policy, support URL, screenshots, device
+  family, export compliance, review notes, and a real-device smoke test.
+- Enabling additional device families creates design, testing, and store screenshot
+  obligations. Declare only the device families the product actually supports.
+
+## 14. Documentation and maintenance
+
+- Keep a product specification for app-specific behavior and a separate project-agnostic
+  guide for reusable principles.
+- Document the reason behind non-obvious limits and architecture boundaries.
+- Link release/setup guides from the repository README so they are discoverable.
+- Update documentation in the same commit as behavior whenever practical.
+- Prefer current code and tests over memory when auditing features or privacy behavior.
+- Mark platform behavior as verified, inferred, or untested. Do not imply parity without
+  evidence.
+- Keep folder and asset numbering sequential after adding or removing onboarding steps.
+- Avoid documenting abandoned debug flows as supported product behavior.
+
 ## Completion checklist
 
-Before calling a form or workflow complete, confirm:
+Before calling a feature, form, or workflow complete, confirm:
 
 - Display formatting and canonical parsing agree.
 - Hard limits reject edits before display and explain the rejection.
@@ -270,3 +550,7 @@ Before calling a form or workflow complete, confirm:
 - Accessibility labels, identifiers, touch targets, and large text are verified.
 - Domain, native UI, persistence, and release-path tests cover the behavior.
 - Any untested platform or physical-device behavior is explicitly recorded.
+- Light and dark assets, semantics, and contrast were reviewed independently.
+- Debug-only UI, stale assets, obsolete tests, and outdated privacy claims were removed.
+- The verification pipeline preserves enough evidence to diagnose a failure.
+- A beta or production artifact can be traced back to its exact tested source commit.
