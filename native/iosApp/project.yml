@@ -1,4 +1,4 @@
-name: DailyMint
+name: FendYourSpend
 options:
   bundleIdPrefix: com.ankit.dailymint
   deploymentTarget:
@@ -10,24 +10,24 @@ settings:
     CURRENT_PROJECT_VERSION: 1
     MARKETING_VERSION: 1.0.0
 targets:
-  DailyMint:
+  FendYourSpend:
     type: application
     platform: iOS
     sources: [Sources]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ankit.dailymint.prototype
-        PRODUCT_NAME: DailyMint
+        PRODUCT_NAME: FendYourSpend
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        INFOPLIST_KEY_CFBundleDisplayName: DailyMint
-        INFOPLIST_KEY_CFBundleName: DailyMint
+        INFOPLIST_KEY_CFBundleDisplayName: Fend Your Spend
+        INFOPLIST_KEY_CFBundleName: Fend Your Spend
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_UIUserInterfaceStyle: Automatic
         INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
         FRAMEWORK_SEARCH_PATHS: "$(inherited) $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
-        OTHER_LDFLAGS: "$(inherited) -framework DailyMintCore"
+        OTHER_LDFLAGS: "$(inherited) -framework FendYourSpendCore"
         ENABLE_USER_SCRIPT_SANDBOXING: NO
     preBuildScripts:
       - name: Build shared Kotlin framework
@@ -35,16 +35,16 @@ targets:
           cd "$SRCROOT/.."
           ./gradlew :shared:embedAndSignAppleFrameworkForXcode
         basedOnDependencyAnalysis: false
-  DailyMintUITests:
+  FendYourSpendUITests:
     type: bundle.ui-testing
     platform: iOS
     sources: [Tests]
     dependencies:
-      - target: DailyMint
+      - target: FendYourSpend
 schemes:
-  DailyMint:
+  FendYourSpend:
     build:
       targets:
-        DailyMint: all
+        FendYourSpend: all
     test:
-      targets: [DailyMintUITests]
+      targets: [FendYourSpendUITests]

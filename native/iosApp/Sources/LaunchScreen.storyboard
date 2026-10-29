@@ -19,29 +19,33 @@
                             <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" image="SplashBackground" translatesAutoresizingMaskIntoConstraints="NO" id="launch-background">
                                 <rect key="frame" x="0.0" y="0.0" width="430" height="932"/>
                             </imageView>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="SplashLogo" translatesAutoresizingMaskIntoConstraints="NO" id="launch-logo">
-                                <rect key="frame" x="55.9" y="236" width="318.2" height="318.2"/>
-                            </imageView>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="DailyMint" textAlignment="center" translatesAutoresizingMaskIntoConstraints="NO" id="launch-title">
-                                <rect key="frame" x="0.0" y="536.2" width="430" height="58"/>
-                                <fontDescription key="fontDescription" type="system" weight="bold" pointSize="48"/>
-                                <color key="textColor" red="0.9607843137254902" green="0.9686274509803922" blue="0.9254901960784314" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                            </label>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="horizontal" alignment="center" spacing="2" translatesAutoresizingMaskIntoConstraints="NO" id="launch-fend-stack">
+                                <rect key="frame" x="134" y="403" width="162" height="68"/>
+                                <subviews>
+                                    <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="SplashFMark" translatesAutoresizingMaskIntoConstraints="NO" id="launch-f-mark">
+                                        <rect key="frame" x="0.0" y="0.0" width="53" height="68"/>
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="53" id="f-mark-width"/>
+                                            <constraint firstAttribute="height" constant="68" id="f-mark-height"/>
+                                        </constraints>
+                                    </imageView>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="end" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="launch-end-label">
+                                        <rect key="frame" x="55" y="0.0" width="107" height="68"/>
+                                        <fontDescription key="fontDescription" name="Georgia-Bold" family="Georgia" pointSize="68"/>
+                                        <color key="textColor" red="0.9490196078431372" green="0.9411764705882353" blue="0.8941176470588236" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                    </label>
+                                </subviews>
+                            </stackView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="launch-safe-area"/>
-                        <color key="backgroundColor" red="0.00392156862745098" green="0.4" blue="0.23921568627450981" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" red="0.06274509803921569" green="0.10196078431372549" blue="0.09411764705882353" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="launch-background" firstAttribute="leading" secondItem="launch-view" secondAttribute="leading" id="background-leading"/>
                             <constraint firstAttribute="trailing" secondItem="launch-background" secondAttribute="trailing" id="background-trailing"/>
                             <constraint firstItem="launch-background" firstAttribute="top" secondItem="launch-view" secondAttribute="top" id="background-top"/>
                             <constraint firstAttribute="bottom" secondItem="launch-background" secondAttribute="bottom" id="background-bottom"/>
-                            <constraint firstItem="launch-logo" firstAttribute="centerX" secondItem="launch-view" secondAttribute="centerX" id="logo-center-x"/>
-                            <constraint firstItem="launch-logo" firstAttribute="centerY" secondItem="launch-view" secondAttribute="centerY" constant="-70.9" id="logo-center-y"/>
-                            <constraint firstItem="launch-logo" firstAttribute="width" secondItem="launch-view" secondAttribute="width" multiplier="0.74" id="logo-width"/>
-                            <constraint firstItem="launch-logo" firstAttribute="height" secondItem="launch-logo" secondAttribute="width" id="logo-aspect"/>
-                            <constraint firstItem="launch-title" firstAttribute="top" secondItem="launch-logo" secondAttribute="bottom" constant="-18" id="title-top"/>
-                            <constraint firstItem="launch-title" firstAttribute="leading" secondItem="launch-view" secondAttribute="leading" id="title-leading"/>
-                            <constraint firstAttribute="trailing" secondItem="launch-title" secondAttribute="trailing" id="title-trailing"/>
+                            <constraint firstItem="launch-fend-stack" firstAttribute="centerX" secondItem="launch-view" secondAttribute="centerX" id="fend-center-x"/>
+                            <constraint firstItem="launch-fend-stack" firstAttribute="centerY" secondItem="launch-view" secondAttribute="centerY" constant="-29" id="fend-center-y"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -52,6 +56,6 @@
     </scenes>
     <resources>
         <image name="SplashBackground" width="430" height="932"/>
-        <image name="SplashLogo" width="1024" height="1024"/>
+        <image name="SplashFMark" width="96" height="124"/>
     </resources>
 </document>

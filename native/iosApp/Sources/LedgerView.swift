@@ -1,5 +1,5 @@
 import SwiftUI
-import DailyMintCore
+import FendYourSpendCore
 
 private struct LedgerDateGroup: Identifiable {
     let date: String

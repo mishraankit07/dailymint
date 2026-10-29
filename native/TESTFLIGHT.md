@@ -1,23 +1,21 @@
-# Native prototype to TestFlight from Windows
+# Fend Your Spend to TestFlight from Windows
 
-This workflow builds SwiftUI/Kotlin, not Expo. It is manual-only and uploads only
-`com.ankit.dailymint.prototype` (version 1.0.0). Existing DailyMint data and its
-TestFlight listing are not replaced. Apple signing/upload has not been validated
-until a run with your credentials succeeds.
+This manual-only workflow builds and uploads `com.ankit.dailymint.prototype`
+(version 1.0.0). The Fend Your Spend rebrand intentionally retains this bundle
+identifier so existing TestFlight and App Store Connect records remain valid.
+Apple signing/upload has not been validated until a run with your credentials succeeds.
 
 ## One-time Apple setup
 
-1. Register an explicit App ID `com.ankit.dailymint.prototype` in Apple Developer.
-2. Create an iOS app in App Store Connect using that ID, name DailyMint Prototype
-   (or an available variant), and a unique SKU such as dailymint-native-prototype.
+1. Register or retain the explicit App ID `com.ankit.dailymint.prototype` in Apple Developer.
+2. Create an iOS app in App Store Connect using that ID, name Fend Your Spend
+   (or an available variant), and a unique SKU such as fend-your-spend-ios.
 3. Obtain your Apple Distribution certificate **with its private key**, exported
    as a password-protected `.p12`. An existing valid certificate from EAS can be
    reused on the same Apple team; a `.cer` download alone is insufficient.
-   Use the Expo project's `npx eas-cli credentials -p ios` to inspect/download
-   your existing distribution credentials, without revoking them. Keep downloaded
-   credentials outside the repository.
-4. Create and download an **App Store Connect distribution** provisioning profile
-   for the prototype ID using that certificate. Do not reuse the Expo app profile.
+   Keep downloaded credentials outside the repository.
+4. Create or retain an **App Store Connect distribution** provisioning profile for
+   `com.ankit.dailymint.prototype` using that certificate.
 5. In App Store Connect, Users and Access > Integrations, create a team API key
    with access sufficient to upload this app (Developer or App Manager as needed).
    Download the `.p8` and note the Key ID and Issuer ID. Never paste private keys
@@ -56,7 +54,7 @@ Replace RUN_ID with the newly started run's ID. Build numbers use the workflow
 run number and attempt, so rerunning a build does not reuse its number.
 The workflow reruns iOS tests on a current Xcode (minimum 26), then signs and
 uploads. It never submits to App Review or automatically adds external testers.
-After Apple processing, open DailyMint Prototype > TestFlight, answer any export
+After Apple processing, open Fend Your Spend > TestFlight, answer any export
 compliance questions, and add the build to your internal tester group. External
 testing may require beta review. TestFlight builds are not ad-hoc IPA installs.
 

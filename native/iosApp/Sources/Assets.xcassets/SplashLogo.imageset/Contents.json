@@ -1,15 +1,12 @@
 {
   "images" : [
     {
-      "filename" : "DailyMint-logo.svg",
+      "filename" : "fend-your-spend-app-icon.png",
       "idiom" : "universal"
     }
   ],
   "info" : {
     "author" : "xcode",
     "version" : 1
-  },
-  "properties" : {
-    "preserves-vector-representation" : true
   }
 }

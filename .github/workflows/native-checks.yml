@@ -1,4 +1,4 @@
-name: DailyMint native checks
+name: Fend Your Spend native checks
 on:
   workflow_dispatch:
     inputs:
@@ -74,7 +74,7 @@ jobs:
           DEVICE_ID=$(xcrun simctl list devices available -j | ruby -rjson -e 'j=JSON.parse(STDIN.read); d=j["devices"].values.flatten.find{|x| x["name"].start_with?("iPhone")}; abort("No iPhone simulator") unless d; puts d["udid"]')
           xcrun simctl boot "$DEVICE_ID" || true
           xcrun simctl bootstatus "$DEVICE_ID" -b
-          xcodebuild test -project iosApp/DailyMint.xcodeproj -scheme DailyMint -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath iosApp/TestResults.xcresult -retry-tests-on-failure -test-iterations 2 CODE_SIGNING_ALLOWED=NO
+          xcodebuild test -project iosApp/FendYourSpend.xcodeproj -scheme FendYourSpend -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath iosApp/TestResults.xcresult -retry-tests-on-failure -test-iterations 2 CODE_SIGNING_ALLOWED=NO
       - uses: actions/upload-artifact@v4
         if: always()
         with:

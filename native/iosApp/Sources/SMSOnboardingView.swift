@@ -16,8 +16,8 @@ struct SMSOnboardingView: View {
         ),
         SetupStep(title: "Create a shortcut", detail: "Tap Create New Shortcut", imageName: "SMSSetup04Create"),
         SetupStep(
-            title: "Find DailyMint",
-            detail: "1. Search for DailyMint.\n\n2. Choose Import Bank SMS.\n\n3. Tap on the blue checkmark.",
+            title: "Find Fend Your Spend",
+            detail: "1. Search for Fend Your Spend.\n\n2. Choose Import Bank SMS.\n\n3. Tap on the blue checkmark.",
             imageName: "SMSSetup05Search"
         ),
         SetupStep(

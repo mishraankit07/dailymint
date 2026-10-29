@@ -1,6 +1,6 @@
 import SwiftUI
 import Charts
-import DailyMintCore
+import FendYourSpendCore
 
 struct MonthView: View {
     @ObservedObject var model: LedgerModel

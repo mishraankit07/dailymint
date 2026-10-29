@@ -1,10 +1,10 @@
 import AppIntents
 import Foundation
-import DailyMintCore
+import FendYourSpendCore
 
 struct CaptureIncomingSmsIntent: AppIntent {
     static var title: LocalizedStringResource = "Import Bank SMS"
-    static var description = IntentDescription("Send a bank transaction message to DailyMint.")
+    static var description = IntentDescription("Send a bank transaction message to Fend Your Spend.")
     static var openAppWhenRun = false
     static var parameterSummary: some ParameterSummary {
         Summary("Import \(\.$message)")
@@ -36,7 +36,7 @@ actor ShortcutSMSProcessor {
         let recoveredFromSender = suppliedMessage.isEmpty && !suppliedSender.isEmpty
         let text = recoveredFromSender ? suppliedSender : suppliedMessage
         guard !text.isEmpty else {
-            return "DailyMint did not receive a message. Check the Message field in Shortcuts."
+            return "Fend Your Spend did not receive a message. Check the Message field in Shortcuts."
         }
 
         let normalizedSender = recoveredFromSender || suppliedSender.isEmpty ? "Shortcut" : suppliedSender
@@ -52,7 +52,7 @@ actor ShortcutSMSProcessor {
             }
             return outcome.response
         } catch {
-            return "DailyMint could not access its local data. Try again."
+            return "Fend Your Spend could not access its local data. Try again."
         }
     }
 
@@ -60,7 +60,7 @@ actor ShortcutSMSProcessor {
         let engine = LedgerEngine(store: store)
         if let loadError = engine.loadError {
             return ImportOutcome(
-                response: "DailyMint could not open its ledger: \(loadError)",
+                response: "Fend Your Spend could not open its ledger: \(loadError)",
                 addedTransaction: false
             )
         }
@@ -74,14 +74,14 @@ actor ShortcutSMSProcessor {
 
         if result.success {
             if engine.entries().count > entryCount {
-                return ImportOutcome(response: "DailyMint added this transaction.", addedTransaction: true)
+                return ImportOutcome(response: "Fend Your Spend added this transaction.", addedTransaction: true)
             }
             return ImportOutcome(
-                response: "DailyMint received this SMS. It was ignored or already recorded.",
+                response: "Fend Your Spend received this SMS. It was ignored or already recorded.",
                 addedTransaction: false
             )
         }
-        return ImportOutcome(response: "DailyMint could not save this message.", addedTransaction: false)
+        return ImportOutcome(response: "Fend Your Spend could not save this message.", addedTransaction: false)
     }
 
     private func stableHash(_ text: String) -> String {
@@ -93,7 +93,7 @@ actor ShortcutSMSProcessor {
     }
 }
 
-struct DailyMintShortcuts: AppShortcutsProvider {
+struct FendYourSpendShortcuts: AppShortcutsProvider {
     @AppShortcutsBuilder
     static var appShortcuts: [AppShortcut] {
         AppShortcut(

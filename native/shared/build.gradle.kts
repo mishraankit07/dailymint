@@ -11,7 +11,7 @@ kotlin {
     iosSimulatorArm64()
     iosX64()
     targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
-        binaries.framework { baseName = "DailyMintCore"; isStatic = true }
+        binaries.framework { baseName = "FendYourSpendCore"; isStatic = true }
     }
     sourceSets {
         commonMain.dependencies {
@@ -22,7 +22,7 @@ kotlin {
     }
 }
 android {
-    namespace = "com.ankit.dailymint.core"
+    namespace = "com.ankit.fendyourspend.core"
     compileSdk = 36
     defaultConfig { minSdk = 26 }
     compileOptions {

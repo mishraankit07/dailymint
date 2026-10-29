@@ -15,8 +15,8 @@ enum AutomaticImportNotification {
         guard allowed else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "DailyMint"
-        content.body = "DailyMint added a transaction automatically."
+        content.title = "Fend Your Spend"
+        content.body = "Fend Your Spend added a transaction automatically."
         content.sound = .default
         content.threadIdentifier = "automatic-bank-imports"
 

@@ -1,8 +1,10 @@
-# DailyMint Native Prototype
+# Fend Your Spend Native App
 
-This is an in-progress migration, not a replacement for the Expo app.
-It uses a separate identifier, com.ankit.dailymint.prototype, and separate storage.
-It does not read or overwrite the existing DailyMint ledger.
+Fend Your Spend is a Kotlin Multiplatform personal-finance app for Android and iOS.
+The rebrand retains `com.ankit.dailymint.prototype` as its Android application ID
+and iOS bundle identifier so existing installs and App Store records remain valid.
+New source namespaces use `com.ankit.fendyourspend` and
+`com.ankit.fendyourspend.core`.
 
 Reusable decisions for input behavior, validation, keyboard handling, navigation,
 themes, accessibility, testing, and releases are documented in
@@ -16,7 +18,7 @@ themes, accessibility, testing, and releases are documented in
 - Persistence: Android SharedPreferences and an atomically written iOS app-private file.
 - Jetpack Compose and SwiftUI screens for Home, Growth, Add, Ledger, and Settings.
 - Android foreground SMS reading with permission handling and inbox observation.
-- iOS Shortcuts/App Intent action for sending a bank SMS directly to DailyMint.
+- iOS Shortcuts/App Intent action for sending a bank SMS directly to Fend Your Spend.
 - Capture-time-limited editing/deletion and category deletion with reassignment.
 - Daily reminder settings and native reminder scheduling on both platforms.
 - Source SMS details for recognized imported entries; ignored and unrecognized message
@@ -99,8 +101,8 @@ chmod +x gradlew
 ./gradlew :shared:iosSimulatorArm64Test
 brew install xcodegen
 xcodegen generate --spec iosApp/project.yml
-xcodebuild -list -project iosApp/DailyMint.xcodeproj
-xcodebuild test -project iosApp/DailyMint.xcodeproj -scheme DailyMint -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild -list -project iosApp/FendYourSpend.xcodeproj
+xcodebuild test -project iosApp/FendYourSpend.xcodeproj -scheme FendYourSpend -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
 Use iosX64Test on an Intel Mac; select an installed simulator name.

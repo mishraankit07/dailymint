@@ -116,7 +116,7 @@ jobs:
           BUILD_NUMBER: ${{ steps.build_number.outputs.number }}
         run: |
           if [ "$(uname -m)" = arm64 ]; then ./gradlew :shared:iosSimulatorArm64Test; else ./gradlew :shared:iosX64Test; fi
-          xcodebuild build -project iosApp/DailyMint.xcodeproj -scheme DailyMint \
+          xcodebuild build -project iosApp/FendYourSpend.xcodeproj -scheme FendYourSpend \
             -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO \
             MARKETING_VERSION="$RELEASE_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
       - name: Sign and upload App Store candidate

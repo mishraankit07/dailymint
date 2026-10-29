@@ -1,4 +1,4 @@
-# DailyMint Native Migration Parity
+# Fend Your Spend Native Migration Parity
 
 Goal: migrate the current Expo app functionality into a Kotlin Multiplatform core with separate native Android and iOS UIs.
 
@@ -29,7 +29,7 @@ Goal: migrate the current Expo app functionality into a Kotlin Multiplatform cor
 - [x] Source SMS details for recognized imported transactions
 - [x] Daily reminder scheduling from shared settings
 - [x] Unrecognized SMS content is not retained
-- [ ] Polished DailyMint UI
+- [ ] Polished Fend Your Spend UI
 
 ## Native iOS
 
@@ -39,7 +39,7 @@ Goal: migrate the current Expo app functionality into a Kotlin Multiplatform cor
 - [x] Edit/delete recent eligible ledger entries
 - [x] Daily reminder scheduling from shared settings
 - [x] App Intent / Shortcut action for automated transaction ingest
-- [ ] Polished DailyMint UI
+- [ ] Polished Fend Your Spend UI
 
 ## Retired scope
 

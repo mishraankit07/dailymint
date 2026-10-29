@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
-SIGNING_DIR=$(mktemp -d "$RUNNER_TEMP/dailymint-signing.XXXXXX")
+SIGNING_DIR=$(mktemp -d "$RUNNER_TEMP/fend-your-spend-signing.XXXXXX")
 KEYCHAIN="$SIGNING_DIR/signing.keychain-db"
 KEYCHAIN_PASSWORD=$(openssl rand -hex 32)
 PROFILE_DEST=""
@@ -61,14 +61,14 @@ VERSION_SETTINGS=(CURRENT_PROJECT_VERSION="$BUILD_NUMBER")
 if [ -n "${IOS_MARKETING_VERSION:-}" ]; then
   VERSION_SETTINGS+=(MARKETING_VERSION="$IOS_MARKETING_VERSION")
 fi
-xcodebuild archive -project iosApp/DailyMint.xcodeproj -scheme DailyMint \
+xcodebuild archive -project iosApp/FendYourSpend.xcodeproj -scheme FendYourSpend \
   -configuration Release -destination 'generic/platform=iOS' \
-  -archivePath iosApp/build/DailyMint.xcarchive \
+  -archivePath iosApp/build/FendYourSpend.xcarchive \
   DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Manual \
   CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
   PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
   "${VERSION_SETTINGS[@]}"
-xcodebuild -exportArchive -archivePath iosApp/build/DailyMint.xcarchive \
+xcodebuild -exportArchive -archivePath iosApp/build/FendYourSpend.xcarchive \
   -exportOptionsPlist "$SIGNING_DIR/ExportOptions.plist" -exportPath iosApp/build/export
 
 mkdir -p "$SIGNING_DIR/private_keys"
