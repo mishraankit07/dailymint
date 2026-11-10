@@ -185,40 +185,35 @@ final class FendYourSpendAppDelegate: NSObject, UIApplicationDelegate, UNUserNot
 
 private struct AnimatedBrandSplash: View {
     let onFinished: () -> Void
-    @State private var fendVisible = false
     @State private var spendVisible = false
     @State private var splashOpacity = 1.0
 
     var body: some View {
         GeometryReader { proxy in
-            let scale = min(proxy.size.width / 390, 1.15)
-
             ZStack {
                 Image("SplashBackground")
                     .resizable()
                     .scaledToFill()
 
-                VStack(spacing: 18 * scale) {
-                    HStack(alignment: .center, spacing: 2 * scale) {
+                VStack(spacing: 18) {
+                    HStack(alignment: .center, spacing: 2) {
                         Image("SplashFMark")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 48 * scale, height: 62 * scale)
+                            .frame(width: 53, height: 68)
                         Text("end")
-                            .font(.custom("Georgia-Bold", fixedSize: 62 * scale))
+                            .font(.custom("Georgia-Bold", fixedSize: 68))
                             .foregroundStyle(Color(red: 242 / 255, green: 240 / 255, blue: 228 / 255))
                     }
-                    .opacity(fendVisible ? 1 : 0)
-                    .offset(y: fendVisible ? 0 : 10)
 
-                    HStack(alignment: .center, spacing: 14 * scale) {
+                    HStack(alignment: .center, spacing: 14) {
                         Text("your spend")
-                            .font(.custom("Georgia", fixedSize: 29 * scale))
+                            .font(.custom("Georgia", fixedSize: 29))
                             .foregroundStyle(Color(red: 164 / 255, green: 183 / 255, blue: 174 / 255))
                         Image("SplashMoneyBag")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 28 * scale, height: 34 * scale)
+                            .frame(width: 28, height: 34)
                     }
                     .opacity(spendVisible ? 1 : 0)
                     .offset(y: spendVisible ? 0 : 10)
@@ -230,9 +225,6 @@ private struct AnimatedBrandSplash: View {
         .opacity(splashOpacity)
         .accessibilityHidden(true)
         .task {
-            withAnimation(.easeOut(duration: 0.38)) {
-                fendVisible = true
-            }
             try? await Task.sleep(nanoseconds: 650_000_000)
             withAnimation(.easeOut(duration: 0.38)) {
                 spendVisible = true

@@ -54,7 +54,7 @@ object LedgerAnalytics {
         }
         .sortedByDescending { it.date }
 
-    fun month(entries: List<Entry>, today: String, startDay: Int): MonthSummary {
+    fun month(entries: List<Entry>, today: String, startDay: Int, configuredCategories: List<String> = emptyList()): MonthSummary {
         val now = LedgerDates.date(today)
         val (start, end, selected) = cycle(entries, today, startDay)
         val moneyIn = selected.sumOf { it.earnedIncome }
@@ -64,12 +64,14 @@ object LedgerAnalytics {
         val weekStart = now.minus(DatePeriod(days = now.dayOfWeek.isoDayNumber - 1))
         val weekEnd = weekStart.plus(DatePeriod(days = 7))
         val outflow = spent + invested
-        val expenseCategories = selected.filter { it.type == "expense" && it.personalSpent > 0 }.groupBy { it.category }.map { (name, values) ->
-            val amount = values.sumOf { it.personalSpent }
+        val expenseAmounts = selected.filter { it.type == "expense" && it.personalSpent > 0 }
+            .groupBy { it.category }
+            .mapValues { (_, values) -> values.sumOf { it.personalSpent } }
+        val categoryNames = (configuredCategories + expenseAmounts.keys + if (invested > 0) listOf("Investments") else emptyList()).distinct()
+        val categoryTotals = categoryNames.map { name ->
+            val amount = (expenseAmounts[name] ?: 0L) + if (name == "Investments") invested else 0L
             CategoryTotal(name, amount, if (outflow > 0) amount.toDouble() / outflow * 100 else 0.0)
         }
-        val investmentCategory = if (invested > 0) listOf(CategoryTotal("Investments", invested, invested.toDouble() / outflow * 100)) else emptyList()
-        val categoryTotals = (expenseCategories + investmentCategory)
             .sortedWith(compareBy<CategoryTotal> { it.name == "Miscellaneous" }.thenByDescending { it.paise }.thenBy { it.name })
         val days = selected.groupBy { LedgerDates.date(it.date).toString() }.map { (date, items) ->
             DayGroup(date, items.sumOf { it.earnedIncome },

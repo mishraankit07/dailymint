@@ -29,6 +29,17 @@ class LedgerParityTest {
         assertEquals("Miscellaneous", summary.categories.last().name)
         assertEquals(100.0, summary.categories.sumOf { it.percent }, 0.0001)
     }
+    @Test fun monthSummaryIncludesEveryConfiguredCategory() {
+        val engine = LedgerEngine(MemoryStore())
+        assertTrue(engine.addEntry("food", "Lunch", "200", "Food", "2026-09-13", false).success)
+
+        val categories = engine.monthSummary("2026-09-13").categories
+
+        assertEquals(engine.categories().toSet(), categories.map { it.name }.toSet())
+        assertEquals(20000, categories.first { it.name == "Food" }.paise)
+        assertEquals(0, categories.first { it.name == "Home" }.paise)
+        assertEquals(0.0, categories.first { it.name == "Home" }.percent)
+    }
     @Test fun editAndCategoryDeletePreserveAccountingIdentity() {
         val store = MemoryStore()
         val engine = LedgerEngine(store)

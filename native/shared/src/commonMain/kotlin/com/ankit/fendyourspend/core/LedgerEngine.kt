@@ -269,7 +269,8 @@ class LedgerEngine(private val store: LedgerStore) {
     fun today(): String = LedgerDates.today().toString()
     fun transactionDay(date: String): String = LedgerDates.date(date).toString()
     fun suggestCategory(name: String, income: Boolean): String = MerchantTagger.category(name, income, snapshot.learnedRules, snapshot.categories)
-    fun monthSummary(today: String): MonthSummary = LedgerAnalytics.month(snapshot.entries, today, snapshot.monthStartDay)
+    fun monthSummary(today: String): MonthSummary =
+        LedgerAnalytics.month(snapshot.entries, today, snapshot.monthStartDay, snapshot.categories)
     fun ledgerDays(): List<DayGroup> = ledgerDays(today())
     fun ledgerDays(today: String): List<DayGroup> = LedgerAnalytics.ledgerDays(snapshot.entries, today, snapshot.monthStartDay)
     fun trendBuckets(today: String, years: Boolean, count: Int): List<TrendBucket> = LedgerAnalytics.trends(snapshot.entries, today, years, count)
