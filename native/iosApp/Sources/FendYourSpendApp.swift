@@ -146,6 +146,7 @@ enum ReminderScheduler {
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") { return }
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["daily-check-in"])
+        center.removeDeliveredNotifications(withIdentifiers: ["daily-check-in"])
         guard engine.reminderEnabled() else { return }
         let parts = engine.reminderTime().split(separator: ":").compactMap { Int($0) }
         guard parts.count == 2 else { return }
@@ -351,6 +352,9 @@ struct FendYourSpendApp: App {
                 if phase == .active {
                     model.reload()
                 }
+            }
+            .task {
+                ReminderScheduler.apply(engine: model.engine)
             }
             .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
                 if scenePhase == .active { model.refreshIfChanged() }
