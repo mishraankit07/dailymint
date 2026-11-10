@@ -782,7 +782,7 @@ struct SettingsView: View {
                 .font(.subheadline)
                 .foregroundStyle(Color.dmInkSoft)
             Button {
-                guard let url = URL(string: "https://mishraankit07.github.io/dailymint-privacy/") else { return }
+                guard let url = URL(string: "https://mishraankit07.github.io/fend-your-spend-privacy/") else { return }
                 openURL(url)
             } label: {
                 Label("View privacy policy", systemImage: "arrow.up.right.square")
