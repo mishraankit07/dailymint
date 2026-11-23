@@ -9,7 +9,7 @@ on:
       release_version:
         description: App Store version in major.minor.patch format
         required: true
-        default: 1.0.0
+        default: 1.0.1
         type: string
       production_build:
         description: Unused production build number, for example 1
@@ -82,7 +82,7 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
-            echo 'release_version must use major.minor.patch format, such as 1.0.0.' >&2
+            echo 'release_version must use major.minor.patch format, such as 1.0.1.' >&2
             exit 1
           }
           [[ "$PRODUCTION_BUILD" =~ ^[1-9][0-9]*(\.[0-9]+){0,2}$ ]] || {
