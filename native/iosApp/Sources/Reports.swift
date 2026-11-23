@@ -205,8 +205,20 @@ struct CategoryLine: View {
     let amount: String
     private var fill: Double { min(1, max(0, percentOfMoneyIn / 100)) }
     var body: some View {
-        HStack(spacing: 10) {
-            Text(name).font(.caption.weight(.semibold)).foregroundStyle(Color.dmInk).frame(width: 98, alignment: .leading)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(name)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.dmInk)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(amount)
+                    .font(.caption)
+                    .foregroundStyle(Color.dmInkSoft)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .layoutPriority(1)
+            }
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.dmHairline)
@@ -217,7 +229,6 @@ struct CategoryLine: View {
             }
             .frame(height: 6)
             .accessibilityHidden(true)
-            Text(amount).font(.caption).foregroundStyle(Color.dmInkSoft).frame(width: 82, alignment: .trailing)
         }
         .padding(.vertical, 7)
     }

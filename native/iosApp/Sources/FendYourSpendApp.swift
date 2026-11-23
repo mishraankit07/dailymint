@@ -301,6 +301,9 @@ struct FendYourSpendApp: App {
                         persistentDestination(.home) { MonthView(model: model) }
                         persistentDestination(.growth) { GrowthView(model: model) }
                         persistentDestination(.ledger) { LedgerView(model: model) }
+                        persistentDestination(.add) {
+                            ConversationAddView(model: model) { showingAdd = true }
+                        }
                         if transactionSavedToastVisible {
                             Text("Transaction Saved!")
                                 .font(.subheadline.weight(.semibold))
@@ -329,7 +332,7 @@ struct FendYourSpendApp: App {
                                 isCenterAction: { $0 == .add },
                                 action: { tab in
                                     dismissKeyboard()
-                                    if tab == .add { showingAdd = true } else { selectedTab = tab }
+                                    selectedTab = tab
                                 }
                             )
                         }

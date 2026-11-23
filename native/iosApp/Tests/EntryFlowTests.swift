@@ -40,6 +40,59 @@ final class EntryFlowTests: XCTestCase {
             field.typeText(String(character))
         }
     }
+    private func openManualEntry() {
+        tapTab("Add")
+        let manual = app.buttons["openManualEntry"]
+        XCTAssertTrue(manual.waitForExistence(timeout: 5))
+        manual.tap()
+    }
+
+    func testConversationSavesAndPersistsReadOnlyHistory() {
+        tapTab("Add")
+        let input = app.descendants(matching: .any)["conversationInput"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        input.tap()
+        input.typeText("Paid 150 at Starbucks")
+        app.buttons["sendTransaction"].tap()
+        XCTAssertTrue(app.staticTexts["Paid 150 at Starbucks"].waitForExistence(timeout: 5))
+        let receipt = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "journalReceipt-", "Rs 150 spent")
+        ).firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 5))
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        tapTab("Add")
+        XCTAssertTrue(app.staticTexts["Paid 150 at Starbucks"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Edit"].exists)
+        tapTab("Home")
+        XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Spent: Rs 150")
+    }
+
+    func testConversationRejectsInvalidAmountInHistoryAndClearsComposer() {
+        tapTab("Add")
+        let input = app.descendants(matching: .any)["conversationInput"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        input.tap()
+        input.typeText("Paid 1000001 at Cafe")
+        app.buttons["sendTransaction"].tap()
+        let error = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "journalReceipt-", "Amount cannot exceed Rs 10,00,000."
+        )).firstMatch
+        XCTAssertTrue(error.waitForExistence(timeout: 5))
+        XCTAssertTrue(error.label.contains("Not saved"))
+        XCTAssertNotEqual(input.value as? String, "Paid 1000001 at Cafe")
+        input.typeText("Paid 150 at Cafe")
+        app.buttons["sendTransaction"].tap()
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        tapTab("Add")
+        XCTAssertTrue(app.staticTexts["Paid 1000001 at Cafe"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Paid 150 at Cafe"].exists)
+        tapTab("Home")
+        XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Spent: Rs 150")
+    }
     private func staticText(withLabel label: String) -> XCUIElement {
         app.staticTexts.matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
@@ -71,11 +124,11 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertTrue(app.textFields["categoryName"].exists)
     }
     func testCategoriesCanOnlyBeCreatedFromSettings() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         XCTAssertFalse(app.buttons["addCategoryFromEntry"].exists)
     }
     func testAddHintsFollowTransactionType() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         let name = app.textFields["entryName"]
         let amount = app.textFields["entryAmount"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
@@ -130,10 +183,10 @@ final class EntryFlowTests: XCTestCase {
                 XCTAssertFalse(app.staticTexts["Full calendar years"].exists)
             }
         }
-        app.buttons["Add"].tap()
+        openManualEntry()
         XCTAssertTrue(app.textFields["entryName"].waitForExistence(timeout: 5))
         app.buttons["cancelEntry"].tap()
-        XCTAssertTrue(app.buttons["Ledger"].isSelected)
+        XCTAssertTrue(app.buttons["Add"].isSelected)
     }
     func testHomeGreetingFollowsTimeOfDay() {
         app.terminate()
@@ -236,7 +289,7 @@ final class EntryFlowTests: XCTestCase {
     }
 
     func testDecimalExpenseUpdatesLedger() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Lunch")
         app.textFields["entryAmount"].tap()
@@ -256,6 +309,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(toast.label, "Transaction Saved!")
         XCTAssertTrue(toast.waitForNonExistence(timeout: 4))
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        tapTab("Home")
         let month = app.buttons["Home"]
         let selected = NSPredicate(format: "selected == true")
         expectation(for: selected, evaluatedWith: month)
@@ -271,7 +325,7 @@ final class EntryFlowTests: XCTestCase {
     }
 
     func testAddAmountRejectsInputAboveTransactionLimit() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         let amount = app.textFields["entryAmount"]
         amount.tap()
         amount.typeText("1000000")
@@ -284,7 +338,7 @@ final class EntryFlowTests: XCTestCase {
     }
 
     func testAddNameRejectsInputBeyondMaximumLength() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         let name = app.textFields["entryName"]
         let maximumName = String(repeating: "A", count: 120)
         name.tap()
@@ -296,7 +350,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertEqual(error.label, "Name cannot exceed 120 characters.")
     }
     func testAddSaveShowsValidationBelowNameAndAmount() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
@@ -310,7 +364,7 @@ final class EntryFlowTests: XCTestCase {
         XCTAssertFalse(app.staticTexts["entryError"].exists)
     }
     func testIncomeEntryUpdatesMoneyInOnly() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         app.buttons["Credit"].tap()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Salary")
@@ -320,13 +374,14 @@ final class EntryFlowTests: XCTestCase {
         if !save.isHittable { app.swipeUp() }
         save.tap()
         XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 5))
+        tapTab("Home")
         XCTAssertTrue(app.descendants(matching: .any)["moneyIn"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Money in: Rs 1,234")
         XCTAssertEqual(app.descendants(matching: .any)["spent"].label, "Spent: Rs 0")
     }
 
     func testSettlementIsVisibleButNotEarnedIncome() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         app.buttons["Credit"].tap()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Expense reimbursement")
@@ -338,13 +393,14 @@ final class EntryFlowTests: XCTestCase {
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
+        tapTab("Home")
         XCTAssertEqual(app.descendants(matching: .any)["moneyIn"].label, "Money in: Rs 0")
         app.buttons["Ledger"].tap()
         XCTAssertTrue(app.staticTexts["Expense reimbursement"].waitForExistence(timeout: 5))
     }
 
     func testManualExpenseUsesEnteredPersonalAmountWithoutSplitControls() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Dinner")
         app.textFields["entryAmount"].tap()
@@ -358,6 +414,7 @@ final class EntryFlowTests: XCTestCase {
         let save = app.buttons["saveEntry"]
         if !save.isHittable { app.swipeUp() }
         save.tap()
+        tapTab("Home")
         let spent = app.descendants(matching: .any)["spent"]
         XCTAssertTrue(spent.waitForExistence(timeout: 5))
         XCTAssertEqual(spent.label, "Spent: Rs 800")
@@ -541,7 +598,7 @@ final class EntryFlowTests: XCTestCase {
     }
 
     func testManualEditorShowsEditableDateWithoutCaptureMetadata() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Lunch")
         app.textFields["entryAmount"].tap()
@@ -581,7 +638,7 @@ final class EntryFlowTests: XCTestCase {
     }
 
     func testManualEditorFormatsZerosAppendedToExistingAmount() {
-        app.buttons["Add"].tap()
+        openManualEntry()
         app.textFields["entryName"].tap()
         app.textFields["entryName"].typeText("Laptop")
         app.textFields["entryAmount"].tap()

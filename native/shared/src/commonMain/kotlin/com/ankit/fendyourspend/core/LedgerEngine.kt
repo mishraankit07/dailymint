@@ -80,7 +80,7 @@ data class IncomingSms(val id: String, val body: String, val sender: String, val
 
 @Serializable
 data class Snapshot(
-    val schemaVersion: Int = 5,
+    val schemaVersion: Int = 6,
     val categories: List<String> = listOf("Home", "Groceries", "Food", "Fun", "Gym", "Self", "Investments", "Miscellaneous"),
     val entries: List<Entry> = emptyList(),
     val learnedRules: Map<String, String> = emptyMap(),
@@ -90,7 +90,8 @@ data class Snapshot(
     val review: List<ReviewRow> = emptyList(),
     val reviewFile: String = "",
     val smsWatermark: Long = 0,
-    val unrecognized: List<ReviewRow> = emptyList()
+    val unrecognized: List<ReviewRow> = emptyList(),
+    val journal: List<JournalMessage> = emptyList()
 )
 
 data class SaveResult(val success: Boolean, val message: String)
@@ -172,14 +173,14 @@ class LedgerEngine(private val store: LedgerStore) {
         try {
             store.load().snapshot?.let {
                 val loaded = Json.decodeFromString<Snapshot>(it)
-                require(loaded.schemaVersion in 1..5)
+                require(loaded.schemaVersion in 1..6)
                 require(loaded.categories.contains("Miscellaneous"))
                 require(loaded.categories.map(String::lowercase).distinct().size == loaded.categories.size)
                 val migratedEntries = loaded.entries
                     .filterNot { entry -> entry.ignored }
                     .map { entry -> migrateEntry(entry, loaded.schemaVersion) }
                 val migrated = loaded.copy(
-                    schemaVersion = 5,
+                    schemaVersion = 6,
                     entries = migratedEntries,
                     review = loaded.review.map { row ->
                         row.copy(entry = row.entry?.let { entry -> migrateEntry(entry, loaded.schemaVersion) })
@@ -187,6 +188,13 @@ class LedgerEngine(private val store: LedgerStore) {
                     unrecognized = emptyList()
                 )
                 require(migrated.entries.size <= 100_000)
+                require(migrated.journal.size <= 100_000)
+                require(migrated.journal.map { it.entryId }.distinct().size == migrated.journal.size)
+                require(migrated.journal.all {
+                    it.text.length <= 10_000 && it.entryId.isNotBlank() &&
+                        (it.originalEntry?.let { entry -> it.entryId == entry.id && it.error.isEmpty() }
+                            ?: (it.error.isNotBlank() && it.createdAtMillis > 0))
+                })
                 require(migrated.entries.map { entry -> entry.id }.distinct().size == migrated.entries.size)
                 require(migrated.entries.all { entry ->
                     entry.paise in 1..100_000_000_000L && validDate(entry.date) &&
@@ -211,6 +219,43 @@ class LedgerEngine(private val store: LedgerStore) {
     }
     fun categories(): List<String> = snapshot.categories
     fun entries(): List<Entry> = snapshot.entries
+    fun journalMessages(): List<JournalMessage> = snapshot.journal
+    fun submitConversationEntry(id: String, message: String): ConversationSubmitResult {
+        // Retrying the same submission must never create a second transaction.
+        snapshot.journal.firstOrNull { it.entryId == id }?.let {
+            return ConversationSubmitResult(true, false, it.error)
+        }
+        loadError?.let { return ConversationSubmitResult(false, true, it) }
+        if (id.isBlank() || message.length > 10_000 || snapshot.journal.size >= 100_000) {
+            return ConversationSubmitResult(false, false, "Message or history limit reached.")
+        }
+        val parsed = ConversationParser.parse(message, today())
+        val draft = parsed.draft
+        val validationError = parsed.error ?: draft?.let {
+            manualAmountValidationError(it.amount) ?: manualNameValidationError(it.name)
+        }
+        if (validationError != null) {
+            val result = commit(snapshot.copy(journal = snapshot.journal + JournalMessage(
+                id, message.trim(), error = validationError, createdAtMillis = Clock.System.now().toEpochMilliseconds()
+            )))
+            return ConversationSubmitResult(result.success, !result.success,
+                if (result.success) validationError else result.message)
+        }
+        if (snapshot.entries.size >= 100_000) return ConversationSubmitResult(false, false, "Ledger capacity reached.")
+        val result = addConversationEntry(id, message)
+        return ConversationSubmitResult(result.success, !result.success, result.message)
+    }
+    fun conversationInputValidationError(message: String): String? {
+        if (message.length > 500) return "Keep your message within 500 characters."
+        val draft = ConversationParser.parse(message, today()).draft ?: return null
+        return manualAmountValidationError(draft.amount) ?: manualNameValidationError(draft.name)
+    }
+    fun addConversationEntry(id: String, message: String): SaveResult {
+        val parsed = ConversationParser.parse(message, today())
+        val draft = parsed.draft ?: return SaveResult(false, parsed.error ?: "Could not read this transaction.")
+        return saveManualEntry(id, draft.name, draft.amount, suggestCategory(draft.name, draft.income),
+            draft.date, draft.income, SplitMethod.NONE, 0, "", message.trim())
+    }
     fun reviewRows(): List<ReviewRow> = snapshot.review
     fun reviewFile(): String = snapshot.reviewFile
     fun monthStartDay(): Int = snapshot.monthStartDay
@@ -452,25 +497,32 @@ class LedgerEngine(private val store: LedgerStore) {
     }
     fun addEntryWithSplit(id: String, name: String, amount: String, category: String, date: String, income: Boolean,
         splitMethod: String, splitPeopleCount: Int, personalAmount: String): SaveResult {
+        return saveManualEntry(id, name, amount, category, date, income, splitMethod, splitPeopleCount, personalAmount, "")
+    }
+    private fun saveManualEntry(id: String, name: String, amount: String, category: String, date: String, income: Boolean,
+        splitMethod: String, splitPeopleCount: Int, personalAmount: String, message: String): SaveResult {
         manualAmountValidationError(amount)?.let { return SaveResult(false, it) }
         val paise = Money.parse(amount)!!
-        if (id.isBlank() || snapshot.entries.any { it.id == id }) return SaveResult(false, "This record already exists.")
+        if (id.isBlank() || snapshot.entries.any { it.id == id } || snapshot.journal.any { it.entryId == id }) return SaveResult(false, "This record already exists.")
         manualNameValidationError(name)?.let { return SaveResult(false, it) }
         if (!validDate(date)) return SaveResult(false, "Choose a valid transaction date.")
         if (LedgerDates.date(date) > LedgerDates.today()) return SaveResult(false, "Transaction date cannot be in the future.")
         val allowed = if (income) CreditKind.all.map(CreditKind::label) else snapshot.categories
         if (category !in allowed) return SaveResult(false, "Choose a valid category.")
         if (snapshot.entries.size >= 100_000) return SaveResult(false, "Ledger capacity reached.")
+        if (snapshot.journal.size >= 100_000) return SaveResult(false, "Entry history capacity reached.")
         val type = if (income) "income" else if (category == "Investments") "investment" else "expense"
         if (splitMethod != SplitMethod.NONE || splitPeopleCount != 0 || personalAmount.isNotBlank()) {
             return SaveResult(false, "Manual entries record the amount that counts as your personal spending.")
         }
-        return commit(snapshot.copy(entries = snapshot.entries + Entry(id, name.trim(), paise, category, date, type,
+        val entry = Entry(id, name.trim(), paise, category, date, type,
             capturedAtMillis = Clock.System.now().toEpochMilliseconds(),
             personalExpensePaise = null,
             creditKind = if (income) CreditKind.fromLabel(category) else null,
             splitMethod = SplitMethod.NONE,
-            splitPeopleCount = null),
+            splitPeopleCount = null)
+        return commit(snapshot.copy(entries = snapshot.entries + entry,
+            journal = snapshot.journal + JournalMessage(id, message, entry),
             learnedRules = learn(name, category)))
     }
     internal fun commit(next: Snapshot): SaveResult {

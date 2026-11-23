@@ -119,14 +119,14 @@ class PersonalExpenseTest {
         val store = MemoryStore().apply { value = Json.encodeToString(old) }
         val engine = LedgerEngine(store)
         assertNull(engine.loadError)
-        assertEquals(5, engine.snapshot.schemaVersion)
+        assertEquals(6, engine.snapshot.schemaVersion)
         assertEquals(20000, engine.totals().moneyIn)
         assertEquals(CreditKind.INCOME, engine.entries().last().effectiveCreditKind())
         assertEquals("Income", engine.entries().last().category)
         assertEquals(1234, engine.smsWatermark())
         assertEquals("Bank SMS", engine.entries().first().rawSms)
         assertTrue(engine.addCategory("Travel").success)
-        assertEquals(5, Json.decodeFromString<Snapshot>(store.value!!).schemaVersion)
+        assertEquals(6, Json.decodeFromString<Snapshot>(store.value!!).schemaVersion)
     }
 
     @Test fun correctionAndDeletionPreserveIdentityContract() {
@@ -239,7 +239,7 @@ class PersonalExpenseTest {
         val engine = LedgerEngine(MemoryStore().apply { value = Json.encodeToString(old) })
 
         assertNull(engine.loadError)
-        assertEquals(5, engine.snapshot.schemaVersion)
+        assertEquals(6, engine.snapshot.schemaVersion)
         assertEquals(listOf("salary", "other", "refund", "reimbursement", "transfer"), engine.entries().map { it.id })
         assertEquals(listOf(10000L, 20000L, 30000L, 40000L, 50000L), engine.entries().map { it.paise })
         assertEquals(listOf("Income", "Income", "Settlement", "Settlement", "Own account transfer"),
@@ -316,7 +316,7 @@ class PersonalExpenseTest {
         val store = MemoryStore().apply { value = Json.encodeToString(old) }
         val engine = LedgerEngine(store)
         assertNull(engine.loadError)
-        assertEquals(5, engine.snapshot.schemaVersion)
+        assertEquals(6, engine.snapshot.schemaVersion)
         assertEquals(listOf("kept"), engine.entries().map { it.id })
         assertEquals(10000, engine.totals().spent)
     }
