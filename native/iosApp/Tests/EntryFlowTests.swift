@@ -51,7 +51,12 @@ final class EntryFlowTests: XCTestCase {
         tapTab("Add")
         let input = app.descendants(matching: .any)["conversationInput"]
         XCTAssertTrue(input.waitForExistence(timeout: 5))
+        XCTAssertTrue(input.isHittable)
+        XCTAssertLessThan(input.frame.maxY, app.buttons["tab-Add"].frame.minY)
         input.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["tab-Add"].waitForNonExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(input.frame.maxY, app.keyboards.firstMatch.frame.minY)
         input.typeText("Paid 150 at Starbucks")
         app.buttons["sendTransaction"].tap()
         XCTAssertTrue(app.staticTexts["Paid 150 at Starbucks"].waitForExistence(timeout: 5))

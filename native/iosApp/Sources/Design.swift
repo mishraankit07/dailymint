@@ -167,11 +167,11 @@ struct DockedTabBar<Tab: Hashable>: View {
                     VStack(spacing: 2) {
                         ZStack {
                             Circle()
-                                .fill(selected == tab && !isCenterAction(tab) ? Color.dmFlowSoft : Color.clear)
+                                .fill(selected == tab ? Color.dmFlowSoft : Color.clear)
                                 .frame(width: 36, height: 36)
                                 .overlay(
                                     Circle().stroke(
-                                        selected == tab && !isCenterAction(tab)
+                                        selected == tab
                                             ? Color.dmNavSelected.opacity(0.45)
                                             : (isCenterAction(tab) ? Color.dmHairline : Color.clear),
                                         lineWidth: 1
@@ -179,12 +179,12 @@ struct DockedTabBar<Tab: Hashable>: View {
                                 )
                             Image(systemName: icon(tab))
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(selected == tab && !isCenterAction(tab) ? Color.dmNavSelected : Color.dmInkSoft)
+                                .foregroundStyle(selected == tab ? Color.dmNavSelected : Color.dmInkSoft)
                         }
                         .frame(height: 36)
                         Text(title(tab))
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(selected == tab && !isCenterAction(tab) ? Color.dmNavSelected : Color.dmInkSoft)
+                            .foregroundStyle(selected == tab ? Color.dmNavSelected : Color.dmInkSoft)
                     }
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .contentShape(Rectangle())
@@ -193,7 +193,7 @@ struct DockedTabBar<Tab: Hashable>: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(title(tab))
                 .accessibilityIdentifier("tab-" + title(tab))
-                .accessibilityAddTraits(selected == tab && !isCenterAction(tab) ? .isSelected : [])
+                .accessibilityAddTraits(selected == tab ? .isSelected : [])
             }
         }
         .frame(height: 50)

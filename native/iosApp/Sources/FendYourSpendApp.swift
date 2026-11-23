@@ -297,32 +297,32 @@ struct FendYourSpendApp: App {
                 if !onboardingSeen && (!ProcessInfo.processInfo.arguments.contains("--ui-testing") || ProcessInfo.processInfo.arguments.contains("--show-onboarding")) {
                     SMSOnboardingView { onboardingSeen = true }
                 } else {
-                    ZStack {
-                        persistentDestination(.home) { MonthView(model: model) }
-                        persistentDestination(.growth) { GrowthView(model: model) }
-                        persistentDestination(.ledger) { LedgerView(model: model) }
-                        persistentDestination(.add) {
-                            ConversationAddView(model: model) { showingAdd = true }
+                    VStack(spacing: 0) {
+                        ZStack {
+                            persistentDestination(.home) { MonthView(model: model) }
+                            persistentDestination(.growth) { GrowthView(model: model) }
+                            persistentDestination(.ledger) { LedgerView(model: model) }
+                            persistentDestination(.add) {
+                                ConversationAddView(model: model) { showingAdd = true }
+                            }
+                            if transactionSavedToastVisible {
+                                Text("Transaction Saved!")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Color.dmPaper)
+                                    .padding(.horizontal, 18)
+                                    .frame(minHeight: 44)
+                                    .background(Color.dmInk)
+                                    .clipShape(Capsule())
+                                    .shadow(color: Color.black.opacity(0.18), radius: 10, y: 4)
+                                    .padding(.horizontal, 20)
+                                    .padding(.bottom, 12)
+                                    .frame(maxHeight: .infinity, alignment: .bottom)
+                                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                                    .accessibilityIdentifier("transactionSavedToast")
+                                    .allowsHitTesting(false)
+                                    .zIndex(20)
+                            }
                         }
-                        if transactionSavedToastVisible {
-                            Text("Transaction Saved!")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Color.dmPaper)
-                                .padding(.horizontal, 18)
-                                .frame(minHeight: 44)
-                                .background(Color.dmInk)
-                                .clipShape(Capsule())
-                                .shadow(color: Color.black.opacity(0.18), radius: 10, y: 4)
-                                .padding(.horizontal, 20)
-                                .padding(.bottom, 12)
-                                .frame(maxHeight: .infinity, alignment: .bottom)
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
-                                .accessibilityIdentifier("transactionSavedToast")
-                                .allowsHitTesting(false)
-                                .zIndex(20)
-                        }
-                    }
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
                         if !keyboardVisible {
                             DockedTabBar(
                                 tabs: AppTab.allCases,
