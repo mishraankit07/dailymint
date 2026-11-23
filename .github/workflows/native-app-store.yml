@@ -3,8 +3,13 @@ on:
   workflow_dispatch:
     inputs:
       tested_build:
-        description: Approved TestFlight build number, for example 34.1
+        description: Tested TestFlight build number, for example 2 or 34.1
         required: true
+        type: string
+      tested_release_version:
+        description: Release version of the tested TestFlight build
+        required: true
+        default: "1.0.1"
         type: string
       release_version:
         description: App Store version in major.minor.patch format
@@ -35,21 +40,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TESTED_BUILD: ${{ inputs.tested_build }}
+          TESTED_RELEASE_VERSION: ${{ inputs.tested_release_version }}
         run: |
-          [[ "$TESTED_BUILD" =~ ^[1-9][0-9]*\.[1-9][0-9]*$ ]] || {
-            echo 'tested_build must use the TestFlight workflow format, such as 34.1.' >&2
+          [[ "$TESTED_BUILD" =~ ^[1-9][0-9]*(\.[0-9]+){0,2}$ ]] || {
+            echo 'tested_build must contain one to three period-separated integers.' >&2
             exit 1
           }
-          run_number="${TESTED_BUILD%%.*}"
-          run_attempt="${TESTED_BUILD##*.}"
-          run_json=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow native-testflight.yml \
-            --limit 1000 --json number,attempt,conclusion,headSha \
-            --jq ".[] | select(.number == $run_number and .attempt == $run_attempt and .conclusion == \"success\")")
-          test -n "$run_json" || {
-            echo "No successful Native TestFlight run produced build $TESTED_BUILD." >&2
+          [[ "$TESTED_RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow native-testflight.yml \
+            --limit 1000 --json number,attempt,conclusion,headSha,displayTitle)
+          matches=$(jq --arg title "TestFlight $TESTED_RELEASE_VERSION ($TESTED_BUILD)" \
+            '[.[] | select(.displayTitle == $title and .conclusion == "success")]' <<<"$runs")
+          # Older runs used run.attempt as the build and did not have a versioned title.
+          if [ "$(jq length <<<"$matches")" -eq 0 ] && [[ "$TESTED_BUILD" =~ ^[1-9][0-9]*\.[1-9][0-9]*$ ]]; then
+            matches=$(jq --argjson number "${TESTED_BUILD%%.*}" --argjson attempt "${TESTED_BUILD##*.}" \
+              '[.[] | select(.number == $number and .attempt == $attempt and .conclusion == "success" and (.displayTitle | startswith("TestFlight ") | not))]' <<<"$runs")
+          fi
+          test "$(jq length <<<"$matches")" -eq 1 || {
+            echo "Expected exactly one successful TestFlight run for $TESTED_RELEASE_VERSION ($TESTED_BUILD)." >&2
             exit 1
           }
-          source_sha=$(jq -r '.headSha' <<<"$run_json")
+          source_sha=$(jq -r '.[0].headSha' <<<"$matches")
           echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
           echo "Resolved TestFlight build $TESTED_BUILD to $source_sha"
       - uses: actions/checkout@v4

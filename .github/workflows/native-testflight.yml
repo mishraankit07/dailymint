@@ -1,6 +1,17 @@
 name: Native TestFlight
+run-name: TestFlight ${{ inputs.release_version }} (${{ inputs.build_number }})
 on:
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: Release version (CFBundleShortVersionString), for example 1.0.1
+        required: true
+        default: "1.0.1"
+        type: string
+      build_number:
+        description: New unused build number (CFBundleVersion), for example 2 or 42.1
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -10,11 +21,24 @@ jobs:
   release:
     runs-on: macos-15
     timeout-minutes: 60
+    env:
+      IOS_MARKETING_VERSION: ${{ inputs.release_version }}
+      IOS_BUILD_NUMBER: ${{ inputs.build_number }}
     defaults:
       run:
         working-directory: native
     steps:
       - uses: actions/checkout@v4
+      - name: Validate version inputs
+        run: |
+          [[ "$IOS_MARKETING_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo 'Release version must use major.minor.patch format.' >&2
+            exit 1
+          }
+          [[ "$IOS_BUILD_NUMBER" =~ ^[1-9][0-9]*(\.[0-9]+){0,2}$ ]] || {
+            echo 'Build number must contain one to three period-separated integers.' >&2
+            exit 1
+          }
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
@@ -43,7 +67,7 @@ jobs:
       - name: Verify shared code and SwiftUI build on release toolchain
         run: |
           if [ "$(uname -m)" = arm64 ]; then ./gradlew :shared:iosSimulatorArm64Test; else ./gradlew :shared:iosX64Test; fi
-          xcodebuild build -project iosApp/FendYourSpend.xcodeproj -scheme FendYourSpend -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO
+          xcodebuild build -project iosApp/FendYourSpend.xcodeproj -scheme FendYourSpend -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO MARKETING_VERSION="$IOS_MARKETING_VERSION" CURRENT_PROJECT_VERSION="$IOS_BUILD_NUMBER"
       - name: Sign, archive and upload Fend Your Spend
         env:
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
